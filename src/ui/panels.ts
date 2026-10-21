@@ -72,7 +72,7 @@ export function statusPanel(h: Host): void {
   kv(m, L, y, '升级还需经验', expToNext(p.level) - p.exp);
   y += 16;
   kv(m, L, y, '银两', p.silver);
-  kv(m, R, y, '金砖', p.gold, C.gold);
+  kv(m, R, y, '金砖', p.gold, C.darkRed);
   y += 16;
   kv(m, L, y, '绑定银', p.boundSilver);
   kv(m, R, y, '居住地', '新手村');
@@ -403,7 +403,7 @@ export function questPanel(h: Host): void {
     const r = q.reward;
     const rw = [r.exp ? `经验${r.exp}` : '', r.silver ? `银两${r.silver}` : '', ...Object.entries(r.items ?? {}).map(([id, n]) => `${items[id].name}×${n}`)].filter(Boolean).join('、');
     m.inner.add(text(h, m.cx + 8, y + 108, '任务奖励：', { color: C.brown }));
-    m.inner.add(text(h, m.cx + 68, y + 108, rw, { wrap: m.cw - 80, color: C.gold }));
+    m.inner.add(text(h, m.cx + 68, y + 108, rw, { wrap: m.cw - 80, color: C.darkRed }));
     y += 156;
     const dest = questDestination(s);
     m.inner.add(new Button(h, m.cx, y, m.cw, 28, dest ? `开启寻路 → ${locations[dest].name}` : '开启寻路', () => {
@@ -730,7 +730,7 @@ function bountyPanel(h: Host): void {
       done(h, r);
     }));
     m.inner.add(text(h, m.cx + 10, y + 10, `打败${o.count}个${monsters[o.monster].name}`, { color: C.darkRed }));
-    m.inner.add(text(h, m.cx + m.cw - 10, y + 10, `赏银${o.silver}两`, { align: 'right', color: C.gold }));
+    m.inner.add(text(h, m.cx + m.cw - 10, y + 10, `赏银${o.silver}两`, { align: 'right', color: C.darkRed }));
   });
   m.inner.add(text(h, m.cx, m.cy + 150, '小偷在村北山林、村南草原、村西荒山；草寇在村南草原、村西荒山；盗贼在村东竹林。', { wrap: m.cw, color: C.gray }));
 }

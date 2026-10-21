@@ -692,7 +692,7 @@ export class BattleScene extends Phaser.Scene {
       for (const r of sum.rows) {
         c.add(text(this, x + 14, yy, r.name));
         c.add(text(this, x + 170, yy, `+${r.exp}`, { color: C.green }));
-        c.add(text(this, x + 240, yy, r.silver ? `+${r.silver}` : '-', { color: C.gold }));
+        c.add(text(this, x + 240, yy, r.silver ? `+${r.silver}` : '-', { color: C.darkRed }));
         yy += 18;
       }
     }

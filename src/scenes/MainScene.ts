@@ -127,7 +127,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
 
     const iy = gy + 44;
     this.layer.add(text(this, x + 6, iy, `银：${moneyText(p.silver)}`, { color: C.darkBrown }));
-    this.layer.add(text(this, x + 70, iy, `金：${moneyText(p.gold)}`, { color: C.gold }));
+    this.layer.add(text(this, x + 70, iy, `金：${moneyText(p.gold)}`, { color: C.darkRed }));
     this.layer.add(text(this, x + 6, iy + 18, `升级还需经验：${expToNext(p.level) - p.exp}`, { color: C.brown }));
     this.layer.add(bar(this, x + 6, iy + 34, 118, 5, p.exp / expToNext(p.level), C.gold, C.sand));
     if (p.free > 0) {
@@ -269,7 +269,8 @@ export class MainScene extends Phaser.Scene implements P.Host {
         this.refresh();
       }, { style: 'red' }));
     }
-    this.layer.add(text(this, x + 2, y + 124, '「功能 → 任务」里可以开启寻路，自动走到任务地点。', { wrap: w - 6, color: C.gray }));
+    const rows = exits.length + (s.location !== 'xinshoucun' && !exits.some((e) => e.to === 'xinshoucun') ? 1 : 0);
+    this.layer.add(text(this, x + 2, y + Math.max(118, rows * 34) + 6, '「功能 → 任务」里可以开启寻路，自动走到任务地点。', { wrap: w - 6, color: C.gray }));
   }
 
   private drawFunc(x: number, y: number, w: number): void {
