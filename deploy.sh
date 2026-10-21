@@ -5,5 +5,6 @@ cd "$(dirname "$0")"
 npm test
 npm run build
 mkdir -p /var/www/sanguo
-rsync -a --delete dist/ /var/www/sanguo/
+find /var/www/sanguo -mindepth 1 -delete
+cp -r dist/. /var/www/sanguo/
 echo "已发布：https://ops.ivyea.com/sanguo/"
