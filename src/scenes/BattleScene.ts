@@ -11,6 +11,8 @@ import {
   needsCommand, predictOrder, resolveRound, unit,
 } from '../core/battle';
 import type { BEvent, BUnit, Battle, Command, CommandType } from '../core/battle';
+import { createBattle } from '../core/battle';
+import type { ReplayRecord } from '../game/state';
 import { STATUS_NAMES } from '../core/types';
 import { finishBattle } from '../game/encounter';
 import type { BattleSummary } from '../game/encounter';
@@ -28,7 +30,8 @@ const ENEMY_SLOTS: Record<0 | 1, [number, number][]> = {
   0: [[96, 232], [96, 304], [96, 376]],
   1: [[40, 268], [40, 340]],
 };
-const ALLY_SLOTS: [number, number][] = [[306, 282], [262, 366]];
+// 主角、出战副将、雇来的队友
+const ALLY_SLOTS: [number, number][] = [[306, 282], [262, 366], [270, 210]];
 
 interface View {
   id: string;
@@ -91,13 +94,20 @@ export class BattleScene extends Phaser.Scene {
   private chat!: ChatBox;
   private lunged: View | null = null;
   private fx!: Phaser.GameObjects.Container;
+  // 回放录像：按录下来的随机数状态和指令重算
+  private replay: ReplayRecord | null = null;
+  private replayAt = 0;
+  private speed = 1;
 
   constructor() {
     super('Battle');
   }
 
-  init(data: { battle: Battle }): void {
-    this.b = data.battle;
+  init(data: { battle?: Battle; replay?: ReplayRecord }): void {
+    this.replay = data.replay ?? null;
+    this.replayAt = 0;
+    this.speed = 1;
+    this.b = data.replay ? createBattle(JSON.parse(JSON.stringify(data.replay.init))) : data.battle!;
     this.views.clear();
     this.auto = false;
     this.menu = null;
@@ -143,6 +153,15 @@ export class BattleScene extends Phaser.Scene {
     this.prompt = text(this, W / 2, BAR_Y + 7, '', { align: 'center', color: UI.white });
     this.autoBtn = new Button(this, W - 56, BAR_Y + 3, 52, 20, '自动', () => this.toggleAuto(), { style: 'steel' });
     this.chat = new ChatBox(this, 0, CHAT_Y, W, H - CHAT_Y);
+    if (this.replay) {
+      this.autoBtn.setVisible(false);
+      this.prompt.setText('战斗录像');
+      new Button(this, 4, BAR_Y + 3, 52, 20, '退出', () => this.scene.start('Main'), { style: 'steel' });
+      const sp = new Button(this, W - 56, BAR_Y + 3, 52, 20, '快进', () => {
+        this.speed = this.speed === 1 ? 2.5 : 1;
+        sp.setCaption(this.speed === 1 ? '快进' : '正常');
+      }, { style: 'steel' });
+    }
     this.time.delayedCall(300, () => this.startRound());
   }
 
@@ -154,7 +173,7 @@ export class BattleScene extends Phaser.Scene {
       const same = this.b.units.filter((x) => x.side === 'enemy' && x.row === u.row);
       [hx, hy] = ENEMY_SLOTS[u.row][Math.min(same.indexOf(u), ENEMY_SLOTS[u.row].length - 1)];
     } else {
-      [hx, hy] = ALLY_SLOTS[u.kind === 'player' ? 0 : 1];
+      [hx, hy] = ALLY_SLOTS[u.kind === 'player' ? 0 : u.kind === 'mirror' ? 2 : 1];
     }
     const flip = u.side === 'enemy';
     const spr = this.add.image(hx + (flip ? OFF : -OFF), hy, unitTex(this, u.look, u.variant ?? 0, u.alive ? 'idle' : 'down')).setOrigin(0.5, FEET_Y / UNIT_H).setFlipX(flip).setDepth(spriteDepth(hy));
@@ -226,7 +245,9 @@ export class BattleScene extends Phaser.Scene {
     this.roundText.setText(`第${this.b.round + 1}回合`);
     this.cmds = [];
     this.reserved = {};
-    this.queue = living(this.b, 'ally').filter((u) => needsCommand(u)).sort((a, c) => (a.kind === 'player' ? -1 : 1) - (c.kind === 'player' ? -1 : 1));
+    if (this.replay) return void this.replayRound();
+    // 雇来的队友（镜像）由 AI 指挥
+    this.queue = living(this.b, 'ally').filter((u) => needsCommand(u) && u.kind !== 'mirror').sort((a, c) => (a.kind === 'player' ? -1 : 1) - (c.kind === 'player' ? -1 : 1));
     for (const u of this.b.units) this.syncBadge(u);
     this.nextCommander();
   }
@@ -480,7 +501,10 @@ export class BattleScene extends Phaser.Scene {
   private async resolve(): Promise<void> {
     this.clearMenu();
     this.prompt.setText('');
-    for (const e of living(this.b, 'enemy')) if (needsCommand(e)) this.cmds.push(aiCommand(this.b, e));
+    if (!this.replay) {
+      for (const e of living(this.b, 'enemy')) if (needsCommand(e)) this.cmds.push(aiCommand(this.b, e));
+      for (const a of living(this.b, 'ally')) if (a.kind === 'mirror' && needsCommand(a)) this.cmds.push(aiCommand(this.b, a));
+    }
     const before = new Map(this.b.units.map((u) => [u.id, u.mp]));
     const events = resolveRound(this.b, this.cmds);
     await this.play(events);
@@ -511,7 +535,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private async play(events: BEvent[]): Promise<void> {
-    const fast = this.auto ? 0.7 : 1;
+    const fast = (this.auto ? 0.7 : 1) / this.speed;
     const ms = (n: number) => Math.round(n * fast);
     for (const e of events) {
       switch (e.t) {
@@ -703,9 +727,31 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  // ===== 录像回放 =====
+  private replayRound(): void {
+    const rp = this.replay!;
+    this.roundText.setText(`录像 第${Math.min(this.replayAt + 1, rp.rounds.length)}/${rp.rounds.length}回合`);
+    const r = rp.rounds[this.replayAt++];
+    if (!r) return this.replayEnd();
+    this.b.rng.state = r.s;
+    this.cmds = r.c.map((c) => ({ ...c }));
+    this.time.delayedCall(200 / this.speed, () => this.resolve());
+  }
+
+  private replayEnd(): void {
+    const c = this.add.container(0, 0).setDepth(600);
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.5).fillRect(0, 0, W, CHAT_Y);
+    c.add([this.add.zone(0, 0, W, H).setOrigin(0).setInteractive(), g]);
+    const out = this.b.outcome === 'win' ? '胜利' : this.b.outcome === 'lose' ? '失败' : '结束';
+    c.add(text(this, W / 2, 180, `录像播完了（${out}）`, { align: 'center', color: UI.yellow, stroke: 0x000000, scale: 2 }));
+    c.add(new Button(this, W / 2 - 50, 230, 100, 26, '返回', () => this.scene.start('Main'), { style: 'red' }));
+  }
+
   // ===== 战果总结 =====
   private finish(): void {
     this.clearMenu();
+    if (this.replay) return this.replayEnd();
     const sum = finishBattle(store.save, this.b);
     store.flush();
     sfx(sum.outcome === 'win' ? 'win' : sum.outcome === 'lose' ? 'lose' : 'step');

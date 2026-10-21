@@ -219,5 +219,13 @@
       "逃兵把军需都抢走了。帮我追回来，按件给赏钱。"
     ],
     "silverRing": true
+  },
+  "wenquxing": {
+    "name": "文曲星",
+    "look": "m_wenqu",
+    "lines": [
+      "每天五道三国题，答对有赏。"
+    ],
+    "wenqu": true
   }
 }

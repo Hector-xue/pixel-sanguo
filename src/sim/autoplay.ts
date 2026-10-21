@@ -30,6 +30,8 @@ export interface AutoplayReport {
   steps: { quest: string; level: number; battles: number }[];
   generals: number;
   rings: number;
+  // 在哪儿输的（地点 → 场数），调数值用
+  lossAt: Record<string, number>;
 }
 
 interface Sim {
@@ -38,6 +40,8 @@ interface Sim {
   rep: AutoplayReport;
   now: number;
   lastSmith: number;
+  badSpot: Record<string, number>;
+  badLevel: number;
 }
 
 function go(s: Save, to: string): void {
@@ -46,7 +50,7 @@ function go(s: Save, to: string): void {
   for (const loc of findPath(s.location, to) ?? [to]) arrive(s, loc);
 }
 
-function playerCommand(b: Battle, u: BUnit, s: Save, captureId: string | null): Command {
+export function playerCommand(b: Battle, u: BUnit, s: Save, captureId: string | null): Command {
   const foes = foesOf(b, u);
   if (captureId) {
     const t = foes.find((f) => f.monsterId === captureId && f.hp / f.maxHp < 0.45);
@@ -76,7 +80,7 @@ function playerCommand(b: Battle, u: BUnit, s: Save, captureId: string | null): 
   return autoCommand(b, u);
 }
 
-function generalCommand(b: Battle, u: BUnit, captureId: string | null): Command {
+export function generalCommand(b: Battle, u: BUnit, captureId: string | null): Command {
   if (captureId && foesOf(b, u).some((f) => f.monsterId === captureId)) {
     const t = foesOf(b, u).find((f) => f.monsterId === captureId && f.hp > f.maxHp * 0.5);
     return t ? { actor: u.id, type: 'attack', target: t.id } : { actor: u.id, type: 'defend' };
@@ -104,11 +108,15 @@ function runBattle(sim: Sim, b: Battle, captureId: string | null): Battle['outco
     }
     resolveRound(b, cmds);
   }
+  const where = `${s.location}@${s.player.level}`;
   finishBattle(s, b, sim.now);
   sim.now += 40000;
   sim.rep.battles++;
   if (b.outcome === 'win') sim.rep.wins++;
-  if (b.outcome === 'lose') sim.rep.losses++;
+  if (b.outcome === 'lose') {
+    sim.rep.losses++;
+    sim.rep.lossAt[where] = (sim.rep.lossAt[where] ?? 0) + 1;
+  }
   return b.outcome;
 }
 
@@ -164,8 +172,9 @@ function townUpkeep(sim: Sim): void {
   if (!full.includes('weapon') && !full.includes('smith')) return;
   // 1级装备先配齐
   if (full.includes('weapon')) for (const slot of equips.slots) if (!s.equip[slot] && !s.gear.some((g) => g.slot === slot) && s.player.silver > equips.shopPrice[slot] * 3) buyGear(s, slot);
-  // 矿石不够就合成，能打更高级的就打
-  for (const slot of equips.slots) {
+  // 矿石不够就合成，能打更高级的就打（先武器、铠甲，再其他）
+  const order = ['weapon', 'armor', 'head', 'boots', 'wrist', 'neck'] as const;
+  for (const slot of order) {
     const cur = Math.max(s.equip[slot]?.tier ?? 0, ...s.gear.filter((g) => g.slot === slot).map((g) => g.tier));
     const rows = forgeRows(s, slot).filter((r) => r.tier > cur && s.player.level >= r.level).reverse();
     for (const row of rows) {
@@ -259,7 +268,17 @@ function upkeep(sim: Sim): void {
         setActive(s, was);
       }
     }
-    const best = [...s.generals].sort((a, c) => c.level + (c.grade === '常人' ? 0 : 6) - (a.level + (a.grade === '常人' ? 0 : 6)))[0];
+    // 文人自己没输出：全队都是文人时让一个将才改学异人技能；出战优先带能打的
+    if (p.classId === 'scholar' && p.level >= 30 && !s.generals.some((g) => g.grade !== '常人' && g.classId !== 'scholar')) {
+      const g = s.generals.filter((x) => x.grade !== '常人' && x.level >= 10).sort((a, c) => (c.grade === '将才' ? 1 : 0) - (a.grade === '将才' ? 1 : 0) || c.level - a.level)[0];
+      const row = g && generalSkillRows(g).find((r) => r.cls === 'mystic' && r.action === 'learn');
+      if (g && row) {
+        setActive(s, null);
+        generalLearn(s, g.uid, row.id);
+      }
+    }
+    const score = (g: (typeof s.generals)[number]) => g.level + (g.grade === '常人' ? 0 : 6) + (p.classId === 'scholar' && g.classId !== 'scholar' ? 15 : 0);
+    const best = [...s.generals].sort((a, c) => score(c) - score(a))[0];
     if (best && best.hp > 0) setActive(s, best.uid);
   }
   const st = playerStats(s);
@@ -287,7 +306,7 @@ function groupFor(locId: string, monsterId: string): number {
   return locations[locId].groups.findIndex((g) => g.monster === monsterId);
 }
 
-// 等级不够时找等级合适的地方练级（怪物等级上限不超过自己+1）
+// 等级不够时找等级合适的地方练级（怪物等级上限不超过自己+1）；在某处连着输了就换个地方
 function grind(sim: Sim): void {
   const s = sim.s;
   let best: { loc: string; gi: number; lv: number } | null = null;
@@ -295,12 +314,23 @@ function grind(sim: Sim): void {
     if (!findPath(s.location, loc) && loc !== s.location) continue;
     def.groups.forEach((g, gi) => {
       if (monsters[g.monster].boss || g.label || g.level[1] > s.player.level + 1) return;
+      if ((sim.badSpot[`${loc}:${gi}`] ?? 0) >= 2) return;
       if (!best || g.level[0] > best.lv) best = { loc, gi, lv: g.level[0] };
     });
   }
   const pick = best as { loc: string; gi: number } | null;
   go(s, pick ? pick.loc : 'cunbei');
-  fight(sim, pick ? pick.gi : 0, null);
+  const out = fight(sim, pick ? pick.gi : 0, null);
+  if (pick) {
+    const k = `${pick.loc}:${pick.gi}`;
+    if (out === 'lose') sim.badSpot[k] = (sim.badSpot[k] ?? 0) + 1;
+    else if (out === 'win' && sim.badSpot[k]) sim.badSpot[k] = Math.max(0, sim.badSpot[k] - 0.25);
+  }
+  // 等级涨了，之前打不过的地方再给一次机会
+  if (s.player.level !== sim.badLevel) {
+    sim.badLevel = s.player.level;
+    sim.badSpot = {};
+  }
 }
 
 // 跑一环里的一个任务
@@ -416,12 +446,13 @@ function doFlag(sim: Sim, flag: string): boolean {
 }
 
 export function autoplay(s: Save, seed = 7, maxBattles = 600, untilStep = mainQuests.length): AutoplayReport {
-  const sim: Sim = { s, rng: new Rng(seed), rep: { finished: false, battles: 0, wins: 0, losses: 0, level: 1, steps: [], generals: 0, rings: 0 }, now: Date.UTC(2026, 2, 10, 2), lastSmith: 0 };
+  const sim: Sim = { s, rng: new Rng(seed), rep: { finished: false, battles: 0, wins: 0, losses: 0, level: 1, steps: [], generals: 0, rings: 0, lossAt: {} }, now: Date.UTC(2026, 2, 10, 2), lastSmith: 0, badSpot: {}, badLevel: 0 };
   const { rep } = sim;
   s.staminaAt = sim.now;
   let guard = 0;
   // 真人打头目输了会回去多练几级，这里每输一次多要求 1 级
   let extra = 0;
+  let streak = 0;
   while (guard++ < 20000 && rep.battles < maxBattles) {
     const q = currentQuest(s);
     if (!q || s.main.state === 'done' || s.main.step >= untilStep) {
@@ -437,6 +468,7 @@ export function autoplay(s: Save, seed = 7, maxBattles = 600, untilStep = mainQu
     if (s.main.state === 'ready' || q.type === 'talk') {
       go(s, npcLocation(q.turnIn)!);
       turnInQuest(s);
+      extra = 0;
       rep.steps.push({ quest: q.title, level: s.player.level, battles: rep.battles });
       continue;
     }
@@ -456,7 +488,14 @@ export function autoplay(s: Save, seed = 7, maxBattles = 600, untilStep = mainQu
     }
     go(s, at);
     const out = fight(sim, gi, q.type === 'capture' ? monster : null);
-    if (out === 'lose' && monsters[monster].boss) extra = Math.min(extra + 1, 6);
+    // 输了就回去多练：头目每输一次多要 1 级；普通怪连输 3 次也多要 1 级
+    if (out === 'lose') {
+      streak++;
+      if (monsters[monster].boss || streak >= 3) {
+        extra = Math.min(extra + 1, 6);
+        streak = 0;
+      }
+    } else if (out === 'win') streak = 0;
   }
   rep.level = s.player.level;
   rep.generals = s.generals.length + s.inn.length;

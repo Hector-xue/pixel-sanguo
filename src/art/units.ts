@@ -48,10 +48,18 @@ const HERO: Record<string, Omit<Look, 'hair' | 'style'>> = {
   mystic: { outfit: [C.purple, C.darkPurple], trim: C.yellow, belt: C.red, boots: C.ink, weapon: 'staff', orb: C.yellow, accent: C.lilac },
 };
 
+// 造型：每个职业三套衣服配色（variant = 头像 + 3 × 造型）
+const SKINS: Record<string, Partial<Look>[]> = {
+  warrior: [{}, { outfit: [C.navy, C.ink], trim: C.gold, accent: C.gold }, { outfit: [C.darkGray, C.ink], trim: C.red, accent: C.red, metal: C.gold }],
+  scholar: [{}, { outfit: [C.green, C.darkGreen], trim: C.paper, belt: C.brown }, { outfit: [C.white, C.lightGray], trim: C.blue, belt: C.navy }],
+  mystic: [{}, { outfit: [C.darkRed, C.ink], trim: C.gold, belt: C.gold, orb: C.orange }, { outfit: [C.sky, C.lightBlue], trim: C.white, belt: C.navy, orb: C.white }],
+};
+
 export function heroLook(classId: string, gender: string, variant: number): Look {
   const female = gender === 'female';
   const v = ((variant % 3) + 3) % 3;
-  return { ...HERO[classId], female, hair: HAIRS[v], style: (female ? FEMALE_STYLES : MALE_STYLES)[v] };
+  const skin = SKINS[classId]?.[Math.floor(Math.max(0, variant) / 3) % 3] ?? {};
+  return { ...HERO[classId], ...skin, female, hair: HAIRS[v], style: (female ? FEMALE_STYLES : MALE_STYLES)[v] };
 }
 
 export const LOOKS: Record<string, Look> = {
@@ -174,6 +182,7 @@ export const LOOKS: Record<string, Look> = {
   g_yuanshao_npc: { outfit: [C.gold, C.orange], trim: C.darkRed, belt: C.darkRed, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.gold, weapon: 'sword', metal: C.gold, armor: true, beard: C.ink, cape: C.gold },
   m_jiaopai: { outfit: [C.green, C.darkGreen], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.darkBrown, C.ink], style: 'topknot', weapon: 'scroll', hat: C.darkGreen },
   m_yingbing: { outfit: [C.brown, C.darkBrown], trim: C.gold, belt: C.red, boots: C.ink, hair: [C.ink, C.ink], style: 'band', accent: C.red, weapon: 'saber', armor: true, beard: C.ink, pants: C.darkBrown },
+  m_wenqu: { outfit: [C.lightBlue, C.blue], trim: C.yellow, belt: C.yellow, boots: C.ink, hair: [C.lightGray, C.gray], style: 'topknot', weapon: 'scroll', hat: C.navy, beard: C.lightGray, longBeard: true },
   m_zuoci: { outfit: [C.white, C.lightGray], trim: C.sky, belt: C.sky, boots: C.gray, hair: [C.lightGray, C.gray], style: 'topknot', weapon: 'staff', orb: C.sky, beard: C.white, longBeard: true },
 };
 

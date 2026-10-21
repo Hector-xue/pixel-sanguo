@@ -2,7 +2,7 @@ Fusion Pixel Font
 https://github.com/TakWolf/fusion-pixel-font
 
 Copyright (c) 2022, TakWolf (https://takwolf.com).
-Modified by the 像素三国 project: added glyphs U+988D (颍) and U+9AA2 (骢), composed from existing glyphs.
+Modified by the 像素三国 project: added glyphs U+988D (颍), U+9AA2 (骢), U+7B93 (箓) and U+8C21 (谡), composed from existing glyphs.
 
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.

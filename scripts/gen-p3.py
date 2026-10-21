@@ -251,6 +251,7 @@ NPCS = {
     'jingzhaoyin': ('京兆尹', 'official', ['长安城外全是李傕、郭汜的兵。']),
     'yanpu': ('阎圃', 'pedant3', ['汉中是五斗米道的地盘，张天师不好惹。']),
     'lujiangduwei': ('庐江都尉', 'official2', ['逃兵把军需都抢走了。帮我追回来，按件给赏钱。']),
+    'wenquxing': ('文曲星', 'm_wenqu', ['每天五道三国题，答对有赏。']),
 }
 
 
@@ -561,7 +562,15 @@ def main():
             d['mercenary'] = True
         if nid == 'yuelao':
             d['marriage'] = True
+        if nid == 'wenquxing':
+            d['wenqu'] = True
         npcs[nid] = d
+    # 许昌加文曲星和跳蚤市场
+    xc = locs['xuchang']
+    if 'wenquxing' not in xc['npcs']:
+        xc['npcs'].append('wenquxing')
+    if 'market' not in xc['facilities']:
+        xc['facilities'].append('market')
 
     # 主线：m35 改成真正的过渡，m36 以后整段重建
     main_q = [x for x in quests['main'] if int(x['id'][1:]) <= 35]
@@ -612,7 +621,7 @@ def main():
     SUFFIX = {'head': '盔', 'neck': '项链', 'wrist': '护腕', 'armor': '甲', 'boots': '靴'}
     WSUF = {'warrior': '剑', 'scholar': '扇', 'mystic': '杖'}
     for t, lv, oid, _, setname in TIERS:
-        eq['tiers'].append({'level': lv, 'ore': oid, 'oreN': 3, 'silver': int(round(lv * lv * 10 / 1000.0) * 1000)})
+        eq['tiers'].append({'level': lv, 'ore': oid, 'oreN': 3, 'silver': int(round(lv * lv * 5 / 1000.0) * 1000)})
         r = lv / 40.0
         for slot, st in eq['stats'].items():
             for key, arr in st.items():

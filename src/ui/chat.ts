@@ -56,8 +56,8 @@ export class ChatBox {
     const all = [...sys.map((m) => ({ ...m, who: m.who ?? '' })), ...ai].sort((a, b) => a.t - b.t).slice(-40);
     let yy = 0;
     const width = this.w - 18;
-    if (channel === 'pai') {
-      const t = text(this.scene, 0, yy, '（你还没有加入帮派，帮派34级开放）', { color: C.gray, wrap: width });
+    if (channel === 'pai' && (!store.has() || !store.save.p3?.sect.id)) {
+      const t = text(this.scene, 0, yy, '（你还没有加入教派，34级以后去陈留找教派使者）', { color: C.gray, wrap: width });
       this.area.content.add(t);
       yy += 16;
     }

@@ -16,6 +16,7 @@ import {
 } from '../game/town';
 import type { Host } from './panels';
 import { chooseAmount, chooseCount, done, generalsPanel, hospitalPanel, skillSchoolPanel } from './panels';
+import { arenaPanel, luckyPanel, stallPanel, treasurePanel } from './p3';
 import { Button, Modal, ScrollArea, confirm, frame, sfx, text, toast } from './widgets';
 
 export const FACILITIES: Record<string, [string, string, (h: Host) => void]> = {
@@ -27,8 +28,10 @@ export const FACILITIES: Record<string, [string, string, (h: Host) => void]> = {
   bank: ['钱庄', '存钱、兑换金砖、商城', (h) => bankPanel(h)],
   skillschool: ['技能学校', '学习和升级技能', (h) => skillSchoolPanel(h)],
   stable: ['军马场', '买马、骑乘、休息', (h) => stablePanel(h)],
-  casino: ['娱乐场', '赤壁、猜猜看', (h) => casinoPanel(h)],
-  battlefield: ['战场', '进入宝洞挖宝', (h) => battlefieldPanel(h)],
+  casino: ['娱乐场', '赤壁、猜猜看、幸运王', (h) => casinoPanel(h)],
+  battlefield: ['战场', '进宝洞挖宝、抢宝', (h) => treasurePanel(h, () => battlefieldPanel(h))],
+  arena: ['擂台', '擂台、斗将台、决斗场', (h) => arenaPanel(h)],
+  market: ['跳蚤市场', '摆摊卖东西给NPC', (h) => stallPanel(h)],
 };
 
 type Rows = { area: ScrollArea; y: number };
@@ -433,10 +436,11 @@ export function casinoPanel(h: Host): void {
   m.once('destroy', () => timer?.remove());
   const render = () => {
     dyn.removeAll(true);
-    tabs(h, m, dyn, ['赤壁', '猜猜看'], casinoTab, (i) => {
+    tabs(h, m, dyn, ['赤壁', '猜猜看', '幸运王'], casinoTab, (i) => {
       casinoTab = i;
       render();
     });
+    if (casinoTab === 2) return luckyPanel(h, dyn, m, m.cy + 30, render);
     let y = m.cy + 28;
     dyn.add(text(h, m.cx, y, `银两：${s.player.silver}　娱乐场称号：${casinoTitle(s.casino.net)}（${s.casino.net >= 0 ? '+' : ''}${s.casino.net}）`, { color: C.brown }));
     y += 20;

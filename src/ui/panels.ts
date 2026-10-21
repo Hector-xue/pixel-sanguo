@@ -11,18 +11,24 @@ import { playerClassName, playersAt } from '../game/chatter';
 import { allGenerals, readXinfa, rerollApt, rewardCost, rewardGeneral, starCost, starUp } from '../game/generals';
 import { ringDestination, ringStatusText } from '../game/ring';
 import type { AiPlayer } from '../game/chatter';
+import { createBattle } from '../core/battle';
+import { randomSeed } from '../core/rng';
+import { generalUnit, playerUnit } from '../game/encounter';
+import { mirrorUnit } from '../game/rivals';
 import {
   abandonBounty, acceptBounty, acceptQuest, allocate, bagCap, bagUsed, buy, currentQuest, findGeneral, generalStats, heal,
   healCost, learnSkill, log, moveToInn, moveToTeam, npcMark, playerAttrs, playerStats, profCap, questDestination,
   questProgressText, quickRecover, releaseGeneral, sell, sellPrice, serialize, setActive, skillSchool,
-  targetHpMp, turnInBounty, turnInQuest, upgradeSkill, useItem,
+  targetHpMp, turnInBounty, turnInQuest, upgradeSkill, useItem, skillLevelText,
 } from '../game/state';
+import { generalRebirth, generalRebirthReason } from '../game/rebirth';
 import type { Target } from '../game/state';
 import { store } from '../game/store';
 import type { ChatBox } from './chat';
 import { fillText, showDialog } from './dialog';
 import { digTalk, generalSkillPanel, pickGeneral, recruitPanel, ringTalk, useMisc } from './fun';
 import { equipGrid, gearDetail, power, rolePanel } from './role';
+import * as X from './p3';
 import { Button, Modal, ScrollArea, bar, confirm, frame, isMuted, setMuted, sfx, text, textLines, toast } from './widgets';
 
 export interface Host extends Phaser.Scene {
@@ -310,7 +316,7 @@ export function generalDetail(h: Host, uid: string): void {
   kv(m, R, y, '星级', `${g.star}星`);
   y += 16;
   kv(m, L, y, '职业', `${g.level}级${classes[g.classId].name}`);
-  kv(m, R, y, '转数', `${g.level}级(0转)`);
+  kv(m, R, y, '转数', `${g.level}级(${g.reborn ?? 0}转)`);
   y += 16;
   kv(m, L, y, '战力', power(st), C.red);
   y += 16;
@@ -337,7 +343,7 @@ export function generalDetail(h: Host, uid: string): void {
   y += 16;
   kv(m, L, y, '速度', st.spd);
   y += 16;
-  kv(m, L, y, '技能', g.skills.length ? g.skills.map((k) => `${skills[k.id].name}${k.level}级`).join('、') : g.grade === '常人' ? '无（常人不能学技能）' : '无（10级后能学）');
+  kv(m, L, y, '技能', g.skills.length ? g.skills.map((k) => `${skills[k.id].name}${skillLevelText(k.level)}`).join('、') : g.grade === '常人' ? '无（常人不能学技能）' : '无（10级后能学）');
   const by = m.py + m.ph - 92;
   const reopen = () => {
     m.close();
@@ -371,6 +377,14 @@ export function generalDetail(h: Host, uid: string): void {
     ['学技能', () => {
       m.close();
       generalSkillPanel(h, uid);
+    }],
+    ['转生', () => {
+      const why = generalRebirthReason(s, uid);
+      if (why) return toast(h, `${why}（也可以去洛阳找左慈）`);
+      confirm(h, `花1个大将军令让${g.name}转生？成长+0.1，可以继续升到160级。`, () => {
+        toast(h, generalRebirth(s, uid), 2200);
+        reopen();
+      }, '转生');
     }],
   ];
   if (inTeam) {
@@ -528,14 +542,14 @@ export function skillSchoolPanel(h: Host): void {
       const g = h.add.graphics();
       frame(g, m.cx, y, m.cw, hgt, 'tan');
       dyn.add(g);
-      const lv = row.state ? `${row.state.level}级` : '未学习';
+      const lv = row.state ? skillLevelText(row.state.level) : '未学习';
       dyn.add(text(h, m.cx + 8, y + 6, `${def.name}${def.short ? `（${def.short}）` : ''}`, { color: C.darkRed }));
       dyn.add(text(h, m.cx + 8 + 12 * (def.name.length + (def.short ? 3 : 0)) + 8, y + 6, lv, { color: row.state ? C.green : C.gray }));
       dyn.add(text(h, m.cx + 8, y + 24, def.desc, { wrap: m.cw - 80, lineGap: 2 }));
       const info = row.state ? `熟练度 ${row.state.prof}/${profCap(row.state.level)}　耗精力${skillMp(def.mp, row.state.level)}` : `${def.learnLevel}级可学　耗精力${skillMp(def.mp, 1)}`;
       dyn.add(text(h, m.cx + 8, y + hgt - 18, info, { color: C.brown }));
       if (row.action) {
-        dyn.add(new Button(h, m.cx + m.cw - 64, y + 8, 56, 24, row.action === 'learn' ? '学习' : '升级', () => {
+        dyn.add(new Button(h, m.cx + m.cw - 64, y + 8, 56, 24, row.action === 'learn' ? '学习' : row.state && row.state.level >= balance.skill.maxLevel ? '入化境' : '升级', () => {
           const r = row.action === 'learn' ? learnSkill(s, row.id) : upgradeSkill(s, row.id);
           h.refresh();
           toast(h, r);
@@ -564,7 +578,8 @@ export function skillSchoolPanel(h: Host): void {
 export function messagesPanel(h: Host): void {
   const s = store.save;
   const m = new Modal(h, '公告 · 系统消息');
-  const area = new ScrollArea(h, m.cx, m.cy, m.cw, m.ph - 40, m.inner);
+  m.inner.add(new Button(h, m.cx, m.cy, m.cw, 24, `战斗录像（最近${s.p3.replays.length}场）`, () => X.replayPanel(h), { style: 'red' }));
+  const area = new ScrollArea(h, m.cx, m.cy + 30, m.cw, m.ph - 70, m.inner);
   let y = 0;
   const list = s.messages.filter((x) => x.ch === 'sys').slice(-100);
   for (const msg of list) {
@@ -594,7 +609,7 @@ export function helpPanel(h: Host): void {
     '【装备】六个部位：头、项链、武器、护腕、铠甲、靴子。许昌武器店只卖1级的；10/20/30/40级可以在铁匠铺用矿石+银两打2～5级装备，有机会出精良。三块低级矿石能合成一块高级的。',
     '【宝石】2级以上装备有孔。钻石加抗物理、暴击、速度；绿宝石加抗围困、抗风沙、反击；红宝石加抗扰乱、抗妖火、致命；蓝宝石加抗封锁、抗落雷、体质。三颗同级合成一颗高一级的。',
     '【副将】招贤使者那里用将军令招英才、大将军令招将才、令牌招指定的人。英才和将才10级后能学技能，学了哪个职业的技能就变成哪个职业。忠诚低于60打仗会不听指挥，每天要奖赏。心法书能让副将迅速升级。',
-    '【跑环】20级以后找许昌的跑环使者，一环10个任务，每接一环用5点体力，跑完一整环给技能书。中途放弃要从第1环重新跑。',
+    '【跑环】20级以后找许昌的跑环使者，一环10个任务，每接一环用5点体力，跑完一整环给技能书。中途放弃要从这一档的第一环重新跑。',
     '【体力】每6分钟恢复1点，体力丹能补，一天最多吃20颗。',
     '【坐骑】军马场买马骑上，加速度和抗扰乱、抗封锁、抗围困。马骑着打仗会升级。',
     '【挖宝】许昌「设施 → 战场」进宝洞，找宝洞老人买铲子挖宝，第3、6、9铲有护宝守卫。',
@@ -602,6 +617,21 @@ export function helpPanel(h: Host): void {
     '【福利】「功能 → 邮件」里有七日签到（第7天送大乔）和在线奖励。',
     '【馆驿】寄存物品不占负重；还能传送到去过的城镇。钱庄存钱有利息，还能换金砖去商城买东西。',
     '【存档】自动保存在这个浏览器里。换手机、清缓存前，在「功能 → 退出」里导出存档。',
+    '【二环三环】40级开二环（第11–20环）、60级开三环（第21–30环），在跑环使者那里选。',
+    '【化境】技能5级熟练度满30000、人物90级以后，去技能学校升一次就入化境，威力再涨一截。',
+    '【转职】100级以后去洛阳找左慈，重选性别、职业、头像，属性点退回重加；不转职等级停在100。副将100级也能转生（花大将军令）。',
+    '【教派】34级以后去陈留找教派使者入教，每天做教派任务攒声望；声望高了升职位，教派加成更大。做任务要用活力，活力每天回满。',
+    '【擂台】陈留、濮阳、洛阳、长安有擂台：擂台是主角排位，斗将台是副将单挑，决斗场抢AI玩家的银两（欺负弱的涨恶人值，恶人值找捕快交罚银消掉）。',
+    '【训练】「功能 → 训练」交银两挂着练，关了游戏也按真实时间涨经验，周末半价。',
+    '【宝库】「功能 → 宝库」是随身仓库，不用回城就能存取，花金砖扩容。',
+    '【抢宝】每天9点、11点各开半小时，宝藏埋在野外，「设施 → 战场」能直接传送过去，打赢宝藏守卫就归你，每天3次。',
+    '【银两环】40级以后去庐江（谯郡往下）找庐江都尉，打庐江逃兵追回军资换银两，一天3次。',
+    '【文曲星】许昌的文曲星每天出5道三国题，答对有经验和银两。',
+    '【摆摊】许昌「设施 → 跳蚤市场」摆摊，NPC按真实时间来买；标价低卖得快。',
+    '【婚姻结拜】洛阳的月老：送礼攒好感，满100成亲（加气血）；默契50以上的英才、将才可以结拜。',
+    '【组队】「功能 → 组队」或濮阳的佣兵头领那里雇AI队友，跟你一起打20场。',
+    '【录像】「功能 → 公告」里能回放最近8场战斗。',
+    '【成就称号】角色面板里看成就、换称号；排行榜在「功能 → 排行」。',
   ];
   const area = new ScrollArea(h, m.cx, m.cy, m.cw, m.ph - 40, m.inner);
   let y = 0;
@@ -659,7 +689,7 @@ export function playersPanel(h: Host): void {
     area.content.add(h.add.image(4, y + 5, avatarTex(h, heroLookKey(pl.classId, pl.gender), pl.variant)).setOrigin(0).setCrop(0, 0, 24, 24));
     area.content.add(text(h, 32, y + 4, pl.name, { color: C.darkRed }));
     area.content.add(text(h, 32, y + 18, `${pl.level}级${playerClassName(pl)}`, { color: C.brown }));
-    area.content.add(new Button(h, m.cw - 96, y + 6, 42, 22, '队', () => toast(h, '组队在 P3 开放（雇 AI 队友）'), { clip: area }));
+    area.content.add(new Button(h, m.cw - 96, y + 6, 42, 22, '队', () => X.teamPanel(h), { clip: area }));
     area.content.add(new Button(h, m.cw - 50, y + 6, 42, 22, '聊', () => toast(h, `${pl.name}：你好呀，一起加油！`), { clip: area }));
   });
   area.setContentHeight(list.length * 38);
@@ -676,7 +706,27 @@ function playerDetail(h: Host, pl: AiPlayer): void {
   const info = ['阶层：平民', '段位：无', '称号：无', '帮派：无', `活力：${pl.level * 3}`, `魅力：${pl.level * 2}`, '摊位：无', '房产：无'];
   info.forEach((t, i) => m.inner.add(text(h, m.cx + (i % 2) * 140, m.cy + 62 + Math.floor(i / 2) * 16, t)));
   const btns = ['发信息', '加好友', '查看包', '加黑', '切磋', '禁言'];
-  btns.forEach((b, i) => m.inner.add(new Button(h, m.cx + (i % 3) * 94, m.cy + 136 + Math.floor(i / 3) * 30, 88, 26, b, () => toast(h, b === '切磋' ? '切磋（打 AI 镜像）在 P3 开放' : '单机版没有其他真人玩家'))));
+  btns.forEach((b, i) => m.inner.add(new Button(h, m.cx + (i % 3) * 94, m.cy + 136 + Math.floor(i / 3) * 30, 88, 26, b, () => (b === '切磋' ? sparWith(h, pl) : toast(h, '单机版没有其他真人玩家')), { style: b === '切磋' ? 'red' : 'tan' })));
+}
+
+// 切磋：和此地的 AI 玩家打一场，不掉经验不掉血
+function sparWith(h: Host, pl: AiPlayer): void {
+  const s = store.save;
+  const allies = [playerUnit(s)];
+  const reserve = [];
+  for (const g of s.generals) {
+    const u = generalUnit(g);
+    if (g.uid === s.activeGeneral && u.alive) allies.push(u);
+    else reserve.push(u);
+  }
+  for (const u of [...allies, ...reserve]) {
+    u.hp = u.maxHp;
+    u.mp = u.maxMp;
+    u.alive = true;
+  }
+  const b = createBattle({ seed: randomSeed(), allies, reserve, enemies: [mirrorUnit('e0', pl.name, pl.classId, pl.gender, pl.variant, pl.level, 'enemy')], items: {}, title: `切磋·${pl.name}`, spar: true, canFlee: true });
+  store.flush();
+  h.scene.start('Battle', { battle: b });
 }
 
 // ===== NPC 对话 =====
@@ -718,6 +768,13 @@ export function talkTo(h: Host, npcId: string): void {
   if (n.recruit) opts.push({ label: '招贤', fn: () => recruitPanel(h) });
   if (n.ring) opts.push({ label: '跑环', fn: () => ringTalk(h) });
   if (n.dig) opts.push({ label: '挖宝', fn: () => digTalk(h) });
+  if (n.sect) opts.push({ label: '教派', fn: () => X.sectTalk(h) });
+  if (n.rebirth) opts.push({ label: '转职', fn: () => X.rebirthTalk(h) });
+  if (n.silverRing) opts.push({ label: '军资', fn: () => X.silverRingTalk(h) });
+  if (n.mercenary) opts.push({ label: '雇队友', fn: () => X.teamPanel(h) });
+  if (n.marriage) opts.push({ label: '婚姻', fn: () => X.marriageTalk(h) });
+  if (n.wenqu) opts.push({ label: '答题', fn: () => X.wenquTalk(h) });
+  if (n.bounty && s.p3.evil > 0) opts.push({ label: '交罚银', fn: () => X.payFine(h) });
   if (opts.length) opts.push({ label: '返回', fn: () => {} });
   showDialog(h, lines, opts);
 }

@@ -46,7 +46,7 @@ export class TitleScene extends Phaser.Scene {
     p.add(g);
     p.add(text(this, W / 2, 88, '像素三国', { align: 'center', color: UI.yellow, stroke: 0x6a2000, scale: 3 }));
     p.add(text(this, W / 2, 140, '回合制 · 三国像素单机', { align: 'center', color: C.brown }));
-    p.add(text(this, W / 2, 158, '单机版 P2 · 许昌', { align: 'center', color: C.gray }));
+    p.add(text(this, W / 2, 158, '单机版 P3 · 群雄', { align: 'center', color: C.gray }));
     let y = 360;
     if (store.has()) {
       const s = store.save;

@@ -48,7 +48,7 @@ export function rivals(s: Save): Rival[] {
       gender: rng.chance(0.4) ? 'female' : 'male',
       variant: rng.int(0, 2),
       // 前面的人强：排名靠前的对手等级高
-      lvMul: 1.25 - (i / N) * 0.6 + rng.range(-0.05, 0.05),
+      lvMul: 1.12 - (i / N) * 0.55 + rng.range(-0.03, 0.03),
       lvAdd: rng.int(-3, 3),
       wealth: rng.range(0.3, 3),
       luck: rng.int(0, 400),
@@ -87,23 +87,27 @@ function mirrorAttrs(cls: ClassId, level: number, reborn: boolean): Attrs {
 
 export function mirrorUnit(id: string, name: string, cls: ClassId, gender: Gender, variant: number, level: number, side: 'ally' | 'enemy', reborn = false): BUnit {
   const st = applyBonus(deriveStats(mirrorAttrs(cls, level, reborn), level, cls), gearsBonus(gearFor(level, cls)));
-  const skLevel = Math.max(1, Math.min(5, Math.floor(level / 18) + 1));
+  const skLevel = Math.max(1, Math.min(5, Math.floor(level / 25) + 1));
   const sk = classSkills(cls, gender).filter((_, i) => level >= [1, 10, 20][i]);
   return {
     id, name, side, kind: 'mirror', refId: id, classId: cls, gender, look: `hero_${cls}_${gender}`, variant, level, row: 0,
     maxHp: st.maxHp, hp: st.maxHp, maxMp: st.maxMp, mp: st.maxMp, atk: st.atk, def: st.def, spd: st.spd,
     resist: { ...st.resist }, rates: { ...st.rates },
-    skills: sk.map((k) => ({ id: k, level: skLevel, prof: skLevel * 4000 })),
-    aiSkills: sk.map((k) => ({ id: k, rate: 0.35 })),
+    skills: sk.map((k) => ({ id: k, level: skLevel, prof: skLevel * 2500 })),
+    aiSkills: sk.map((k) => ({ id: k, rate: 0.22 })),
     status: emptyStatus(), defending: false, alive: true, captured: false, historic: true, capturable: false,
     expYield: 0, silverYield: 0, profGain: {},
   };
 }
 
 // 对手的副将（斗将台）：按他招的名将，等级比他低一点
+// 副将没有自由属性点、装备也差一截：按镜像打七折
 export function rivalGeneralUnit(s: Save, r: Rival, id: string, side: 'ally' | 'enemy'): BUnit {
-  const lv = Math.max(1, rivalLevel(s, r) - 3);
+  const lv = Math.max(1, rivalLevel(s, r) - 5);
   const u = mirrorUnit(id, r.general.name, r.general.classId, r.general.gender, 0, lv, side);
   u.look = r.general.look;
+  for (const k of ['maxHp', 'atk', 'def', 'spd'] as const) u[k] = Math.round(u[k] * 0.7);
+  u.hp = u.maxHp;
+  u.skills = u.skills.map((x) => ({ ...x, level: Math.max(1, x.level - 1) }));
   return u;
 }

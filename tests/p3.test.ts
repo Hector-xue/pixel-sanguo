@@ -1,0 +1,386 @@
+import { describe, expect, it } from 'vitest';
+import { balance, equips, items, locations, mainQuests, monsters, systems } from '../src/data';
+import { createBattle, aiCommand, autoCommand, living, needsCommand, resolveRound } from '../src/core/battle';
+import type { Battle } from '../src/core/battle';
+import type { ClassId, Gender } from '../src/core/types';
+import { arenaBattle, challengers, evilNow, ladder } from '../src/game/arena';
+import { board, checkAchievements, setTitle } from '../src/game/achv';
+import { finishBattle, startBattle } from '../src/game/encounter';
+import {
+  answerWenqu, claimFestival, festivalExpMul, festivalToday, luckyDraw, takeSilverRing, treasureBattle, treasureLeft, treasureNow,
+  turnInSilverRing, wenquToday,
+} from '../src/game/events';
+import { canRebirth, generalRebirth, rebirth } from '../src/game/rebirth';
+import { nextRing, turnInRing } from '../src/game/ring';
+import { joinSect, sectTaskDone, takeSectTask, turnInSect, vigorNow } from '../src/game/sect';
+import { giveGift, hireMerc, marry, swear, swornReason } from '../src/game/social';
+import { collectStall, putOnStall, settleStall } from '../src/game/stall';
+import { ORE_CHAIN } from '../src/game/smith';
+import {
+  addItem, arrive, bagCount, deserialize, grantPlayerExp, levelCap, makeGeneral, addGeneral, newSave, playerStats, questDropAllowed, serialize,
+  skillSchool, upgradeSkill,
+} from '../src/game/state';
+import type { Save } from '../src/game/state';
+import { endTraining, startTraining, trainCost } from '../src/game/training';
+import { expandVault, vaultStore, vaultTake } from '../src/game/town';
+import { oreFor } from '../src/game/welfare';
+import { Rng } from '../src/core/rng';
+import { autoplay } from '../src/sim/autoplay';
+
+const fresh = (classId: ClassId = 'warrior', gender: Gender = 'male') => newSave({ server: '1区', name: '测试', gender, classId, avatar: 0, seed: 5 });
+const T0 = Date.UTC(2026, 2, 10, 4);
+const HOUR = 3600000;
+
+// 本地时区的某一天某个钟点
+const at = (y: number, m: number, d: number, h: number, min = 0) => new Date(y, m - 1, d, h, min).getTime();
+
+function lvl(s: Save, level: number): void {
+  s.player.level = level;
+  s.player.exp = 0;
+}
+
+function run(b: Battle): void {
+  for (let r = 0; r < 100 && !b.outcome; r++) {
+    const cmds = living(b).filter(needsCommand).map((u) => (u.side === 'enemy' ? aiCommand(b, u) : autoCommand(b, u)));
+    resolveRound(b, cmds);
+  }
+}
+
+describe('P3 数据', () => {
+  it('地图出口成对，每张野外图的怪都存在，主线收集物都有怪掉', () => {
+    const back = { up: 'down', down: 'up', left: 'right', right: 'left' } as const;
+    for (const [id, loc] of Object.entries(locations)) {
+      for (const [d, to] of Object.entries(loc.exits)) expect(locations[to!]?.exits[back[d as keyof typeof back]], `${id}.${d}`).toBe(id);
+      for (const g of loc.groups) expect(monsters[g.monster], `${id} ${g.monster}`).toBeTruthy();
+    }
+    for (const q of mainQuests.filter((x) => x.type === 'collect')) {
+      expect(Object.values(monsters).some((m) => m.drops.some((d) => d.item === q.target!.item && d.questOnly === q.id)), q.id).toBe(true);
+    }
+    // 主线的击杀目标都在任务写的地图上
+    for (const q of mainQuests.filter((x) => x.target?.monster)) expect(locations[q.target!.at].groups.some((g) => g.monster === q.target!.monster), q.id).toBe(true);
+  });
+
+  it('装备 16 档，矿石链跟着档走，按等级给矿', () => {
+    expect(equips.tiers.length).toBe(16);
+    expect(ORE_CHAIN.length).toBe(15);
+    expect(oreFor(5)).toBe('tiekuang');
+    expect(oreFor(45)).toBe('xuantie');
+    expect(oreFor(55)).toBe('hantie');
+    expect(oreFor(160)).toBe('hunyuan');
+    expect(oreFor(150, 2)).toBe('hunyuan');
+    for (const o of ORE_CHAIN) expect(items[o].cat).toBe('ore');
+  });
+});
+
+describe('二环、三环、化境、转职', () => {
+  it('40级能接二环，从第11环开始；跑完第11环给 ring2 引导', () => {
+    const s = fresh();
+    lvl(s, 45);
+    for (const id of Object.keys(locations)) arrive(s, id);
+    arrive(s, 'xuchang');
+    expect(nextRing(s, T0, 3)).toContain('60级');
+    expect(nextRing(s, T0, 2)).toContain('二环第11环');
+    expect(s.ring.index).toBe(11);
+    const t = s.ring.task!;
+    if (t.type === 'buy' || t.type === 'deliver') addItem(s, t.item!, t.count);
+    else if (t.type === 'goto') t.arrived = true;
+    else t.have = t.count;
+    turnInRing(s);
+    expect(s.flags.ring2).toBe(true);
+    expect(s.ring.index).toBe(12);
+  });
+
+  it('化境：5级满熟练度 + 90级，升一次变第6级，威力更大', () => {
+    const s = fresh('mystic');
+    lvl(s, 89);
+    s.player.skills = [{ id: 'wulei', level: 5, prof: 30000 }];
+    expect(skillSchool(s).find((r) => r.id === 'wulei')!.action).toBe(null);
+    lvl(s, 90);
+    expect(skillSchool(s).find((r) => r.id === 'wulei')!.action).toBe('upgrade');
+    expect(upgradeSkill(s, 'wulei')).toContain('化境');
+    expect(s.player.skills[0].level).toBe(6);
+    expect(skillSchool(s).find((r) => r.id === 'wulei')!.reason).toBe('已入化境');
+  });
+
+  it('不转职停在100级；转职重选职业、退点、等级上限160', () => {
+    const s = fresh('warrior');
+    lvl(s, 99);
+    grantPlayerExp(s, 1e9);
+    expect(s.player.level).toBe(100);
+    expect(levelCap(s)).toBe(100);
+    s.player.added = { con: 100, str: 100, int: 0, agi: 0 };
+    s.player.free = 0;
+    s.player.skills = [{ id: 'lipi', level: 5, prof: 20000 }, { id: 'sheming', level: 3, prof: 5000 }];
+    expect(canRebirth(s)).toBe('');
+    expect(rebirth(s, 'mystic', 'female', 2)).toContain('异人');
+    expect(s.player.classId).toBe('mystic');
+    expect(s.player.free).toBe(200 + balance.rebirth.bonusPoints);
+    expect(s.player.skills.map((x) => [x.id, x.level])).toEqual([['wugu', 5], ['hufeng', 3]]);
+    expect(levelCap(s)).toBe(160);
+    grantPlayerExp(s, 1e7);
+    expect(s.player.level).toBeGreaterThan(100);
+    expect(canRebirth(s)).toBe('已经转过职了');
+  });
+
+  it('副将100级以后转生要大将军令，转了才能继续升', () => {
+    const s = fresh();
+    s.p3.reborn = 1;
+    const g = makeGeneral(s, 'shanzei', 100, new Rng(1));
+    addGeneral(s, g);
+    expect(generalRebirth(s, g.uid)).toContain('大将军令');
+    addItem(s, 'dajiangjunling', 1);
+    expect(generalRebirth(s, g.uid)).toContain('转生');
+    expect(g.reborn).toBe(1);
+  });
+});
+
+describe('教派、训练、宝库', () => {
+  it('34级入教派，领任务扣活力，做完涨声望；声望够了升职位、加成变大', () => {
+    const s = fresh();
+    lvl(s, 50);
+    for (const id of Object.keys(locations)) arrive(s, id);
+    expect(joinSect(s, 'qinglong')).toContain('青龙会');
+    expect(s.flags.joinedSect).toBe(true);
+    const atk0 = playerStats(s).atk;
+    const v = vigorNow(s, T0);
+    expect(takeSectTask(s, T0)).toContain('教派任务');
+    expect(s.p3.vigor).toBe(v - systems.sect.vigorCost);
+    const t = s.p3.sect.task!;
+    if (t.type === 'deliver') addItem(s, t.item!, t.count);
+    else if (t.type === 'goto') t.arrived = true;
+    else t.have = t.count;
+    expect(sectTaskDone(s)).toBe(true);
+    turnInSect(s);
+    expect(s.p3.sect.rep).toBeGreaterThan(0);
+    s.p3.sect.rep = 5000;
+    expect(playerStats(s).atk).toBeGreaterThan(atk0);
+  });
+
+  it('训练按真实时间给经验，周末半价；训练中的副将不能出战', () => {
+    const s = fresh();
+    lvl(s, 30);
+    s.player.silver = 1e6;
+    const g = makeGeneral(s, 'shanzei', 20, new Rng(2));
+    addGeneral(s, g);
+    s.activeGeneral = null;
+    expect(startTraining(s, g.uid, 2, T0)).toContain('训练');
+    expect(s.flags.trained).toBe(true);
+    const lv = g.level;
+    const r = endTraining(s, T0 + 2 * HOUR);
+    expect(r[0]).toContain('经验');
+    expect(g.level).toBeGreaterThanOrEqual(lv);
+    // 2026-03-14 是周六
+    const sat = at(2026, 3, 14, 10);
+    const wed = at(2026, 3, 11, 10);
+    expect(trainCost(s, 'player', 4, sat) * 2).toBe(trainCost(s, 'player', 4, wed));
+  });
+
+  it('宝库存取、扩容花金砖', () => {
+    const s = fresh();
+    addItem(s, 'baoxiang', 5);
+    expect(vaultStore(s, 'baoxiang', 3)).toContain('3');
+    expect(bagCount(s, 'baoxiang')).toBe(2);
+    expect(vaultTake(s, 'baoxiang', 1)).toContain('取出');
+    expect(s.p3.vault.baoxiang).toBe(2);
+    expect(expandVault(s)).toContain('金砖');
+    s.player.gold = 100;
+    expect(expandVault(s)).toContain('50');
+  });
+});
+
+describe('擂台、决斗场、恶人值', () => {
+  it('没上榜挑最后5名，赢了换到对方名次，切磋不掉经验不回城', () => {
+    const s = fresh();
+    lvl(s, 60);
+    s.location = 'chenliu';
+    expect(challengers(s, 'arena').map((c) => c.rank)).toEqual([96, 97, 98, 99, 100]);
+    const b = arenaBattle(s, 'arena', 100, 3) as Battle;
+    expect(typeof b).toBe('object');
+    for (const u of b.units) if (u.side === 'enemy') u.hp = 1;
+    b.outcome = 'win';
+    const exp = s.player.exp;
+    finishBattle(s, b, T0);
+    expect(s.p3.arena.rank).toBe(100);
+    expect(s.flags.arena).toBe(true);
+    expect(s.player.exp).toBe(exp);
+    expect(s.location).toBe('chenliu');
+    expect(ladder(s, 'arena')[99].rival).toBe(null);
+    const b2 = arenaBattle(s, 'arena', 97, 4) as Battle;
+    b2.outcome = 'lose';
+    finishBattle(s, b2, T0);
+    expect(s.p3.arena.rank).toBe(100);
+    expect(s.location).toBe('chenliu');
+  });
+
+  it('决斗打赢涨恶人值，每小时消1点', () => {
+    const s = fresh();
+    lvl(s, 60);
+    s.p3.evil = 10;
+    s.p3.evilAt = T0;
+    expect(evilNow(s, T0 + 3 * HOUR)).toBe(7);
+  });
+});
+
+describe('抢宝、银两环、文曲星、幸运王、节日', () => {
+  it('9点、11点各开半小时；宝藏在去过的野外；每天3次', () => {
+    const s = fresh();
+    for (const id of ['cunbei', 'cunnan', 'cunxi']) arrive(s, id);
+    expect(treasureNow(s, at(2026, 3, 10, 8, 50)).open).toBe(false);
+    const t = treasureNow(s, at(2026, 3, 10, 9, 5));
+    expect(t.open).toBe(true);
+    expect(['cunbei', 'cunnan', 'cunxi']).toContain(t.at);
+    expect(treasureNow(s, at(2026, 3, 10, 9, 40)).open).toBe(false);
+    expect(treasureNow(s, at(2026, 3, 10, 11, 10)).open).toBe(true);
+    s.location = t.at!;
+    const now = at(2026, 3, 10, 9, 5);
+    const b = treasureBattle(s, 1, now) as Battle;
+    expect(b.tag).toBe('treasure');
+    b.outcome = 'win';
+    const silver = s.player.silver;
+    finishBattle(s, b, now);
+    expect(s.player.silver).toBeGreaterThan(silver);
+    expect(treasureLeft(s, now)).toBe(2);
+  });
+
+  it('银两环：接了差事庐江逃兵才掉军资，交10份领赏', () => {
+    const s = fresh();
+    lvl(s, 45);
+    expect(questDropAllowed(s, 'silverRing')).toBe(false);
+    expect(takeSilverRing(s, T0)).toContain('军资');
+    expect(questDropAllowed(s, 'silverRing')).toBe(true);
+    addItem(s, 'junzi', 10);
+    const silver = s.player.silver;
+    expect(turnInSilverRing(s)).toContain('赏银');
+    expect(s.player.silver).toBeGreaterThan(silver);
+  });
+
+  it('文曲星每天5题；幸运王每天免费一次，之后要金砖', () => {
+    const s = fresh();
+    let right = 0;
+    for (let i = 0; i < 5; i++) {
+      const t = wenquToday(s, T0);
+      expect(t.qi).not.toBe(null);
+      const r = answerWenqu(s, t.qi!, systems.wenqu.questions[t.qi!].ok);
+      if (r.ok) right++;
+    }
+    expect(right).toBe(5);
+    expect(wenquToday(s, T0).qi).toBe(null);
+    expect(luckyDraw(s, T0)).toContain('幸运值');
+    expect(luckyDraw(s, T0)).toContain('金砖');
+    expect(s.p3.lucky.luck).toBeGreaterThan(0);
+  });
+
+  it('节日按日期认；当天礼包只能领一次，经验加成', () => {
+    const s = fresh();
+    expect(festivalToday(at(2026, 10, 1, 12))?.name).toBe('国庆');
+    expect(festivalToday(at(2026, 9, 25, 12))?.name).toBe('中秋');
+    expect(festivalToday(at(2026, 3, 11, 12))).toBe(null);
+    expect(festivalExpMul(at(2026, 10, 1, 12))).toBe(1.5);
+    expect(claimFestival(s, at(2026, 10, 1, 12))).toContain('国庆快乐');
+    expect(claimFestival(s, at(2026, 10, 2, 12))).toContain('领过');
+  });
+});
+
+describe('摆摊、婚姻、结拜、组队', () => {
+  it('摆上的东西按时间卖出去，价钱低卖得快', () => {
+    const s = fresh();
+    addItem(s, 'baoxiang', 6);
+    putOnStall(s, 'baoxiang', 6, 100, T0);
+    settleStall(s, T0 + 6 * HOUR);
+    expect(s.p3.stall.sold).toBeGreaterThan(3);
+    expect(collectStall(s, T0 + 6 * HOUR)).toContain('货款');
+  });
+
+  it('送礼到100好感才能成亲；默契够的英才能结拜', () => {
+    const s = fresh('warrior', 'male');
+    lvl(s, 50);
+    s.player.silver = 1e7;
+    expect(marry(s, 'zhenfu')).toContain('好感');
+    s.p3.marriage.favor.zhenfu = 95;
+    giveGift(s, 'zhenfu', T0);
+    expect(s.p3.marriage.favor.zhenfu).toBe(100);
+    const hp = playerStats(s).maxHp;
+    expect(marry(s, 'zhenfu')).toContain('夫妻');
+    expect(playerStats(s).maxHp).toBeGreaterThan(hp);
+    const g = makeGeneral(s, 'shanzei', 30, new Rng(3));
+    addGeneral(s, g);
+    expect(swornReason(s, g.uid)).toContain('常人');
+    g.grade = '英才';
+    g.rapport = 60;
+    expect(swear(s, g.uid)).toContain('结拜');
+    expect(g.sworn).toBe(true);
+  });
+
+  it('雇的队友跟着上场，打一场少一场', () => {
+    const s = fresh();
+    lvl(s, 20);
+    s.player.silver = 1e6;
+    hireMerc(s, 'mystic');
+    s.location = 'cunnan';
+    const b = startBattle(s, 0, 9);
+    expect(b.units.some((u) => u.id === 'merc')).toBe(true);
+    b.outcome = 'win';
+    finishBattle(s, b, T0);
+    expect(s.p3.merc!.battles).toBe(systems.merc.battles - 1);
+  });
+});
+
+describe('战斗录像、成就、存档迁移', () => {
+  it('录像按记下的随机数和指令重算，结果和原来一样', () => {
+    const s = fresh();
+    lvl(s, 10);
+    s.location = 'cunxi';
+    const b = startBattle(s, 0, 77);
+    run(b);
+    finishBattle(s, b, T0);
+    const rp = s.p3.replays[0];
+    expect(rp.rounds.length).toBe(b.round);
+    const r = createBattle(JSON.parse(JSON.stringify(rp.init)));
+    for (const round of rp.rounds) {
+      r.rng.state = round.s;
+      resolveRound(r, round.c);
+    }
+    expect(r.outcome).toBe(b.outcome);
+    expect(r.units.map((u) => u.hp)).toEqual(b.units.map((u) => u.hp));
+  });
+
+  it('成就达成发奖给称号；称号能换；排行榜里有自己', () => {
+    const s = fresh();
+    lvl(s, 60);
+    const got = checkAchievements(s, T0);
+    expect(got.some((x) => x.includes('名动一方'))).toBe(true);
+    expect(s.p3.titles).toContain('名动一方');
+    expect(setTitle(s, '名动一方')).toContain('名动一方');
+    expect(checkAchievements(s, T0)).toEqual([]);
+    const rows = board(s, 'gaoshou', (lv) => lv, 0, 0);
+    expect(rows.some((r) => r.mine)).toBe(true);
+  });
+
+  it('老存档补上 P3 字段；停在「全部完成」的接着往下走', () => {
+    const s = fresh();
+    const raw = JSON.parse(serialize(s));
+    delete raw.p3;
+    raw.main = { step: 36, state: 'done', count: 0 };
+    const s2 = deserialize(JSON.stringify(raw));
+    expect(s2.p3.reborn).toBe(0);
+    expect(s2.main.state).toBe('available');
+    expect(mainQuests[36].id).toBe('m36');
+  });
+});
+
+describe('P3 自动通关模拟（1级打到汉中篇结束）', () => {
+  for (const classId of ['warrior', 'scholar', 'mystic'] as ClassId[]) {
+    for (const gender of ['male', 'female'] as Gender[]) {
+      it(`${classId}/${gender} 打通全部主线，转职，到155级以上`, () => {
+        const s = fresh(classId, gender);
+        const rep = autoplay(s, 11, 6000);
+        console.log(classId, gender, JSON.stringify({ battles: rep.battles, losses: rep.losses, level: rep.level, rings: rep.rings }));
+        expect(rep.finished).toBe(true);
+        expect(s.main.state).toBe('done');
+        expect(s.p3.reborn).toBe(1);
+        expect(rep.level).toBeGreaterThanOrEqual(155);
+        expect(rep.battles).toBeLessThan(4500);
+      }, 120000);
+    }
+  }
+});

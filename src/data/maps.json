@@ -290,7 +290,8 @@
         "xuling",
         "zhaoxian",
         "paohuan",
-        "xcbukuai"
+        "xcbukuai",
+        "wenquxing"
       ],
       "facilities": [
         "hospital",
@@ -302,7 +303,8 @@
         "skillschool",
         "stable",
         "casino",
-        "battlefield"
+        "battlefield",
+        "market"
       ],
       "groups": []
     },

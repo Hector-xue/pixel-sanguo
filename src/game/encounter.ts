@@ -8,7 +8,7 @@ import { Rng } from '../core/rng';
 import type { Stats } from '../core/types';
 import type { General, Save } from './state';
 import {
-  addGeneral, addItem, addProf, checkCollect, findGeneral, generalStats, grantGeneralExp, grantPlayerExp,
+  addGeneral, addItem, addProf, heroVariant, checkCollect, findGeneral, generalStats, grantGeneralExp, grantPlayerExp,
   log, makeGeneral, onBattleKills, onCapture, playerStats, questDropAllowed,
 } from './state';
 import { afterGuard } from './dig';
@@ -51,7 +51,7 @@ export function playerUnit(s: Save): BUnit {
   return {
     ...baseUnit('p', st),
     name: p.name, side: 'ally', kind: 'player', refId: 'player',
-    classId: p.classId, gender: p.gender, look: `hero_${p.classId}_${p.gender}`, variant: p.avatar,
+    classId: p.classId, gender: p.gender, look: `hero_${p.classId}_${p.gender}`, variant: heroVariant(s),
     level: p.level, row: 0,
     hp: Math.max(1, Math.min(p.hp, st.maxHp)), mp: Math.min(p.mp, st.maxMp),
     skills: p.skills.map((x) => ({ ...x })), aiSkills: [],

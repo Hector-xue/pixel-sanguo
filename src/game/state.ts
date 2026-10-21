@@ -162,6 +162,10 @@ export interface P3State {
   charm: number;
   vigor: number;
   vigorDay: string;
+  // 造型（0～2）和已解锁的造型、性格
+  skin: number;
+  skins: number[];
+  personality: string;
 }
 
 export function p3Defaults(): P3State {
@@ -190,7 +194,15 @@ export function p3Defaults(): P3State {
     charm: 0,
     vigor: 0,
     vigorDay: '',
+    skin: 0,
+    skins: [0],
+    personality: '',
   };
+}
+
+// 主角贴图的变体：头像 + 3 × 造型
+export function heroVariant(s: Save): number {
+  return s.player.avatar + 3 * (s.p3?.skin ?? 0);
 }
 
 // 转职前等级停在 100

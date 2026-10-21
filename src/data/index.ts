@@ -54,6 +54,12 @@ export interface NpcDef {
   recruit?: boolean;
   ring?: boolean;
   dig?: boolean;
+  sect?: boolean;
+  rebirth?: boolean;
+  silverRing?: boolean;
+  mercenary?: boolean;
+  marriage?: boolean;
+  wenqu?: boolean;
 }
 
 export interface DialogLine {

@@ -6,7 +6,7 @@ import type { Reward } from '../data';
 import { randomSeed } from '../core/rng';
 import { digOnce, guardBattle, nextIsGuard, startDig, buyShovel } from '../game/dig';
 import type { General } from '../game/state';
-import { bagCount, profCap } from '../game/state';
+import { bagCount, profCap, skillLevelText } from '../game/state';
 import { allGenerals, generalLearn, generalSkillRows, generalUpgrade, readXinfa, recruitOptions, recruitWith } from '../game/generals';
 import { abandonRing, nextRing, openTiers, ringOpen, ringStatusText, taskDone, tierName, turnInRing, RING_ROUNDS, RING_STAMINA } from '../game/ring';
 import { store } from '../game/store';
@@ -14,6 +14,7 @@ import {
   canSignIn, claimOnline, eatPill, onlineMinutes, openBox, openGemOre, readSkillBook, readSkillBookGeneral, signIn, staminaMax, staminaNow,
 } from '../game/welfare';
 import { showDialog } from './dialog';
+import { festivalBlock } from './p3';
 import type { Host } from './panels';
 import { done } from './panels';
 import { Button, Modal, ScrollArea, confirm, frame, sfx, text, toast } from './widgets';
@@ -36,11 +37,12 @@ export function welfarePanel(h: Host): void {
   m.inner.add(dyn);
   const render = () => {
     dyn.removeAll(true);
-    ['七日签到', '在线奖励'].forEach((n, i) => dyn.add(new Button(h, m.cx + i * (m.cw / 2), m.cy, m.cw / 2 - 2, 22, n, () => {
+    ['七日签到', '在线奖励', '节日'].forEach((n, i) => dyn.add(new Button(h, m.cx + i * (m.cw / 3), m.cy, m.cw / 3 - 2, 22, n, () => {
       welfareTab = i;
       render();
     }, { style: welfareTab === i ? 'dark' : 'tan' })));
     let y = m.cy + 30;
+    if (welfareTab === 2) return festivalBlock(h, dyn, m, y, render);
     if (welfareTab === 0) {
       dyn.add(text(h, m.cx, y, `累计签到 ${s.signin.count}/7 天（漏签不清零）`, { color: C.brown }));
       y += 20;
@@ -266,7 +268,7 @@ export function generalSkillPanel(h: Host, uid: string): void {
       frame(bg, 0, y, m.cw - 6, 36, r.level ? 'paper' : 'tan');
       area.content.add(bg);
       area.content.add(text(h, 8, y + 3, `${def.name}（${classes[r.cls].name}）`, { color: r.cls === g.classId ? C.darkRed : C.darkBrown }));
-      area.content.add(text(h, 8, y + 19, r.level ? `${r.level}级 熟练度${r.prof}` : r.reason || (r.changesClass ? `学了变成${classes[r.cls].name}` : def.desc.slice(0, 14)), { color: r.action ? C.brown : C.gray }));
+      area.content.add(text(h, 8, y + 19, r.level ? `${skillLevelText(r.level)} 熟练度${r.prof}` : r.reason || (r.changesClass ? `学了变成${classes[r.cls].name}` : def.desc.slice(0, 14)), { color: r.action ? C.brown : C.gray }));
       if (r.action) area.content.add(new Button(h, m.cw - 62, y + 7, 52, 22, r.action === 'learn' ? '学习' : '升级', () => {
         const run = () => {
           const msg = r.action === 'learn' ? generalLearn(s, uid, r.id) : generalUpgrade(s, uid, r.id);

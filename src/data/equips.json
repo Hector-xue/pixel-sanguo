@@ -48,67 +48,67 @@
       "level": 50,
       "ore": "hantie",
       "oreN": 3,
-      "silver": 25000
+      "silver": 12000
     },
     {
       "level": 60,
       "ore": "wujin",
       "oreN": 3,
-      "silver": 36000
+      "silver": 18000
     },
     {
       "level": 70,
       "ore": "chijin",
       "oreN": 3,
-      "silver": 49000
+      "silver": 24000
     },
     {
       "level": 80,
       "ore": "zijing",
       "oreN": 3,
-      "silver": 64000
+      "silver": 32000
     },
     {
       "level": 90,
       "ore": "yuntie",
       "oreN": 3,
-      "silver": 81000
+      "silver": 40000
     },
     {
       "level": 100,
       "ore": "xingchen",
       "oreN": 3,
-      "silver": 100000
+      "silver": 50000
     },
     {
       "level": 110,
       "ore": "longgu",
       "oreN": 3,
-      "silver": 121000
+      "silver": 60000
     },
     {
       "level": 120,
       "ore": "fengyu",
       "oreN": 3,
-      "silver": 144000
+      "silver": 72000
     },
     {
       "level": 130,
       "ore": "qilinjiao",
       "oreN": 3,
-      "silver": 169000
+      "silver": 84000
     },
     {
       "level": 140,
       "ore": "shentie",
       "oreN": 3,
-      "silver": 196000
+      "silver": 98000
     },
     {
       "level": 150,
       "ore": "hunyuan",
       "oreN": 3,
-      "silver": 225000
+      "silver": 112000
     }
   ],
   "sockets": [

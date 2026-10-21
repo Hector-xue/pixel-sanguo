@@ -8,7 +8,7 @@ import { expToNext } from '../core/formulas';
 import { chatterTick, playersAt } from '../game/chatter';
 import { groupLabel, startBattle } from '../game/encounter';
 import {
-  arrive, currentQuest, exitsOf, findPath, generalStats, moneyText, moveTo, npcMark, playerStats, questDestination, questProgressText,
+  arrive, currentQuest, exitsOf, findPath, generalStats, moneyText, moveTo, npcMark, playerStats, questDestination, questProgressText, heroVariant,
 } from '../game/state';
 import { dailyTick, welfarePending } from '../game/welfare';
 import { welfarePanel } from '../ui/fun';
@@ -21,6 +21,10 @@ import { ChatBox } from '../ui/chat';
 import { Button, H, ScrollArea, W, bar, goldFrame, hit, sfx, text, toast } from '../ui/widgets';
 import { UI, drawFace, fireTex, vgrad } from '../art/chrome';
 import * as P from '../ui/panels';
+import * as X from '../ui/p3';
+import { checkAchievements } from '../game/achv';
+import { treasureNow } from '../game/events';
+import { log } from '../game/state';
 
 type Tab = 'people' | 'facility' | 'move' | 'func';
 const TABS: [Tab, string][] = [['people', '人物'], ['facility', '设施'], ['move', '移动'], ['func', '功能']];
@@ -60,14 +64,19 @@ export class MainScene extends Phaser.Scene implements P.Host {
         }
       },
     });
+    // 抢宝开场时在系统频道公告一次
+    this.time.addEvent({ delay: 15000, loop: true, callback: () => this.announceTreasure() });
+    this.announceTreasure();
     const daily = dailyTick(store.save);
     this.refresh();
     if (daily.length) toast(this, daily.join('\n'), 2600);
-    if (import.meta.env.DEV) Object.assign(window, { __P: P, __T: T, __F: F, __R: R, __store: store, __main: this });
+    if (import.meta.env.DEV) Object.assign(window, { __P: P, __T: T, __F: F, __R: R, __X: X, __store: store, __main: this });
   }
 
   // 存档变了就整页重画，简单可靠
   refresh(): void {
+    const got = checkAchievements(store.save);
+    if (got.length) this.time.delayedCall(300, () => toast(this, got.join('\n'), 2800));
     store.commit();
     this.layer.removeAll(true);
     this.drawTop();
@@ -106,7 +115,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     g.fillStyle(UI.gold).fillRect(x + 7, y + 7, 48, 48);
     g.fillStyle(0x10204a).fillRect(x + 8, y + 8, 46, 46);
     this.layer.add(g);
-    this.layer.add(this.add.image(x + 7, y + 7, avatarTex(this, heroLookKey(p.classId, p.gender), p.avatar)).setOrigin(0).setScale(2));
+    this.layer.add(this.add.image(x + 7, y + 7, avatarTex(this, heroLookKey(p.classId, p.gender), heroVariant(s))).setOrigin(0).setScale(2));
     this.layer.add(hit(this, x + 6, y + 6, 50, 50, () => P.statusPanel(this)));
     this.layer.add(text(this, x + 60, y + 9, p.name, { color: UI.white }));
     this.layer.add(text(this, x + 60, y + 25, `${p.level}级${classes[p.classId].name}`, { color: UI.cream }));
@@ -240,6 +249,10 @@ export class MainScene extends Phaser.Scene implements P.Host {
       this.row(c, yy, w, avatarTex(this, m.look), `${groupLabel(gr)} ${lv}级`, m.boss ? UI.yellow : UI.white, '战斗', () => this.fight(gi), area, isTarget);
       yy += 32;
     });
+    if (X.treasureHere(s)) {
+      this.row(c, yy, w, avatarTex(this, 'guardian'), '宝藏守卫（抢宝）', UI.yellow, '抢宝', () => X.fightTreasure(this), area, true);
+      yy += 32;
+    }
     if (!loc.npcs.length && !loc.groups.length) c.add(text(this, 2, yy, '这里空无一人。', { color: C.gray }));
     area.setContentHeight(yy);
   }
@@ -319,9 +332,9 @@ export class MainScene extends Phaser.Scene implements P.Host {
   private drawFunc(x: number, y: number, w: number): void {
     const items: [string, () => void][] = [
       ['状态', () => P.statusPanel(this)], ['物品', () => P.bagPanel(this)], ['副将', () => P.generalsPanel(this)],
-      ['组队', () => P.notYet(this, '组队', '单机版改成雇 AI 队友，P3 开放')], ['排行', () => P.notYet(this, '排行', '和 AI 玩家一起排名，P3 开放')], ['好友', () => P.notYet(this, '好友', '单机版没有其他真人玩家，去掉了好友')],
-      ['邮件', () => welfarePanel(this)], ['任务', () => P.questPanel(this)], ['擂台', () => P.notYet(this, '擂台', '打 AI 排位赛，P3 开放')],
-      ['帮派', () => P.notYet(this, '帮派', '34级开放，加入 NPC 帮派，P3 开放')], ['训练', () => P.notYet(this, '训练', '花银两挂机涨经验，P3 开放')], ['宝库', () => P.notYet(this, '宝库', '存放超出负重的物品，P3 开放')],
+      ['组队', () => X.teamPanel(this)], ['排行', () => X.rankPanel(this)], ['好友', () => P.notYet(this, '好友', '单机版没有其他真人玩家，去掉了好友')],
+      ['邮件', () => welfarePanel(this)], ['任务', () => P.questPanel(this)], ['擂台', () => X.arenaPanel(this)],
+      ['帮派', () => X.sectPanel(this)], ['训练', () => X.trainingPanel(this)], ['宝库', () => X.vaultPanel(this)],
       ['公告', () => P.messagesPanel(this)], ['攻略', () => P.helpPanel(this)], ['退出', () => P.exitPanel(this)],
     ];
     // 原版功能格：暗底白字，右边一枚金色箭头楔，横线分行
@@ -331,7 +344,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     items.forEach(([name, fn], i) => {
       const bx = x + (i % 3) * bw;
       const by = y + Math.floor(i / 3) * 34;
-      const dot = (name === '状态' && store.save.player.free > 0) || (name === '任务' && store.save.main.state === 'ready') || (name === '邮件' && welfarePending(store.save));
+      const dot = (name === '状态' && store.save.player.free > 0) || (name === '任务' && store.save.main.state === 'ready') || (name === '邮件' && (welfarePending(store.save) || X.festivalPending(store.save)));
       g.fillStyle(0x000000, 0.4).fillRect(bx, by, bw - 2, 32);
       if (i % 3 === 0) g.fillStyle(UI.line).fillRect(x, by + 32, w, 1);
       // 金楔：上宽下窄的斜三角
@@ -344,6 +357,19 @@ export class MainScene extends Phaser.Scene implements P.Host {
       this.layer.add(hit(this, bx, by, bw - 2, 32, fn));
     });
     this.layer.add(new Button(this, x + 20, y + 5 * 34 + 8, w - 40, 24, '任务帮助使者', () => P.talkTo(this, 'bangzhu'), { style: 'red' }));
+  }
+
+  private announceTreasure(): void {
+    const s = store.save;
+    const t = treasureNow(s);
+    if (!t.open || !t.at) return;
+    const key = `tr_${new Date().toDateString()}_${t.hour}`;
+    if (s.flags[key]) return;
+    for (const k of Object.keys(s.flags)) if (k.startsWith('tr_')) delete s.flags[k];
+    s.flags[key] = true;
+    log(s, `抢宝开始了！宝藏出现在【${locations[t.at].name}】，去「设施 → 战场」可以直接传送`);
+    this.chat.refresh();
+    store.commit();
   }
 
   fight(groupIndex: number): void {

@@ -1,6 +1,7 @@
 # 字体补字：Fusion Pixel 12px 里缺「颍」「骢」，用字体里已有的部件拼出来，保持同一套像素风格。
 # 用法：python3 scripts/patch-font.py public/fonts/fusion-pixel-12px.woff2
 # 颍 = 颖的左上「匕」+ 手画的小「水」+ 颖的右半「页」；骢 = 驰的「马」字旁 + 聪的右半「总」
+# 箓 = 符的竹字头 + 压扁的「录」（手画）；谡 = 说的「讠」+ 稷的右半「畟」
 import sys
 from fontTools.ttLib import TTFont
 from fontTools.pens.recordingPen import DecomposingRecordingPen
@@ -63,6 +64,15 @@ cong = bitmap('聪')
 cong2 = [[(chi[r][x] if x < 4 else 0) if x < 5 else cong[r][x] for x in range(12)] for r in range(len(YS))]
 
 
+fu = bitmap('符')
+LU = ['..#######...', '........#...', '.##########.', '.#...#...#..', '..#..##.#...', '....##.#....', '..##.#..#...', '##..##...##.']
+lu = [row[:] for row in fu[:5]] + [[1 if c == '#' else 0 for c in line] for line in LU]
+
+shuo = bitmap('说')
+ji = bitmap('稷')
+su = [[shuo[r][x] if x < 3 else (ji[r][x] if x >= 4 else 0) for x in range(12)] for r in range(len(YS))]
+
+
 def glyph_from(bm):
     pen = TTGlyphPen(None)
     for r, row in enumerate(bm):
@@ -107,5 +117,7 @@ def add(ch, bm, like):
 
 add('颍', ying, '颖')
 add('骢', cong2, '聪')
+add('箓', lu, '符')
+add('谡', su, '说')
 f['maxp'].numGlyphs = len(f.getGlyphOrder())
 f.save(PATH)

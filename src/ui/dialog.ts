@@ -1,4 +1,5 @@
 // 剧情对话框：上面头像和名字，中间黑底大文本框，底下一排选项
+import { heroVariant } from '../game/state';
 import Phaser from 'phaser';
 import { avatarTex, heroLookKey } from '../art/textures';
 import { classes, npcs } from '../data';
@@ -57,7 +58,7 @@ export function showDialog(scene: Phaser.Scene, lines: DialogLine[], options: Di
     if (isPlayer) {
       const p = store.save.player;
       const py = boxY + boxH + 10;
-      portrait(W - 80, py, avatarTex(scene, heroLookKey(p.classId, p.gender), p.avatar));
+      portrait(W - 80, py, avatarTex(scene, heroLookKey(p.classId, p.gender), heroVariant(store.save)));
       page.add(text(scene, W - 88, py + 18, p.name, { align: 'right', color: UI.red, stroke: 0x000000, scale: 2 }));
     }
     const body = wrap(fillText(line.text), W - 56).join('\n');

@@ -1,19 +1,23 @@
 // 角色面板（新版五个分页：信息、属性、装备、战力、生平）和装备详情
 import { C, hex } from '../art/palette';
 import { avatarTex, gearTex, heroLookKey } from '../art/textures';
-import { balance, classes, equips, items, locations, mainQuests, mounts } from '../data';
+import { balance, classes, equips, items, locations, mainQuests, mounts, systems } from '../data';
 import { expToNext } from '../core/formulas';
 import { attrReq, gearBonus, gearLines, gearName, gearValue, tierLevel } from '../core/gear';
 import type { Gear, Slot, Stats } from '../core/types';
 import { ATTR_KEYS, ATTR_NAMES, RESIST_KEYS, RESIST_NAMES } from '../core/types';
-import { casinoTitle } from '../game/casino';
+import { charmOf, titleText } from '../game/achv';
+import { evilNow } from '../game/arena';
+import { sectRankName, vigorMax, vigorNow } from '../game/sect';
+import { candidateName } from '../game/social';
 import type { Save } from '../game/state';
-import { bagUsed, generalStats, playerAttrs, playerStats } from '../game/state';
+import { bagUsed, generalStats, playerAttrs, playerStats, heroVariant } from '../game/state';
 import { canEquip, equipGear, unequip } from '../game/smith';
 import { store } from '../game/store';
 import { eatPill, staminaMax, staminaNow } from '../game/welfare';
 import type { Host } from './panels';
 import { allocatePanel, done, kv, section } from './panels';
+import { achvPanel, titlePanel } from './p3';
 import { Button, Modal, frame, text, toast } from './widgets';
 
 // 战力：把面板属性折算成一个数（排行、对比用）【推定】
@@ -51,7 +55,7 @@ export function rolePanel(h: Host, tab?: number): void {
   const g = h.add.graphics();
   frame(g, L - 4, y, 52, 52, 'tan');
   m.inner.add(g);
-  m.inner.add(h.add.image(L - 2, y + 2, avatarTex(h, heroLookKey(p.classId, p.gender), p.avatar)).setOrigin(0).setScale(2));
+  m.inner.add(h.add.image(L - 2, y + 2, avatarTex(h, heroLookKey(p.classId, p.gender), heroVariant(s))).setOrigin(0).setScale(2));
   m.inner.add(text(h, L + 56, y + 2, p.name, { color: C.darkRed, scale: 2 }));
   m.inner.add(text(h, L + 56, y + 30, `${p.level}级${classes[p.classId].name}`, { color: C.darkBrown }));
   m.inner.add(text(h, L + 56, y + 44, `战力 ${power(st)}`, { color: C.red }));
@@ -92,15 +96,18 @@ function infoTab(h: Host, m: Modal, y: number, L: number, R: number): void {
   const p = s.player;
   y = section(m, y, '信息');
   const sta = staminaNow(s);
-  const title = s.life.chibi || s.life.guess ? casinoTitle(s.casino.net) : '无';
+  const sect = s.p3.sect.id ? `${systems.sect.sects.find((x) => x.id === s.p3.sect.id)!.name}·${sectRankName(s.p3.sect.rep)}` : '无';
   const rows: [string, string | number, number?][][] = [
-    [['称号', title], ['会员', '无']],
-    [['等级', p.level], ['升级还需经验', expToNext(p.level) - p.exp]],
+    [['称号', titleText(s)], ['会员', '无']],
+    [['等级', `${p.level}${s.p3.reborn ? `（${s.p3.reborn}转）` : ''}`], ['升级还需经验', expToNext(p.level) - p.exp]],
     [['银两', p.silver], ['金砖', p.gold, C.darkRed]],
     [['绑定银', p.boundSilver], ['钱庄存款', s.bank]],
-    [['体力', `${sta}/${staminaMax()}`], ['活力', p.level * 3]],
-    [['魅力', p.level * 2], ['居住地', homeName(s)]],
+    [['体力', `${sta}/${staminaMax()}`], ['活力', `${vigorNow(s)}/${vigorMax(s)}`]],
+    [['魅力', charmOf(s)], ['居住地', homeName(s)]],
     [['坐骑', s.riding ? `${mounts[s.riding].name}(${s.mounts[s.riding].level}级)` : '无'], ['师门', s.mentor.joined ? (s.mentor.graduated ? '已出师' : '孔庙夫子') : '无']],
+    [['教派', sect], ['配偶', s.p3.marriage.spouse ? candidateName(s.p3.marriage.spouse) : '无']],
+    [['擂台', s.p3.arena.rank ? `第${s.p3.arena.rank}名` : '未上榜'], ['恶人值', evilNow(s), s.p3.evil ? C.red : undefined]],
+    [['性格', s.p3.personality || '未定'], ['造型', SKIN_NAMES[s.p3.skin] ?? '常服']],
   ];
   for (const row of rows) {
     row.forEach(([k, v, c], i) => kv(m, i ? R : L, y, k, v, c));
@@ -120,13 +127,24 @@ function infoTab(h: Host, m: Modal, y: number, L: number, R: number): void {
       done(h, '头像换好了');
       rolePanel(h);
     }],
-    ['更换造型', () => toast(h, '更换造型在 P3 开放')],
-    ['性格', () => toast(h, '性格在 P3 开放')],
-    ['成就', () => toast(h, '成就在 P3 开放')],
+    ['更换造型', () => skinPanel(h, () => {
+      m.close();
+      rolePanel(h);
+    })],
+    ['性格', () => personalityPanel(h, () => {
+      m.close();
+      rolePanel(h);
+    })],
+    ['成就', () => achvPanel(h)],
+    ['更换称号', () => titlePanel(h, () => {
+      m.close();
+      h.refresh();
+      rolePanel(h);
+    })],
   ];
   const bw = Math.floor((m.cw - 8) / 3);
   btns.forEach(([n, fn], i) => m.inner.add(new Button(h, m.cx + (i % 3) * (bw + 4), y + Math.floor(i / 3) * 30, bw, 26, n, fn)));
-  y += 66;
+  y += 96;
   m.inner.add(text(h, m.cx, y, `体力每${balance.stamina.regenMinutes}分钟恢复1点，跑环每环用${5}点；体力丹一天最多${balance.stamina.pillPerDay}颗。`, { wrap: m.cw, color: C.gray }));
 }
 
@@ -278,4 +296,47 @@ function lifeTab(_h: Host, m: Modal, y: number, L: number, R: number): void {
     ['赤壁', `${n('chibi')}局`], ['娱乐场输赢', s.casino.net],
   ];
   rows.forEach(([k, v], i) => kv(m, i % 2 ? R : L, y + Math.floor(i / 2) * 16, k, v));
+}
+
+// ===== 造型、性格 =====
+const SKIN_NAMES = ['常服', '玄色战袍', '锦绣华服'];
+const SKIN_GOLD = 20;
+
+function skinPanel(h: Host, after: () => void): void {
+  const s = store.save;
+  const m = new Modal(h, '更换造型', { h: 300 });
+  SKIN_NAMES.forEach((name, i) => {
+    const y = m.cy + i * 70;
+    const owned = s.p3.skins.includes(i);
+    const g = h.add.graphics();
+    frame(g, m.cx, y, m.cw, 64, s.p3.skin === i ? 'red' : 'tan');
+    m.inner.add(g);
+    m.inner.add(h.add.image(m.cx + 6, y + 6, avatarTex(h, heroLookKey(s.player.classId, s.player.gender), s.player.avatar + 3 * i)).setOrigin(0).setScale(2));
+    m.inner.add(text(h, m.cx + 64, y + 12, name, { color: C.darkRed }));
+    m.inner.add(text(h, m.cx + 64, y + 30, owned ? (s.p3.skin === i ? '正在穿' : '已拥有') : `${SKIN_GOLD}金砖解锁`, { color: C.brown }));
+    m.inner.add(new Button(h, m.cx + m.cw - 64, y + 20, 56, 24, owned ? '换上' : '解锁', () => {
+      if (!owned) {
+        if (s.player.gold < SKIN_GOLD) return void toast(h, `要${SKIN_GOLD}金砖`);
+        s.player.gold -= SKIN_GOLD;
+        s.p3.skins.push(i);
+      }
+      s.p3.skin = i;
+      m.close();
+      done(h, `换上了${name}`);
+      after();
+    }, { style: owned ? 'tan' : 'red', disabled: s.p3.skin === i }));
+  });
+}
+
+const PERSONALITIES = ['豪爽', '谨慎', '仁厚', '狂傲', '机敏', '淡泊'];
+function personalityPanel(h: Host, after: () => void): void {
+  const s = store.save;
+  const m = new Modal(h, '性格', { h: 260 });
+  m.inner.add(text(h, m.cx, m.cy, '性格只是个人标签，显示在角色面板里。', { color: C.brown }));
+  PERSONALITIES.forEach((p, i) => m.inner.add(new Button(h, m.cx + (i % 3) * Math.floor(m.cw / 3), m.cy + 24 + Math.floor(i / 3) * 36, Math.floor(m.cw / 3) - 6, 30, p, () => {
+    s.p3.personality = p;
+    m.close();
+    done(h, `性格定为「${p}」`);
+    after();
+  }, { style: s.p3.personality === p ? 'red' : 'tan' })));
 }
