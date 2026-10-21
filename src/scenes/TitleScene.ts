@@ -2,6 +2,7 @@
 import Phaser from 'phaser';
 import { C } from '../art/palette';
 import { avatarTex, heroLookKey, sceneTex, unitTex } from '../art/textures';
+import { BX, FEET_Y, UNIT_H, UNIT_W } from '../art/units';
 import { CLASS_IDS, classSkills, classes, opening, skills } from '../data';
 import { Rng, randomSeed } from '../core/rng';
 import type { ClassId, Gender } from '../core/types';
@@ -10,7 +11,8 @@ import { acceptQuest, deserialize, log, newSave } from '../game/state';
 import { store } from '../game/store';
 import { showDialog } from '../ui/dialog';
 import { overlayInput } from '../ui/input';
-import { Button, H, W, confirm, frame, hit, text, toast } from '../ui/widgets';
+import { Button, H, W, confirm, frame, goldFrame, hit, text, toast } from '../ui/widgets';
+import { UI } from '../art/chrome';
 
 const SERVERS = ['许昌', '洛阳', '长安', '邺城', '建业', '成都', '襄阳', '下邳', '宛城', '汝南', '北海', '陈留', '濮阳', '庐江', '江陵'];
 const CLASS_TRAIT: Record<ClassId, string> = {
@@ -40,9 +42,9 @@ export class TitleScene extends Phaser.Scene {
   private showHome(): void {
     const p = this.newPage();
     const g = this.add.graphics();
-    frame(g, 40, 70, 280, 110, 'paper');
+    goldFrame(g, 40, 70, 280, 110, 0x0c0e44);
     p.add(g);
-    p.add(text(this, W / 2, 88, '像素三国', { align: 'center', color: C.darkRed, scale: 3 }));
+    p.add(text(this, W / 2, 88, '像素三国', { align: 'center', color: UI.yellow, stroke: 0x6a2000, scale: 3 }));
     p.add(text(this, W / 2, 140, '回合制 · 三国像素单机', { align: 'center', color: C.brown }));
     p.add(text(this, W / 2, 158, '单机版 P2 · 许昌', { align: 'center', color: C.gray }));
     let y = 360;
@@ -152,10 +154,10 @@ export class TitleScene extends Phaser.Scene {
         }));
       }
       const pg = this.add.graphics();
-      frame(pg, 90, 290, 180, 210, 'tan');
+      goldFrame(pg, 88, 288, 184, 214, null);
       dyn.add(pg);
       dyn.add(this.add.image(0, 0, sceneTex(this, 'grass', 88, 102, 0.45)).setOrigin(0).setScale(2).setPosition(92, 292));
-      const hero = this.add.image(180 - 4 * 4, 292 + 196, unitTex(this, look, st.avatar, 'idle')).setOrigin(0.5, 29 / 32).setScale(4);
+      const hero = this.add.image(180 - (BX - UNIT_W / 2) * 3, 292 + 196, unitTex(this, look, st.avatar, 'idle')).setOrigin(0.5, FEET_Y / UNIT_H).setScale(3);
       dyn.add(hero);
       this.tweens.add({ targets: hero, y: hero.y - 4, duration: 600, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
     };

@@ -1,6 +1,8 @@
 // 像素界面小部件：全部用整数坐标的实心矩形画，保证放大后边缘干净
 import Phaser from 'phaser';
 import { C, css, hex } from '../art/palette';
+import { UI, drawFace, faceText, stoneTex } from '../art/chrome';
+import type { Face } from '../art/chrome';
 
 export const W = 360;
 // 高度随手机屏幕比例伸缩（640～780），多出来的给聊天区；宽度固定 360
@@ -10,33 +12,76 @@ export const H = (() => {
 })();
 export const FONT = 'FusionPixel';
 
-export type FrameStyle = 'paper' | 'tan' | 'dark' | 'red' | 'pressed' | 'disabled' | 'ink' | 'blue';
+export type FrameStyle = 'paper' | 'tan' | 'dark' | 'red' | 'pressed' | 'disabled' | 'ink' | 'blue' | 'magenta' | 'orange' | 'steel' | 'row';
 
-const STYLES: Record<FrameStyle, { fill: number; border: number; hi: number; lo: number; text: number }> = {
-  paper: { fill: C.paper, border: C.brown, hi: C.lightPaper, lo: C.sand, text: C.darkBrown },
-  tan: { fill: C.sand, border: C.brown, hi: C.paper, lo: C.tan, text: C.darkBrown },
-  pressed: { fill: C.tan, border: C.brown, hi: C.lightBrown, lo: C.sand, text: C.darkBrown },
-  disabled: { fill: C.lightGray, border: C.gray, hi: C.white, lo: C.lightGray, text: C.gray },
-  red: { fill: C.red, border: C.darkRed, hi: C.orange, lo: C.darkRed, text: C.lightPaper },
-  blue: { fill: C.blue, border: C.navy, hi: C.lightBlue, lo: C.navy, text: C.lightPaper },
-  dark: { fill: C.darkBrown, border: C.ink, hi: C.brown, lo: C.ink, text: C.paper },
-  ink: { fill: C.ink, border: C.brown, hi: C.darkBrown, lo: C.ink, text: C.paper },
+// 面板配色照原版老版：深蓝底、细亮边；文字一律浅色（见 uiColor）
+const STYLES: Record<FrameStyle, { fill: number; border: number; hi: number; lo: number }> = {
+  paper: { fill: UI.navy, border: UI.navyEdge, hi: UI.navyHi, lo: UI.navyLo },
+  tan: { fill: UI.row, border: UI.navyEdge, hi: UI.rowHi, lo: UI.rowLo },
+  pressed: { fill: 0x262c78, border: UI.navyEdge, hi: 0x4a52a0, lo: UI.rowLo },
+  disabled: { fill: 0x24242e, border: 0x0c0c12, hi: 0x3c3c4a, lo: 0x18181e },
+  red: { fill: 0x8c1410, border: 0x300000, hi: 0xff7050, lo: 0x5a0804 },
+  blue: { fill: 0x2440b0, border: 0x060c40, hi: 0x6c98ff, lo: 0x162878 },
+  magenta: { fill: 0x8a1aa0, border: 0x28042e, hi: 0xe070ff, lo: 0x5a0c6a },
+  orange: { fill: 0xb05008, border: 0x401400, hi: 0xffb040, lo: 0x6a2804 },
+  dark: { fill: UI.black, border: UI.goldLo, hi: UI.gold, lo: 0x000000 },
+  steel: { fill: 0x50505a, border: 0x101014, hi: 0x9090a0, lo: 0x303038 },
+  row: { fill: UI.row, border: UI.navyEdge, hi: UI.rowHi, lo: UI.rowLo },
+  ink: { fill: 0x02020c, border: 0x000000, hi: 0x7080c0, lo: 0x202040 },
 };
 
+// 按钮用亮色渐变面（原版的金黄按钮、红按钮、蓝按钮、紫按钮）
+const FACE_OF: Record<FrameStyle, Face> = {
+  paper: 'gold', tan: 'gold', pressed: 'gold', disabled: 'gray', red: 'red', blue: 'blue', magenta: 'magenta', orange: 'orange', dark: 'sel', ink: 'dark', steel: 'steel', row: 'gold',
+};
+
+// 原来按浅色宣纸配的字色，换到深色底上逐个映射成浅色；大于 31 的当作原始色值
+const TEXT_MAP: Partial<Record<number, number>> = {
+  [C.darkBrown]: UI.white, [C.ink]: UI.white, [C.brown]: UI.cream, [C.lightBrown]: UI.cream, [C.sand]: UI.cream, [C.tan]: 0xc8a868,
+  [C.gray]: UI.dim, [C.darkGray]: UI.dim, [C.lightGray]: 0xc8c8d0, [C.darkRed]: UI.yellow, [C.red]: UI.red,
+  [C.navy]: UI.sky, [C.blue]: UI.blue, [C.green]: UI.green, [C.darkGreen]: UI.green, [C.purple]: UI.magenta, [C.darkPurple]: UI.magenta,
+};
+
+export function uiColor(c: number): string {
+  if (c > 31) return '#' + c.toString(16).padStart(6, '0');
+  const m = TEXT_MAP[c];
+  return m !== undefined ? '#' + m.toString(16).padStart(6, '0') : css(c);
+}
+
+function rawColor(c: number): string {
+  return c > 31 ? '#' + c.toString(16).padStart(6, '0') : css(c);
+}
+
 export function textColor(style: FrameStyle): number {
-  return STYLES[style].text;
+  return faceText(FACE_OF[style]);
 }
 
 export function frame(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, style: FrameStyle = 'paper'): void {
   const s = STYLES[style];
-  g.fillStyle(hex(s.border)).fillRect(x + 1, y, w - 2, h).fillRect(x, y + 1, w, h - 2);
-  g.fillStyle(hex(s.fill)).fillRect(x + 1, y + 1, w - 2, h - 2);
-  g.fillStyle(hex(s.hi)).fillRect(x + 1, y + 1, w - 2, 1).fillRect(x + 1, y + 1, 1, h - 2);
-  g.fillStyle(hex(s.lo)).fillRect(x + 1, y + h - 2, w - 2, 1).fillRect(x + w - 2, y + 1, 1, h - 2);
+  g.fillStyle(s.border).fillRect(x + 1, y, w - 2, h).fillRect(x, y + 1, w, h - 2);
+  g.fillStyle(s.fill).fillRect(x + 1, y + 1, w - 2, h - 2);
+  g.fillStyle(s.hi).fillRect(x + 1, y + 1, w - 2, 1).fillRect(x + 1, y + 1, 1, h - 2);
+  g.fillStyle(s.lo).fillRect(x + 1, y + h - 2, w - 2, 1).fillRect(x + w - 2, y + 1, 1, h - 2);
+}
+
+// 金边框（主界面、战果、角色立绘框）：外深内亮两道
+export function goldFrame(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, fill: number | null = UI.black): void {
+  g.fillStyle(0x000000).fillRect(x, y, w, h);
+  g.fillStyle(UI.goldLo).fillRect(x + 1, y + 1, w - 2, h - 2);
+  g.fillStyle(UI.gold).fillRect(x + 2, y + 2, w - 4, h - 4);
+  g.fillStyle(UI.goldHi).fillRect(x + 2, y + 2, w - 4, 1);
+  g.fillStyle(0x000000).fillRect(x + 3, y + 3, w - 6, h - 6);
+  if (fill !== null) g.fillStyle(fill).fillRect(x + 4, y + 4, w - 8, h - 8);
+  else g.fillStyle(0x000000, 0).fillRect(x + 4, y + 4, w - 8, h - 8);
+  // 四角小方钉
+  for (const [cx, cy] of [[x + 1, y + 1], [x + w - 4, y + 1], [x + 1, y + h - 4], [x + w - 4, y + h - 4]]) {
+    g.fillStyle(UI.goldHi).fillRect(cx, cy, 3, 3);
+    g.fillStyle(UI.goldLo).fillRect(cx + 1, cy + 1, 1, 1);
+  }
 }
 
 export function rect(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, color: number): void {
-  g.fillStyle(hex(color)).fillRect(x, y, w, h);
+  g.fillStyle(color > 31 ? color : hex(color)).fillRect(x, y, w, h);
 }
 
 // 等宽点阵字：中文 12 像素，ASCII 6 像素
@@ -78,6 +123,8 @@ export interface TextOpts {
   scale?: number;
   lineGap?: number;
   stroke?: number;
+  // 颜色不做深色底映射（画在亮色按钮、战场上的字）
+  raw?: boolean;
 }
 
 export function text(scene: Phaser.Scene, x: number, y: number, s: string, o: TextOpts = {}): Phaser.GameObjects.Text {
@@ -85,10 +132,10 @@ export function text(scene: Phaser.Scene, x: number, y: number, s: string, o: Te
   const t = scene.add.text(Math.round(x), Math.round(y), body, {
     fontFamily: FONT,
     fontSize: '12px',
-    color: css(o.color ?? C.darkBrown),
+    color: o.raw ? rawColor(o.color ?? UI.white) : uiColor(o.color ?? C.darkBrown),
     lineSpacing: o.lineGap ?? 3,
     align: o.align ?? 'left',
-    stroke: o.stroke !== undefined ? css(o.stroke) : undefined,
+    stroke: o.stroke !== undefined ? rawColor(o.stroke) : undefined,
     strokeThickness: o.stroke !== undefined ? 2 : 0,
     padding: { top: 1, bottom: 1 },
   });
@@ -124,10 +171,11 @@ export class Button extends Phaser.GameObjects.Container {
 
   constructor(scene: Phaser.Scene, x: number, y: number, public bw: number, public bh: number, caption: string, private onTap: () => void, private o: ButtonOpts = {}) {
     super(scene, Math.round(x), Math.round(y));
-    this.style = o.style ?? 'tan';
+    // 没有字的按钮是列表行（字另外叠上去），画成深色行而不是金按钮
+    this.style = o.style ?? (caption === '' ? 'row' : 'tan');
     this.disabled = !!o.disabled;
     this.g = scene.add.graphics();
-    this.label = text(scene, bw / 2, Math.round((bh - 14) / 2), caption, { align: 'center' });
+    this.label = text(scene, bw / 2, Math.round((bh - 14) / 2), caption, { align: 'center', raw: true });
     this.zone = scene.add.zone(0, 0, bw, bh).setOrigin(0).setInteractive({ useHandCursor: true });
     this.add([this.g, this.label, this.zone]);
     this.zone.on('pointerdown', () => {
@@ -170,10 +218,11 @@ export class Button extends Phaser.GameObjects.Container {
   }
 
   private redraw(): void {
-    const st: FrameStyle = this.disabled ? 'disabled' : this.down ? 'pressed' : this.style;
+    const face: Face = this.disabled ? 'gray' : FACE_OF[this.style];
     this.g.clear();
-    frame(this.g, 0, 0, this.bw, this.bh, st);
-    this.label.setColor(css(this.o.color !== undefined && !this.disabled ? this.o.color : textColor(st)));
+    if (this.style === 'row') frame(this.g, 0, 0, this.bw, this.bh, this.disabled ? 'disabled' : this.down ? 'pressed' : 'row');
+    else drawFace(this.g, 0, 0, this.bw, this.bh, face, this.down);
+    this.label.setColor(rawColor(this.o.color !== undefined && !this.disabled ? (this.o.color <= 31 ? hex(this.o.color) : this.o.color) : faceText(face)));
     this.label.setY(Math.round((this.bh - 14) / 2) + (this.down ? 1 : 0));
   }
 }
@@ -200,15 +249,19 @@ export function bar(scene: Phaser.Scene, x: number, y: number, w: number, h: num
   return g;
 }
 
+const BAR_FILL: Partial<Record<number, number>> = { [C.red]: 0xf01818, [C.lightBlue]: 0x2c50ff, [C.blue]: 0x2c50ff, [C.gold]: 0xffc020 };
+const BAR_BACK: Partial<Record<number, number>> = { [C.darkRed]: 0x4a0606, [C.navy]: 0x0a1050, [C.sand]: 0x302410 };
+
 export function drawBar(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, ratio: number, fill: number, back: number): void {
   g.clear();
-  rect(g, x, y, w, h, C.ink);
-  rect(g, x + 1, y + 1, w - 2, h - 2, back);
+  g.fillStyle(0x000000).fillRect(x, y, w, h);
+  g.fillStyle(BAR_BACK[back] ?? 0x20202c).fillRect(x + 1, y + 1, w - 2, h - 2);
   const r = Math.max(0, Math.min(1, ratio));
   const fw = Math.round((w - 2) * r);
   if (fw > 0) {
-    rect(g, x + 1, y + 1, fw, h - 2, fill);
-    if (h > 4) rect(g, x + 1, y + 1, fw, 1, C.lightPaper);
+    // 原版血条是饱和的纯红、纯蓝
+    g.fillStyle(BAR_FILL[fill] ?? hex(fill)).fillRect(x + 1, y + 1, fw, h - 2);
+    if (h > 3) g.fillStyle(0xffffff, 0.45).fillRect(x + 1, y + 1, fw, 1);
   }
 }
 
@@ -287,8 +340,8 @@ export class ScrollArea implements Clip {
     if (max > 0) {
       const bh = Math.max(12, Math.round((this.h * this.h) / this.contentH));
       const by = this.y + Math.round(((this.h - bh) * this.scroll) / max);
-      rect(this.bar, this.x + this.w - 3, this.y, 2, this.h, C.sand);
-      rect(this.bar, this.x + this.w - 3, by, 2, bh, C.lightBrown);
+      rect(this.bar, this.x + this.w - 3, this.y, 2, this.h, 0x1a1c40);
+      rect(this.bar, this.x + this.w - 3, by, 2, bh, UI.gold);
     }
   }
 
@@ -320,22 +373,21 @@ export class Modal extends Phaser.GameObjects.Container {
     this.py = opts.y ?? Math.round((H - this.ph) / 2);
     const block = scene.add.zone(0, 0, W, H).setOrigin(0).setInteractive();
     const g = scene.add.graphics();
-    if (opts.dim !== false) {
-      g.fillStyle(hex(C.ink), 0.55).fillRect(0, 0, W, H);
-    }
+    // 整页的面板照原版：四周露出灰石云纹边；小弹窗只压暗
+    const page = this.pw >= W - 40 && this.ph >= H - 200;
+    if (page) this.add(scene.add.image(0, 0, stoneTex(scene, W, H)).setOrigin(0));
+    else if (opts.dim !== false) g.fillStyle(0x000000, 0.55).fillRect(0, 0, W, H);
     frame(g, this.px, this.py, this.pw, this.ph, 'paper');
-    if (title) {
-      frame(g, this.px + 4, this.py + 4, this.pw - 8, 20, 'dark');
-    }
+    if (title) g.fillStyle(UI.goldLo).fillRect(this.px + 8, this.py + 24, this.pw - 16, 1);
     this.add([block, g]);
-    if (title) this.add(text(scene, this.px + this.pw / 2, this.py + 7, title, { align: 'center', color: C.paper }));
+    if (title) this.add(text(scene, this.px + this.pw / 2, this.py + 7, title, { align: 'center', color: UI.red, stroke: 0x000000 }));
     this.inner = scene.add.container(0, 0);
     this.add(this.inner);
     if (opts.close !== null) {
-      this.add(new Button(scene, this.px + this.pw - 48, this.py + 5, 42, 18, opts.close ?? '返回', () => {
+      this.add(new Button(scene, this.px + this.pw - 48, this.py + 4, 42, 18, opts.close ?? '返回', () => {
         this.close();
         opts.onClose?.();
-      }, { style: 'red' }));
+      }, { color: 0xc00c00 }));
     }
     this.setDepth(100 + modalDepth++);
     scene.add.existing(this);
@@ -368,8 +420,9 @@ export function toast(scene: Phaser.Scene, msg: string, ms = 1600): void {
   const h = lines.length * 15 + 12;
   const c = scene.add.container(Math.round((W - w) / 2), 250).setDepth(1000);
   const g = scene.add.graphics();
-  frame(g, 0, 0, w, h, 'ink');
-  c.add([g, text(scene, w / 2, 6, lines.join('\n'), { align: 'center', color: C.paper })]);
+  g.fillStyle(0x000000, 0.85).fillRect(0, 0, w, h);
+  g.fillStyle(UI.gold).fillRect(0, 0, w, 1).fillRect(0, h - 1, w, 1);
+  c.add([g, text(scene, w / 2, 6, lines.join('\n'), { align: 'center', color: UI.white })]);
   lastToast = c;
   scene.tweens.add({ targets: c, alpha: 0, delay: ms, duration: 300, onComplete: () => c.destroy() });
 }

@@ -1,5 +1,6 @@
 // Q 版人物纸娃娃：头身 + 发型 + 服饰 + 武器分层拼，自动描边和阴影。
-// 画布 32×32，人物朝左站在右侧 24 列里，左边 8 列留给攻击时伸出去的武器。
+// 照原版老版的比例：约 2.5 头身、大眼、叉腿站，原尺寸（1 像素 = 1 逻辑像素）显示，约 26×50。
+// 画布 52×52，人物朝左，身体中线在 BX；左边留给攻击时伸出去的兵器。
 import { Grid } from './pixel';
 import { C } from './palette';
 
@@ -27,12 +28,15 @@ export interface Look {
   mask?: number;
   hat?: number;
   cape?: number;
+  // 裤子颜色（不写就用衣服暗色）；穿长袍的看不到裤子
+  pants?: number;
 }
 
-const OX = 8;
-export const UNIT_W = 32;
-export const UNIT_H = 32;
-export const FEET_Y = 29;
+export const UNIT_W = 52;
+export const UNIT_H = 52;
+export const FEET_Y = 50;
+// 身体中线；贴图中心在 26，所以显示时要往反方向挪 BX - 26
+export const BX = 30;
 
 const HAIRS: [number, number][] = [[C.darkBrown, C.ink], [C.brown, C.darkBrown], [C.navy, C.ink]];
 const MALE_STYLES: HairStyle[] = ['topknot', 'band', 'tail'];
@@ -126,231 +130,323 @@ export function lookFor(key: string, variant = 0): Look {
 }
 
 interface Frame {
-  hx: number;
-  hy: number;
+  dx: number;
+  dy: number;
   eyesClosed: boolean;
   arm: 'down' | 'forward' | 'up';
+  legs: 'stand' | 'lunge' | 'brace';
 }
 
 function frameOf(pose: Pose): Frame {
   switch (pose) {
     case 'idle2':
-      return { hx: OX + 11.5, hy: 10, eyesClosed: false, arm: 'down' };
+      return { dx: 0, dy: 1, eyesClosed: false, arm: 'down', legs: 'stand' };
     case 'atk':
-      return { hx: OX + 10.5, hy: 9, eyesClosed: false, arm: 'forward' };
+      return { dx: -2, dy: 1, eyesClosed: false, arm: 'forward', legs: 'lunge' };
     case 'cast':
-      return { hx: OX + 11.5, hy: 9, eyesClosed: false, arm: 'up' };
+      return { dx: 0, dy: 0, eyesClosed: false, arm: 'up', legs: 'brace' };
     case 'hurt':
-      return { hx: OX + 12.5, hy: 9, eyesClosed: true, arm: 'down' };
+      return { dx: 2, dy: 1, eyesClosed: true, arm: 'down', legs: 'brace' };
     default:
-      return { hx: OX + 11.5, hy: 9, eyesClosed: pose === 'down', arm: 'down' };
+      return { dx: 0, dy: 0, eyesClosed: pose === 'down', arm: 'down', legs: 'stand' };
   }
 }
 
-function drawBackHair(g: Grid, L: Look, f: Frame): void {
+// 文官、术士、女子穿长袍（看不到裤腿）；武人穿短褂大裤脚
+function robed(L: Look): boolean {
+  return !!L.female || (!L.armor && ['fan', 'staff', 'scroll', 'cane', 'none'].includes(L.weapon));
+}
+
+const HEAD_Y = 13;
+const BELT_Y = 31;
+const HIP_Y = 34;
+
+// 前手（左手）的位置：兵器都挂在这里
+function handOf(f: Frame): [number, number] {
+  if (f.arm === 'forward') return [BX - 17 + f.dx, 26];
+  if (f.arm === 'up') return [BX - 10 + f.dx, 9];
+  return [BX - 9 + f.dx, 33];
+}
+
+function drawBack(g: Grid, L: Look, f: Frame): void {
+  const hx = BX + f.dx;
+  const hy = HEAD_Y + f.dy;
   const [hm] = L.hair;
-  if (L.style === 'long') g.rect(Math.round(f.hx + 2), Math.round(f.hy - 1), 6, 14, hm);
-  if (L.style === 'tail') {
-    g.rect(Math.round(f.hx + 5), Math.round(f.hy - 2), 2, 4, hm);
-    g.rect(Math.round(f.hx + 6), Math.round(f.hy + 2), 2, 7, hm);
+  if (L.cape) g.poly([[BX - 3, 22], [BX + 9, 22], [BX + 13, 46], [BX + 1, 46]], L.cape);
+  if (L.style === 'long') g.poly([[hx + 1, hy - 4], [hx + 9, hy - 2], [hx + 11, hy + 22], [hx + 2, hy + 20]], hm);
+  if (L.style === 'tail') g.poly([[hx + 6, hy - 4], [hx + 10, hy - 3], [hx + 12, hy + 12], [hx + 9, hy + 13]], hm);
+  if (L.style === 'band' && L.accent !== undefined) g.poly([[hx + 7, hy - 4], [hx + 9, hy - 5], [hx + 14, hy + 2], [hx + 12, hy + 3]], L.accent);
+  // 后手臂（被身子挡住一半）
+  const om = L.outfit[0];
+  if (f.arm === 'forward') {
+    g.rect(BX + 5 + f.dx, 23, 4, 7, om);
+    g.rect(BX + 6 + f.dx, 29, 3, 3, C.skin);
+  } else {
+    g.poly([[BX + 4 + f.dx, 22], [BX + 9 + f.dx, 23], [BX + 10 + f.dx, 31], [BX + 6 + f.dx, 31]], om);
+    g.rect(BX + 7 + f.dx, 31, 3, 3, C.skin);
   }
-  if (L.cape) g.poly([[OX + 12, 15], [OX + 20, 16], [OX + 21, 27], [OX + 13, 27]], L.cape);
 }
 
-function drawBody(g: Grid, L: Look, f: Frame): void {
-  const [om] = L.outfit;
-  const w = L.broad ? 1 : 0;
-  for (let y = 15; y <= 26; y++) {
-    let l = OX + 8 - (y - 15) * 0.25 - w;
-    const r = OX + 15 + (y - 15) * 0.25 + w;
-    if (L.female && y > 21) l -= (y - 21) * 0.35;
-    for (let x = Math.round(l); x <= Math.round(r); x++) g.set(x, y, om);
+function drawLegs(g: Grid, L: Look, f: Frame): void {
+  const boots = L.boots;
+  if (robed(L)) {
+    // 长袍：往下散开，下摆一道镶边，露出鞋尖
+    const [om, od] = L.outfit;
+    const spread = f.legs === 'lunge' ? 2 : 0;
+    for (let y = HIP_Y - 1; y <= 46; y++) {
+      const t = y - (HIP_Y - 1);
+      const l = BX - 7 - t * 0.4 - spread;
+      const r = BX + 7 + t * 0.35;
+      for (let x = Math.round(l); x <= Math.round(r); x++) g.set(x, y, y >= 45 ? L.trim : x > BX + 2 && x < BX + 4 ? od : om);
+    }
+    g.rect(BX - 9 - spread, 47, 6, 3, boots);
+    g.rect(BX + 2, 47, 6, 3, boots);
+    return;
   }
-  g.line(OX + 12, 15, OX + 9, 19, L.trim);
-  g.line(OX + 12, 15, OX + 13, 17, L.trim);
-  g.rect(OX + 6 - w, 21, 11 + 2 * w, 1, L.belt);
-  g.set(OX + 10, 21, C.gold);
+  const pants = L.pants ?? L.outfit[1];
+  // 前腿、后腿：大裤脚，叉开站
+  const front = f.legs === 'lunge' ? -6 : f.legs === 'brace' ? -2 : -4;
+  const back = f.legs === 'lunge' ? 5 : f.legs === 'brace' ? 4 : 3;
+  g.poly([[BX - 6, HIP_Y - 1], [BX, HIP_Y - 1], [BX - 1 + front / 2, 40], [BX + front / 2 + 0.5, 46], [BX - 7 + front, 46], [BX - 8 + front / 2, 40]], pants);
+  g.poly([[BX + 1, HIP_Y - 1], [BX + 7, HIP_Y - 1], [BX + 8 + back / 2, 40], [BX + 7 + back, 46], [BX + 1 + back, 46], [BX + back / 2, 40]], pants);
+  // 绑腿 + 靴子（靴尖朝前）
+  g.rect(Math.round(BX - 6 + front), 45, 6, 1, L.trim);
+  g.rect(Math.round(BX + 2 + back), 45, 5, 1, L.trim);
+  g.rect(Math.round(BX - 8 + front), 46, 8, 4, boots);
+  g.rect(Math.round(BX + 1 + back), 46, 7, 4, boots);
+}
+
+function drawTorso(g: Grid, L: Look, f: Frame): void {
+  const [om, od] = L.outfit;
+  const w = L.broad ? 2 : 0;
+  const x0 = BX + f.dx;
+  for (let y = 21; y <= HIP_Y; y++) {
+    const l = x0 - 7 - w + (y < 23 ? 1 : 0);
+    const r = x0 + 7 + w - (y < 23 ? 1 : 0);
+    for (let x = l; x <= r; x++) g.set(x, y, om);
+  }
+  // 交领：两道斜襟
+  g.line(x0 - 4, 21, x0 + 1, 28, L.trim);
+  g.line(x0 + 3, 21, x0 + 1, 25, L.trim);
+  g.rect(x0 + 1, 28, 1, BELT_Y - 28, od);
   if (L.armor) {
-    g.rect(OX + 6 - w, 15, 4, 2, C.gray);
-    g.rect(OX + 13, 15, 3 + w, 2, C.gray);
+    const metal = L.metal ?? C.lightGray;
+    g.rect(x0 - 5, 23, 10, 7, C.gray);
+    g.rect(x0 - 4, 24, 8, 1, metal);
+    g.rect(x0 - 4, 27, 8, 1, metal);
+    g.ellipse(x0 - 7 - w / 2, 23, 3.2, 2.6, C.gray);
+    g.ellipse(x0 - 7.5 - w / 2, 22.5, 1.6, 1.2, metal);
   }
-  g.rect(OX + 7, 27, 3, 2, L.boots);
-  g.rect(OX + 13, 27, 3, 2, L.boots);
-  // 手臂
-  if (f.arm === 'down') {
-    g.rect(OX + 6, 16, 2, 5, om);
-    g.rect(OX + 5, 20, 2, 2, C.skin);
-  } else if (f.arm === 'forward') {
-    g.rect(OX + 3, 17, 5, 2, om);
-    g.rect(OX + 1, 17, 2, 2, C.skin);
+  // 腰带 + 带扣
+  g.rect(x0 - 7 - w, BELT_Y, 15 + 2 * w, 2, L.belt);
+  g.rect(x0 - 1, BELT_Y, 2, 2, C.gold);
+  // 下摆（短褂盖到胯）
+  if (!robed(L)) g.poly([[x0 - 8 - w, HIP_Y - 1], [x0 + 8 + w, HIP_Y - 1], [x0 + 9 + w, HIP_Y + 2], [x0 - 9 - w, HIP_Y + 2]], om);
+}
+
+function drawFrontArm(g: Grid, L: Look, f: Frame): void {
+  const om = L.outfit[0];
+  const x0 = BX + f.dx;
+  const [hx, hy] = handOf(f);
+  if (f.arm === 'forward') {
+    g.poly([[x0 - 6, 22], [x0 - 2, 24], [hx + 3, 28], [hx + 2, 24]], om);
+    g.rect(hx, hy - 1, 3, 3, C.skin);
+  } else if (f.arm === 'up') {
+    g.poly([[x0 - 7, 22], [x0 - 3, 23], [hx + 3, hy + 3], [hx, hy + 3]], om);
+    g.rect(hx - 1, hy - 1, 3, 3, C.skin);
   } else {
-    g.rect(OX + 5, 12, 2, 5, om);
-    g.rect(OX + 6, 16, 2, 2, om);
-    g.rect(OX + 4, 10, 2, 2, C.skin);
+    // 宽袖口
+    g.poly([[x0 - 8, 22], [x0 - 4, 22], [hx + 3, hy - 1], [hx - 2, hy - 1]], om);
+    g.rect(hx - 2, hy - 2, 6, 1, L.trim);
+    g.rect(hx - 1, hy - 1, 3, 3, C.skin);
   }
 }
 
 function drawHead(g: Grid, L: Look, f: Frame): void {
-  const { hx, hy } = f;
+  const hx = BX + f.dx;
+  const hy = HEAD_Y + f.dy;
   const [hm] = L.hair;
-  g.ellipse(hx, hy, 6.6, 6.3, C.skin);
-  // 发型
-  const cap = (x: number, y: number) => y + 0.5 < hy - 1.5 || (x + 0.5 > hx + 2 + (y - hy) * 0.6 && y < hy + 4);
+  // 脖子
+  g.rect(hx - 2, hy + 7, 4, 3, C.skinShade);
+  g.ellipse(hx, hy, 8.4, 8, C.skin);
+  const ink = C.ink;
+  // 头发：盖住头顶和后脑勺，前面一排刘海
   if (L.style === 'helmet') {
-    g.ellipse(hx, hy, 7.1, 6.9, C.gray, (_x, y) => y + 0.5 < hy - 0.5);
-    g.rect(Math.round(hx - 7), Math.round(hy - 1), 14, 1, C.lightGray);
-    g.ellipse(hx, hy, 7.1, 6.9, hm, (x, y) => y >= hy - 0.5 && x + 0.5 > hx + 3 && y < hy + 4);
-    g.rect(Math.round(hx - 1), Math.round(hy - 9), 2, 3, L.accent ?? C.red);
+    const metal = L.metal ?? C.lightGray;
+    g.ellipse(hx, hy, 9, 8.8, C.gray, (_x, y) => y + 0.5 < hy - 1);
+    g.rect(hx - 9, hy - 2, 18, 2, metal);
+    g.ellipse(hx, hy, 9, 8.8, C.gray, (x, y) => y >= hy - 1 && x > hx + 3 && y < hy + 6);
+    g.rect(hx - 1, hy - 13, 3, 5, L.accent ?? C.red);
+    g.rect(hx - 2, hy - 9, 5, 1, metal);
   } else if (L.style === 'hood') {
-    g.ellipse(hx, hy, 7.2, 7.0, hm, (x, y) => y + 0.5 < hy - 1 || (x + 0.5 > hx + 1 && y < hy + 6));
+    g.ellipse(hx, hy, 9.2, 9, hm, (x, y) => y + 0.5 < hy - 2 || (x > hx + 1 && y < hy + 9));
+    g.rect(hx - 8, hy - 3, 10, 1, L.outfit[1]);
   } else {
-    g.ellipse(hx, hy, 7.0, 6.8, hm, cap);
-    const fy = Math.round(hy - 2);
-    for (let x = Math.round(hx - 5); x <= Math.round(hx + 2); x++) g.set(x, fy, hm);
-    g.set(Math.round(hx - 5), fy + 1, hm);
-    g.set(Math.round(hx - 2), fy + 1, hm);
+    g.ellipse(hx, hy, 8.9, 8.6, hm, (x, y) => y + 0.5 < hy - 2.5 || (x + 0.5 > hx + 2.5 + (y - hy) * 0.3 && y < hy + 5));
+    // 刘海：锯齿
+    for (let x = hx - 8; x <= hx + 3; x++) {
+      g.set(x, hy - 3, hm);
+      if ((x - hx) % 3 === 0) g.set(x, hy - 2, hm);
+    }
+    if (L.style === 'short') for (let x = hx - 6; x <= hx + 6; x += 3) g.set(x, hy - 9, hm);
   }
   if (L.style === 'topknot') {
-    g.ellipse(hx + 1, hy - 7.5, 2.2, 2, hm);
-    g.rect(Math.round(hx - 1), Math.round(hy - 6), 4, 1, L.accent ?? C.gold);
+    g.ellipse(hx + 2, hy - 10, 3.2, 2.8, hm);
+    g.rect(hx, hy - 8, 5, 1, L.accent ?? C.gold);
   }
-  if (L.style === 'band' || L.style === 'short') {
-    if (L.accent) g.rect(Math.round(hx - 7), Math.round(hy - 3), 14, 1, L.accent);
-  }
+  if (L.style === 'band' && L.accent !== undefined) g.rect(hx - 9, hy - 5, 18, 2, L.accent);
   if (L.style === 'buns') {
-    g.ellipse(hx - 4.5, hy - 6, 2.3, 2.2, hm);
-    g.ellipse(hx + 4.5, hy - 6.5, 2.3, 2.2, hm);
+    g.ellipse(hx - 5, hy - 8, 3.2, 3, hm);
+    g.ellipse(hx + 5, hy - 9, 3.2, 3, hm);
+    g.set(hx - 5, hy - 11, L.accent ?? C.pink);
+    g.set(hx + 5, hy - 12, L.accent ?? C.pink);
   }
   if (L.style === 'highbun') {
-    g.ellipse(hx + 1.5, hy - 7.5, 3, 2.5, hm);
-    g.line(Math.round(hx - 2), Math.round(hy - 9), Math.round(hx + 5), Math.round(hy - 6), L.accent ?? C.gold);
+    g.ellipse(hx + 2, hy - 11, 4.2, 3.4, hm);
+    g.line(hx - 3, hy - 13, hx + 7, hy - 9, L.accent ?? C.gold);
   }
   if (L.hat !== undefined) {
-    g.rect(Math.round(hx - 3), Math.round(hy - 8), 7, 3, L.hat);
-    g.rect(Math.round(hx + 4), Math.round(hy - 6), 1, 5, L.hat);
+    g.rect(hx - 5, hy - 13, 10, 5, L.hat);
+    g.rect(hx - 7, hy - 9, 14, 2, L.hat);
+    g.rect(hx + 6, hy - 9, 2, 6, L.hat);
   }
-  // 五官（朝左，前眼在左）
-  const ey = Math.round(hy + 1);
-  const ex1 = Math.round(hx - 4.5);
-  const ex2 = Math.round(hx - 0.5);
+  // 五官（朝左：前眼在左，大眼带高光）
+  const ey = hy;
+  const e1 = hx - 6;
+  const e2 = hx - 1;
+  const brow = L.beard !== undefined ? L.beard : ink;
   if (f.eyesClosed) {
-    g.set(ex1, ey + 1, C.ink);
-    g.set(ex1 + 1, ey, C.ink);
-    g.set(ex2, ey, C.ink);
-    g.set(ex2 + 1, ey + 1, C.ink);
+    g.rect(e1, ey + 2, 2, 1, ink);
+    g.rect(e2, ey + 2, 2, 1, ink);
   } else {
-    g.rect(ex1, ey, 1, 2, C.ink);
-    g.rect(ex2, ey, 1, 2, C.ink);
+    for (const ex of [e1, e2]) {
+      g.rect(ex, ey, 2, 4, ink);
+      g.set(ex + 1, ey + 1, C.white);
+    }
     if (L.female) {
-      g.set(ex1 - 1, ey, C.ink);
-      g.set(ex2 + 1, ey, C.ink);
+      g.set(e1 - 1, ey, ink);
+      g.set(e2 + 2, ey, ink);
     }
   }
-  if (L.female) {
-    g.set(ex1 - 1, ey + 3, C.pink);
-    g.set(ex2 + 1, ey + 3, C.pink);
+  if (!L.female) {
+    g.rect(e1 - 1, ey - 2, 3, 1, brow);
+    g.rect(e2, ey - 2, 3, 1, brow);
   }
-  g.set(Math.round(hx - 2.5), Math.round(hy + 4), C.skinShade);
-  if (L.mask !== undefined) g.rect(Math.round(hx - 7), Math.round(hy + 3), 9, 2, L.mask);
+  if (L.female) {
+    g.set(e1 - 1, ey + 5, C.pink);
+    g.set(e2 + 2, ey + 5, C.pink);
+  }
+  g.rect(hx - 4, hy + 6, 2, 1, L.female ? C.red : C.skinShade);
+  g.set(hx + 3, hy + 2, C.skinShade);
+  if (L.mask !== undefined) g.rect(hx - 9, hy + 4, 11, 3, L.mask);
   if (L.beard !== undefined) {
-    for (let x = Math.round(hx - 5); x <= Math.round(hx + 1); x++) g.set(x, Math.round(hy + 5), L.beard);
-    g.rect(Math.round(hx - 4), Math.round(hy + 4), 2, 1, L.beard);
-    g.rect(Math.round(hx - 1), Math.round(hy + 4), 2, 1, L.beard);
-    if (L.longBeard) g.poly([[hx - 5, hy + 5], [hx + 1, hy + 5], [hx - 1.5, hy + 11], [hx - 3.5, hy + 11]], L.beard);
+    g.rect(hx - 6, hy + 5, 2, 1, L.beard);
+    g.rect(hx - 2, hy + 5, 2, 1, L.beard);
+    for (let x = hx - 7; x <= hx + 1; x++) g.set(x, hy + 7, L.beard);
+    g.rect(hx - 5, hy + 8, 4, 1, L.beard);
+    if (L.longBeard) g.poly([[hx - 7, hy + 7], [hx + 1, hy + 7], [hx - 2, hy + 18], [hx - 5, hy + 18]], L.beard);
   }
 }
 
 function drawWeapon(g: Grid, L: Look, f: Frame): void {
   const metal = L.metal ?? C.white;
   const wood = C.lightBrown;
+  const [hx, hy] = handOf(f);
   if (f.arm === 'forward') {
-    // 攻击：武器水平指向前方
-    const y = 17;
+    // 攻击：兵器朝前平伸
+    const y = hy;
     switch (L.weapon) {
       case 'sword':
       case 'saber':
-        g.rect(0, y, OX + 1, 1, metal);
-        g.rect(OX, y - 1, 1, 3, C.gold);
-        if (L.weapon === 'saber') g.set(0, y - 1, metal);
+        g.rect(hx - 18, y, 18, 2, metal);
+        g.rect(hx - 18, y, 18, 1, C.white);
+        if (L.weapon === 'saber') g.rect(hx - 19, y - 1, 3, 1, metal);
+        g.rect(hx - 1, y - 2, 2, 6, C.gold);
         return;
       case 'spear':
-        g.rect(0, y, OX + 2, 1, wood);
-        g.poly([[0, y - 1.5], [0, y + 2.5], [-3, y + 0.5]], metal);
-        g.rect(2, y, 3, 1, metal);
-        g.rect(5, y - 1, 1, 3, L.accent ?? C.red);
+        g.rect(hx - 20, y, 30, 1, wood);
+        g.poly([[hx - 20, y - 2], [hx - 20, y + 3], [hx - 27, y + 0.5]], metal);
+        g.rect(hx - 19, y + 1, 3, 3, L.accent ?? C.red);
         return;
       case 'staff':
       case 'cane':
-        g.rect(0, y, OX + 2, 1, C.brown);
-        if (L.orb) g.ellipse(1, y + 0.5, 1.8, 1.8, L.orb);
+        g.rect(hx - 16, y, 24, 1, C.brown);
+        if (L.orb) g.ellipse(hx - 17, y + 0.5, 2.6, 2.6, L.orb);
         return;
       case 'fan':
-        g.ellipse(OX - 2, y + 0.5, 3, 3.5, C.white);
-        g.line(OX - 4, y - 1, OX - 1, y + 1, C.sand);
+        g.ellipse(hx - 4, y + 0.5, 4.5, 5, C.white);
+        g.line(hx - 7, y - 3, hx - 1, y + 1, C.sand);
+        g.line(hx - 7, y + 4, hx - 1, y + 1, C.sand);
         return;
       case 'dagger':
-        g.rect(OX - 4, y, 4, 1, metal);
+        g.rect(hx - 7, y, 7, 1, metal);
         return;
       case 'axe':
-        g.rect(1, y, OX + 1, 1, wood);
-        g.poly([[0, y - 3], [3, y - 3], [3, y + 4], [0, y + 4]], metal);
+        g.rect(hx - 14, y, 18, 1, wood);
+        g.poly([[hx - 18, y - 5], [hx - 12, y - 4], [hx - 12, y + 5], [hx - 18, y + 6]], metal);
         return;
       case 'club':
-        g.rect(1, y - 1, OX, 2, wood);
-        g.ellipse(1.5, y + 0, 2, 2, wood);
+        g.rect(hx - 14, y - 1, 15, 3, wood);
+        g.ellipse(hx - 15, y + 0.5, 3, 3, wood);
         return;
       case 'scroll':
-        g.rect(OX - 3, y - 1, 3, 3, C.paper);
+        g.rect(hx - 5, y - 1, 5, 4, C.paper);
+        g.rect(hx - 5, y - 1, 1, 4, C.tan);
         return;
       default:
         return;
     }
   }
+  // 待机/施法：兵器竖着拿在手里
   const up = f.arm === 'up';
-  const hx = up ? OX + 4 : OX + 5;
-  const hy = up ? 10 : 20;
-  const x = hx - 2;
   switch (L.weapon) {
     case 'sword':
     case 'saber':
-      g.rect(x, hy - 13, 1, 12, metal);
-      if (L.weapon === 'saber') g.set(x - 1, hy - 13, metal);
-      g.rect(x - 1, hy - 1, 3, 1, C.gold);
-      g.rect(x, hy, 1, 3, C.brown);
+      g.rect(hx, hy - 18, 2, 16, metal);
+      g.rect(hx, hy - 18, 1, 16, C.white);
+      if (L.weapon === 'saber') g.rect(hx - 1, hy - 19, 2, 2, metal);
+      g.rect(hx - 2, hy - 2, 6, 1, C.gold);
+      g.rect(hx, hy + 1, 2, 3, C.brown);
       return;
-    case 'spear':
-      g.rect(x, Math.max(0, hy - 20), 1, 28, wood);
-      g.poly([[x - 1.5, Math.max(0, hy - 20) + 3], [x + 2.5, Math.max(0, hy - 20) + 3], [x + 0.5, Math.max(0, hy - 20) - 1]], metal);
-      g.rect(x - 1, Math.max(0, hy - 20) + 4, 3, 1, L.accent ?? C.red);
+    case 'spear': {
+      const top = Math.max(1, hy - 30);
+      g.rect(hx, top, 1, Math.min(UNIT_H - top, 46), wood);
+      g.poly([[hx - 2, top + 6], [hx + 3, top + 6], [hx + 0.5, top - 1]], metal);
+      g.rect(hx - 1, top + 6, 3, 3, L.accent ?? C.red);
       return;
-    case 'staff':
-      g.rect(x, hy - 16, 1, 24, C.brown);
-      g.ellipse(x + 0.5, hy - 17, 2, 2, L.orb ?? C.yellow);
+    }
+    case 'staff': {
+      const top = Math.max(3, hy - (up ? 6 : 24));
+      g.rect(hx, top, 1, up ? 24 : 34, C.brown);
+      g.ellipse(hx + 0.5, top - 1, 2.8, 2.8, L.orb ?? C.yellow);
+      g.set(hx, top - 2, C.white);
       return;
+    }
     case 'cane':
-      g.rect(x, hy - 7, 1, 15, C.brown);
-      g.set(x + 1, hy - 8, C.brown);
+      g.rect(hx, hy - 8, 1, 50 - (hy - 8), C.brown);
+      g.rect(hx - 2, hy - 9, 3, 1, C.brown);
       return;
     case 'fan':
-      g.ellipse(x + 0.5, hy - 4, 3, 3.5, C.white);
-      g.line(x - 1, hy - 6, x + 1, hy - 2, C.sand);
-      g.rect(x + 1, hy - 1, 1, 2, C.brown);
+      g.ellipse(hx + 0.5, hy - 5, 5, 5.5, C.white, (_x, y) => y < hy - 2);
+      for (let k = -4; k <= 4; k += 2) g.line(hx + 0.5, hy - 2, hx + 0.5 + k, hy - 9, C.sand);
+      g.rect(hx, hy - 2, 1, 3, C.brown);
       return;
     case 'dagger':
-      g.rect(x, hy - 5, 1, 4, metal);
-      g.rect(x, hy - 1, 1, 2, C.brown);
+      g.rect(hx, hy - 7, 1, 6, metal);
+      g.rect(hx - 1, hy - 1, 3, 1, C.gold);
       return;
     case 'axe':
-      g.rect(x, hy - 11, 1, 17, wood);
-      g.poly([[x + 0.5, hy - 12], [x - 3, hy - 13], [x - 3, hy - 6], [x + 0.5, hy - 7]], metal);
+      g.rect(hx, hy - 18, 1, 26, wood);
+      g.poly([[hx + 0.5, hy - 19], [hx - 6, hy - 21], [hx - 6, hy - 11], [hx + 0.5, hy - 13]], metal);
       return;
     case 'club':
-      g.rect(x - 1, hy - 9, 2, 11, wood);
-      g.ellipse(x, hy - 9, 2, 2, wood);
+      g.rect(hx - 1, hy - 14, 3, 16, wood);
+      g.ellipse(hx + 0.5, hy - 14, 3, 3, wood);
       return;
     case 'scroll':
-      g.rect(x - 1, hy - 1, 4, 3, C.paper);
-      g.rect(x - 1, hy - 1, 1, 3, C.tan);
+      g.rect(hx - 2, hy - 1, 6, 4, C.paper);
+      g.rect(hx - 2, hy - 1, 1, 4, C.tan);
+      g.rect(hx + 3, hy - 1, 1, 4, C.tan);
       return;
     default:
       return;
@@ -360,26 +456,30 @@ function drawWeapon(g: Grid, L: Look, f: Frame): void {
 export function drawUnit(L: Look, pose: Pose): Grid {
   const f = frameOf(pose);
   const g = new Grid(UNIT_W, UNIT_H);
-  drawBackHair(g, L, f);
-  drawBody(g, L, f);
+  drawBack(g, L, f);
+  drawLegs(g, L, f);
+  drawTorso(g, L, f);
   drawHead(g, L, f);
+  drawFrontArm(g, L, f);
   drawWeapon(g, L, f);
   const shades: Record<number, number> = { [L.outfit[0]]: L.outfit[1], [L.hair[0]]: L.hair[1], [C.skin]: C.skinShade };
+  const pants = L.pants ?? L.outfit[1];
+  if (pants !== L.outfit[1]) shades[pants] = L.outfit[1];
   if (L.cape) shades[L.cape] = L.outfit[1];
-  g.shadeRight(shades, 1);
+  g.shadeRight(shades, 2);
   g.outline(C.ink);
   if (pose === 'down') {
+    // 倒地：顺时针转 90 度，往下挪到贴地
     const r = g.rotateCW();
-    // 转完后人物贴着地面
     const out = new Grid(UNIT_W, UNIT_H);
-    out.blit(r, 0, -2);
+    out.blit(r, -4, 12);
     return out;
   }
   return g;
 }
 
-// 头像 24×24：取上半身
+// 头像 24×24：取头和肩
 export function drawAvatar(L: Look): Grid {
   const g = drawUnit(L, 'idle');
-  return g.crop(OX, 0, 24, 24);
+  return g.crop(BX - 12, 2, 24, 24);
 }

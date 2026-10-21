@@ -1,11 +1,11 @@
 // 剧情对话框：上面头像和名字，中间黑底大文本框，底下一排选项
 import Phaser from 'phaser';
-import { C } from '../art/palette';
 import { avatarTex, heroLookKey } from '../art/textures';
 import { classes, npcs } from '../data';
 import type { DialogLine } from '../data';
 import { store } from '../game/store';
-import { Button, H, W, frame, hit, text, wrap } from './widgets';
+import { Button, H, W, frame, goldFrame, hit, text, wrap } from './widgets';
+import { UI, stoneTex } from '../art/chrome';
 
 export interface DialogOption {
   label: string;
@@ -23,10 +23,12 @@ export function fillText(s: string): string {
 export function showDialog(scene: Phaser.Scene, lines: DialogLine[], options: DialogOption[] = [], onDone?: () => void): void {
   let i = 0;
   const root = scene.add.container(0, 0).setDepth(500);
-  const top = 300;
   const block = scene.add.zone(0, 0, W, H).setOrigin(0).setInteractive();
-  root.add(block);
+  // 原版剧情页：整页灰石云纹边，NPC 头像和红字名字在左上，中间深蓝大字框，主角说话时头像在右下
+  root.add([block, scene.add.image(0, 0, stoneTex(scene, W, H)).setOrigin(0)]);
   let page: Phaser.GameObjects.Container | null = null;
+  const boxY = 92;
+  const boxH = Math.min(220, H - boxY - 150);
 
   const render = () => {
     page?.destroy();
@@ -34,34 +36,46 @@ export function showDialog(scene: Phaser.Scene, lines: DialogLine[], options: Di
     root.add(page);
     const line = lines[i];
     const g = scene.add.graphics();
-    frame(g, 4, top, W - 8, H - top - 4, 'tan');
-    frame(g, 10, top + 62, W - 20, H - top - 112, 'ink');
+    frame(g, 8, 8, W - 16, H - 16, 'paper');
+    frame(g, 16, boxY, W - 32, boxH, 'ink');
+    g.fillStyle(0x30346a).fillRect(22, boxY + boxH - 30, W - 44, 1);
     page.add(g);
-    const named = line.who === 'player' || (!!line.who && !!npcs[line.who]);
-    if (named) frame(g, 10, top + 4, 52, 52, 'paper');
-    let name = '';
-    if (line.who === 'player' && store.has()) {
-      const p = store.save.player;
-      page.add(scene.add.image(12, top + 6, avatarTex(scene, heroLookKey(p.classId, p.gender), p.avatar)).setOrigin(0).setScale(2));
-      name = p.name;
-    } else if (line.who && npcs[line.who]) {
-      page.add(scene.add.image(12, top + 6, avatarTex(scene, npcs[line.who].look)).setOrigin(0).setScale(2));
-      name = npcs[line.who].name;
+    const isPlayer = line.who === 'player' && store.has();
+    const npc = line.who && line.who !== 'player' ? npcs[line.who] : undefined;
+    const portrait = (px: number, py: number, tex: string) => {
+      const pg = scene.add.graphics();
+      goldFrame(pg, px, py, 60, 60, 0x10204a);
+      page!.add(pg);
+      page!.add(scene.add.image(px + 6, py + 6, tex).setOrigin(0).setScale(2));
+    };
+    if (npc) {
+      portrait(18, 18, avatarTex(scene, npc.look));
+      page.add(text(scene, 86, 22, npc.name, { color: UI.red, stroke: 0x000000, scale: 2 }));
+    } else if (!isPlayer) {
+      page.add(text(scene, 22, 40, '旁白', { color: UI.dim }));
     }
-    if (name) page.add(text(scene, 70, top + 22, name, { color: C.darkRed, scale: 2 }));
-    else page.add(text(scene, 16, top + 30, '旁白', { color: C.brown }));
-    const body = wrap(fillText(line.text), W - 44).join('\n');
-    page.add(text(scene, 20, top + 72, body, { color: C.paper, lineGap: 6 }));
-    page.add(text(scene, W - 18, H - 68, `${i + 1}/${lines.length}`, { color: C.gray, align: 'right' }));
+    if (isPlayer) {
+      const p = store.save.player;
+      const py = boxY + boxH + 10;
+      portrait(W - 80, py, avatarTex(scene, heroLookKey(p.classId, p.gender), p.avatar));
+      page.add(text(scene, W - 88, py + 18, p.name, { align: 'right', color: UI.red, stroke: 0x000000, scale: 2 }));
+    }
+    const body = wrap(fillText(line.text), W - 56).join('\n');
+    page.add(text(scene, 26, boxY + 10, body, { color: UI.white, lineGap: 6 }));
+    page.add(text(scene, W - 26, boxY + boxH - 46, `${i + 1}/${lines.length}`, { color: UI.dim, align: 'right' }));
     const last = i === lines.length - 1;
-    const by = H - 40;
+    const by = H - 44;
     if (!last || !options.length) {
-      page.add(hit(scene, 10, top + 62, W - 20, H - top - 112, next));
-      page.add(new Button(scene, W - 100, by, 88, 26, last ? '返回' : '继续', next, { style: 'red' }));
+      page.add(text(scene, W / 2, boxY + boxH - 22, last ? '➤ 返回' : '➤ 继续', { align: 'center', color: UI.yellow }));
+      page.add(hit(scene, 16, boxY, W - 32, boxH, next));
+      page.add(new Button(scene, 16, by, 88, 26, '返回', () => {
+        root.destroy();
+        if (!options.length) onDone?.();
+      }, { color: 0xc00c00 }));
     } else {
-      const bw = Math.min(100, Math.floor((W - 24 - (options.length - 1) * 6) / options.length));
+      const bw = Math.min(100, Math.floor((W - 32 - (options.length - 1) * 6) / options.length));
       options.forEach((o, k) => {
-        page!.add(new Button(scene, 12 + k * (bw + 6), by, bw, 26, o.label, () => {
+        page!.add(new Button(scene, 16 + k * (bw + 6), by, bw, 26, o.label, () => {
           root.destroy();
           o.fn();
         }, { style: o.style ?? (k === 0 ? 'red' : 'tan') }));

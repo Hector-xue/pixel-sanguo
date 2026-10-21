@@ -8,7 +8,7 @@ export function overlayInput(scene: Phaser.Scene, x: number, y: number, w: numbe
   el.maxLength = maxLen;
   el.autocomplete = 'off';
   Object.assign(el.style, {
-    position: 'fixed', boxSizing: 'border-box', border: '2px solid #5c3f26', background: '#fff6e0', color: '#3b2a1a',
+    position: 'fixed', boxSizing: 'border-box', border: '2px solid #6a74c0', background: '#02020c', color: '#f8f8f0',
     fontFamily: 'FusionPixel, monospace', padding: '0 6px', outline: 'none', borderRadius: '0', zIndex: '10',
   } as CSSStyleDeclaration);
   document.body.appendChild(el);

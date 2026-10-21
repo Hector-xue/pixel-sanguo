@@ -29,7 +29,7 @@ async function boot(): Promise<void> {
     height: H,
     pixelArt: true,
     roundPixels: true,
-    backgroundColor: '#3b2a1a',
+    backgroundColor: '#202428',
     scale: { mode: Phaser.Scale.NONE, zoom: fitZoom(), autoCenter: Phaser.Scale.CENTER_BOTH },
     input: { activePointers: 2 },
     scene: [BootScene, TitleScene, MainScene, BattleScene],

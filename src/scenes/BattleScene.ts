@@ -2,6 +2,7 @@
 import Phaser from 'phaser';
 import { C, hex } from '../art/palette';
 import { sceneTex, unitTex } from '../art/textures';
+import { BX, FEET_Y, UNIT_H, UNIT_W } from '../art/units';
 import type { Pose } from '../art/units';
 import { balance, items, locations, skills } from '../data';
 import { skillMp } from '../core/formulas';
@@ -15,10 +16,12 @@ import { finishBattle } from '../game/encounter';
 import type { BattleSummary } from '../game/encounter';
 import { store } from '../game/store';
 import { ChatBox } from '../ui/chat';
-import { Button, H, W, drawBar, frame, hit, rect, sfx, text } from '../ui/widgets';
+import { Button, H, W, frame, goldFrame, hit, sfx, text } from '../ui/widgets';
+import { UI, drawDiamond, groundTex, slateTex, stoneTex, vgrad } from '../art/chrome';
 
-const FIELD_Y = 56;
-const FIELD_H = 348;
+const FIELD_Y = 62;
+const FIELD_H = 342;
+const BACKDROP_H = 72;
 const BAR_Y = FIELD_Y + FIELD_H;
 const CHAT_Y = BAR_Y + 26;
 const ENEMY_SLOTS: Record<0 | 1, [number, number][]> = {
@@ -55,6 +58,9 @@ const MENU: { type: CommandType; label: string; x: number; y: number }[] = [
   { type: 'item', label: '物品', x: 214, y: 272 },
   { type: 'flee', label: '逃跑', x: 214, y: 336 },
 ];
+
+// 贴图中心和身体中线差几个像素，朝左朝右要往不同方向补
+const OFF = BX - UNIT_W / 2;
 
 const wait = (scene: Phaser.Scene, ms: number) => new Promise<void>((r) => scene.time.delayedCall(ms, r));
 
@@ -103,28 +109,39 @@ export class BattleScene extends Phaser.Scene {
   create(): void {
     const s = store.save;
     const loc = locations[s.location];
+    // 顶栏远景条 + 地点名（与主界面一致）
+    this.add.image(0, -36, sceneTex(this, loc.art, 180, 40, 0.62)).setOrigin(0).setScale(2).setCrop(0, 18, 180, 12);
     const g = this.add.graphics();
-    rect(g, 0, 0, W, 20, C.darkBrown);
-    rect(g, 0, 20, W, 36, C.paper);
-    rect(g, 0, 37, W, 1, C.tan);
-    rect(g, 0, 55, W, 1, C.ink);
-    this.add.text(0, 0, '');
-    text(this, W / 2, 4, loc.name, { align: 'center', color: C.yellow });
-    this.roundText = text(this, W - 6, 4, '', { align: 'right', color: C.tan });
-    text(this, 8, 22, this.b.title, { color: C.darkRed });
-    text(this, W / 2, 22, '对阵', { align: 'center', color: C.brown });
-    text(this, W - 8, 22, s.player.name, { align: 'right', color: C.blue });
-    this.banner = text(this, W / 2, 40, '◀══ 准备战斗 ══▶', { align: 'center', color: C.darkBrown });
-    this.add.image(0, FIELD_Y, sceneTex(this, loc.art, 180, FIELD_H / 2, 0.36)).setOrigin(0).setScale(2);
+    g.fillStyle(0x000000, 0.35).fillRect(0, 0, W, 24);
+    // 对阵栏：原版那条青色渐变
+    g.fillStyle(0x000000).fillRect(0, 23, W, 1);
+    vgrad(g, 0, 24, W, 22, [UI.tealHi, UI.teal, UI.tealLo]);
+    g.fillStyle(0xc8f0f0).fillRect(0, 24, W, 1);
+    // 招式条：深紫渐变
+    vgrad(g, 0, 46, W, 16, [0x3a2a6a, 0x221640, 0x140c28]);
+    g.fillStyle(0x000000).fillRect(0, 61, W, 1);
+    text(this, W / 2, 5, loc.name, { align: 'center', color: UI.white, stroke: 0x000000 });
+    this.roundText = text(this, W - 6, 5, '', { align: 'right', color: UI.cream, stroke: 0x000000 });
+    text(this, 8, 29, this.b.title, { color: UI.red, stroke: 0xffffff });
+    text(this, W / 2, 29, '对阵', { align: 'center', color: 0x2850ff, stroke: 0xffffff });
+    text(this, W - 8, 29, s.player.name, { align: 'right', color: UI.red, stroke: 0xffffff });
+    this.banner = text(this, W / 2, 48, '◀══ 准备战斗 ══▶', { align: 'center', color: UI.white, stroke: 0x000000 });
+    // 战场：上面一条远景画，下面整片沙地
+    this.add.image(0, FIELD_Y, sceneTex(this, loc.art, 180, BACKDROP_H / 2, 0.86)).setOrigin(0).setScale(2);
+    this.add.image(0, FIELD_Y + BACKDROP_H - 4, groundTex(this, W, FIELD_H - BACKDROP_H + 4, loc.art.length)).setOrigin(0);
     for (const u of this.b.units) this.makeView(u);
     this.fx = this.add.container(0, 0).setDepth(50);
 
+    // 底栏：返回 / 黑底出招框 / 自动（原版都是灰色金属钮）
+    this.add.image(0, BAR_Y, slateTex(this, W, 26)).setOrigin(0);
     const bg = this.add.graphics();
-    frame(bg, 0, BAR_Y, W, 26, 'dark');
-    this.backBtn = new Button(this, 4, BAR_Y + 3, 52, 20, '返回', () => this.back());
+    bg.fillStyle(0x000000).fillRect(0, BAR_Y, W, 1);
+    bg.fillStyle(0xa0a0a8).fillRect(62, BAR_Y + 3, W - 124, 20);
+    bg.fillStyle(0x16161c).fillRect(63, BAR_Y + 4, W - 126, 18);
+    this.backBtn = new Button(this, 4, BAR_Y + 3, 52, 20, '返回', () => this.back(), { style: 'steel' });
     this.backBtn.setVisible(false);
-    this.prompt = text(this, W / 2, BAR_Y + 7, '', { align: 'center', color: C.yellow });
-    this.autoBtn = new Button(this, W - 56, BAR_Y + 3, 52, 20, '自动', () => this.toggleAuto());
+    this.prompt = text(this, W / 2, BAR_Y + 7, '', { align: 'center', color: UI.white });
+    this.autoBtn = new Button(this, W - 56, BAR_Y + 3, 52, 20, '自动', () => this.toggleAuto(), { style: 'steel' });
     this.chat = new ChatBox(this, 0, CHAT_Y, W, H - CHAT_Y);
     this.time.delayedCall(300, () => this.startRound());
   }
@@ -140,9 +157,10 @@ export class BattleScene extends Phaser.Scene {
       [hx, hy] = ALLY_SLOTS[u.kind === 'player' ? 0 : 1];
     }
     const flip = u.side === 'enemy';
-    const spr = this.add.image(hx + (flip ? 8 : -8), hy, unitTex(this, u.look, u.variant ?? 0, u.alive ? 'idle' : 'down')).setOrigin(0.5, 29 / 32).setScale(2).setFlipX(flip).setDepth(spriteDepth(hy));
+    const spr = this.add.image(hx + (flip ? OFF : -OFF), hy, unitTex(this, u.look, u.variant ?? 0, u.alive ? 'idle' : 'down')).setOrigin(0.5, FEET_Y / UNIT_H).setFlipX(flip).setDepth(spriteDepth(hy));
     const bars = this.add.graphics().setDepth(200);
-    const name = text(this, hx, hy - 7, `${u.name}`, { align: 'center', color: u.side === 'enemy' ? C.lightPaper : C.yellow, stroke: C.ink }).setDepth(200);
+    // 原版战场上不写名字，名字在选目标框里
+    const name = text(this, hx, hy - 7, `${u.name}`, { align: 'center', color: u.side === 'enemy' ? C.lightPaper : C.yellow, stroke: C.ink }).setDepth(200).setVisible(false);
     const badge = text(this, hx, hy - 76, '', { align: 'center', color: C.yellow, stroke: C.ink }).setDepth(201);
     const zone = this.add.zone(hx - 24, hy - 60, 48, 76).setOrigin(0).setInteractive().setDepth(300);
     zone.on('pointerup', () => this.selecting && this.candidates.has(u.id) && this.selecting(u.id));
@@ -157,17 +175,26 @@ export class BattleScene extends Phaser.Scene {
   private drawBars(v: View): void {
     v.bars.clear();
     if (v.dead) return;
-    const x = v.hx - 16;
-    const y = v.hy - 61;
-    drawBar(v.bars, x, y, 32, 4, v.hp / v.maxHp, C.red, C.darkRed);
+    // 原版血条：白边框，上红下蓝两根
+    const x = v.hx - 21;
+    const y = v.hy - 60;
     const g2 = v.bars;
-    g2.fillStyle(hex(C.ink)).fillRect(x, y + 4, 32, 3);
-    g2.fillStyle(hex(C.navy)).fillRect(x + 1, y + 5, 30, 1);
-    g2.fillStyle(hex(C.lightBlue)).fillRect(x + 1, y + 5, Math.round(30 * Math.max(0, Math.min(1, v.mp / Math.max(1, v.maxMp)))), 1);
+    const hp = Math.max(0, Math.min(1, v.hp / Math.max(1, v.maxHp)));
+    const mp = Math.max(0, Math.min(1, v.mp / Math.max(1, v.maxMp)));
+    g2.fillStyle(0xffffff).fillRect(x, y, 42, 11);
+    g2.fillStyle(0x000000).fillRect(x + 1, y + 1, 40, 9);
+    g2.fillStyle(0x500808).fillRect(x + 1, y + 1, 40, 4);
+    g2.fillStyle(0xf01818).fillRect(x + 1, y + 1, Math.round(40 * hp), 4);
+    g2.fillStyle(0x0a1050).fillRect(x + 1, y + 6, 40, 4);
+    g2.fillStyle(0x2c50ff).fillRect(x + 1, y + 6, Math.round(40 * mp), 4);
     if (this.selected === v.id) {
-      g2.fillStyle(hex(C.yellow)).fillRect(v.hx - 20, v.hy + 7, 40, 2);
+      // 原版选中目标：旁边一枚白边红三角指着他
+      const tx = v.flip ? v.hx + 20 : v.hx - 20;
+      const d = v.flip ? -1 : 1;
+      g2.fillStyle(0xffffff).fillTriangle(tx - d * 9, v.hy - 36, tx - d * 9, v.hy - 18, tx + d * 2, v.hy - 27);
+      g2.fillStyle(0xf01010).fillTriangle(tx - d * 7, v.hy - 33, tx - d * 7, v.hy - 21, tx, v.hy - 27);
     } else if (this.candidates.has(v.id)) {
-      g2.fillStyle(hex(C.lightPaper)).fillRect(v.hx - 14, v.hy + 7, 28, 1);
+      g2.fillStyle(0xffffff, 0.7).fillRect(v.hx - 12, v.hy + 2, 24, 1);
     }
   }
 
@@ -233,9 +260,20 @@ export class BattleScene extends Phaser.Scene {
     this.menu = this.add.container(0, 0).setDepth(250);
     for (const m of MENU) {
       const enabled = avail[m.type];
-      const d = this.diamond(m.x, m.y, m.label, enabled, () => this.choose(u, m.type));
+      const d = this.diamond(m.x, m.y, m.label, enabled, () => this.choose(u, m.type), m.type === 'attack');
       this.menu.add(d);
     }
+    // 光标：一枚橙色大箭头指着"攻击"
+    const ag = this.add.graphics();
+    const ax = MENU[0].x - 20;
+    const ay = MENU[0].y + 18;
+    const arrow: [number, number][] = [[0, -14], [14, 0], [6, 0], [6, 12], [-6, 12], [-6, 0], [-14, 0]];
+    const rot = (p: [number, number]) => new Phaser.Math.Vector2(ax + (p[0] - p[1]) * 0.7071, ay + (p[0] + p[1]) * 0.7071);
+    ag.fillStyle(0x801000).fillPoints(arrow.map((p) => rot([p[0] * 1.15, p[1] * 1.15 + 1])), true);
+    ag.fillStyle(0xf06010).fillPoints(arrow.map(rot), true);
+    ag.fillStyle(0xffd040).fillPoints(arrow.map((p) => rot([p[0] * 0.6, p[1] * 0.6 - 2])), true);
+    this.menu.add(ag);
+    this.tweens.add({ targets: ag, x: -3, y: 3, duration: 280, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
     this.seconds = balance.commandSeconds;
     this.updatePrompt(u);
     this.countdown = this.time.addEvent({
@@ -263,20 +301,17 @@ export class BattleScene extends Phaser.Scene {
     this.prompt.setText(`${u.name}-出招(${Math.max(0, this.seconds)})`);
   }
 
-  private diamond(x: number, y: number, label: string, enabled: boolean, fn: () => void): Phaser.GameObjects.Container {
+  private diamond(x: number, y: number, label: string, enabled: boolean, fn: () => void, focus = false): Phaser.GameObjects.Container {
     const c = this.add.container(x, y);
     const g = this.add.graphics();
     const r = 26;
     const draw = (down: boolean) => {
       g.clear();
-      const pts = (k: number) => [new Phaser.Geom.Point(0, -k), new Phaser.Geom.Point(k, 0), new Phaser.Geom.Point(0, k), new Phaser.Geom.Point(-k, 0)];
-      g.fillStyle(hex(C.ink)).fillPoints(pts(r), true);
-      g.fillStyle(hex(!enabled ? C.gray : down ? C.darkRed : C.red)).fillPoints(pts(r - 2), true);
-      g.fillStyle(hex(!enabled ? C.lightGray : down ? C.red : C.orange)).fillPoints(pts(r - 5), true);
-      g.fillStyle(hex(!enabled ? C.gray : C.darkRed)).fillPoints(pts(r - 7), true);
+      drawDiamond(g, r, enabled, down);
     };
     draw(false);
-    const t = text(this, 0, -7, label, { align: 'center', color: enabled ? C.lightPaper : C.lightGray });
+    // 原版：普通是黑字，光标停的那个是白边红字
+    const t = text(this, 0, -7, label, { align: 'center', raw: true, color: !enabled ? 0x505058 : focus ? 0xe81000 : 0x100800, stroke: enabled ? 0xffffff : undefined });
     const z = this.add.zone(-r, -r, r * 2, r * 2).setOrigin(0).setInteractive({ useHandCursor: true });
     let down = false;
     z.on('pointerdown', () => {
@@ -360,9 +395,9 @@ export class BattleScene extends Phaser.Scene {
     const x = (W - w) / 2;
     const y = FIELD_Y + 40;
     const g = this.add.graphics();
-    frame(g, x, y, w, h, 'paper');
+    frame(g, x, y, w, h, 'ink');
     c.add([this.add.zone(x, y, w, h).setOrigin(0).setInteractive(), g]);
-    c.add(text(this, x + w / 2, y + 7, rows.length ? '请选择' : '没有可用的', { align: 'center', color: C.brown }));
+    c.add(text(this, x + w / 2, y + 7, rows.length ? '请选择' : '没有可用的', { align: 'center', color: UI.white }));
     rows.forEach((r, i) => {
       const b = new Button(this, x + 8, y + 26 + i * 30, w - 16, 26, '', () => r.fn(), { disabled: !r.enabled });
       c.add(b);
@@ -392,13 +427,16 @@ export class BattleScene extends Phaser.Scene {
       const x = (W - w) / 2;
       const y = FIELD_Y + 4;
       const g = this.add.graphics();
-      frame(g, x, y, w, 76, 'paper');
+      // 原版选目标框：黑底，招式名一条、目标名白条，下面红蓝紫三行
+      frame(g, x, y, w, 80, 'ink');
+      g.fillStyle(0xe8e8f0).fillRect(x + 4, y + 22, w - 8, 16);
       box.add(g);
-      box.add(text(this, x + 8, y + 6, `招式：${label}`, { color: C.darkRed }));
-      box.add(text(this, x + 8, y + 22, `目标：${t.name}（${t.level}级）`));
-      box.add(text(this, x + 8, y + 38, `气血${t.hp}/${t.maxHp} 精力${t.mp}`, { color: C.brown }));
-      box.add(text(this, x + 8, y + 54, `速度第${order}`, { color: C.blue }));
-      box.add(new Button(this, x + w - 56, y + 48, 48, 22, '确定', () => {
+      box.add(text(this, x + w / 2, y + 5, label, { align: 'center', color: UI.cream }));
+      box.add(text(this, x + 8, y + 24, `${t.name}（${t.level}级）`, { raw: true, color: 0x101030 }));
+      box.add(text(this, x + 8, y + 41, `■ ${t.hp}/${t.maxHp}`, { color: 0xff3020 }));
+      box.add(text(this, x + 8, y + 56, `■ ${t.mp}`, { color: 0x4a70ff }));
+      box.add(text(this, x + 80, y + 56, `速度第${order}`, { color: UI.magenta }));
+      box.add(new Button(this, x + w - 56, y + 41, 48, 22, '确定', () => {
         const id = this.selected!;
         this.clearSelect();
         done(id);
@@ -468,7 +506,7 @@ export class BattleScene extends Phaser.Scene {
     const v = this.lunged;
     if (!v) return;
     this.lunged = null;
-    this.tweens.add({ targets: v.spr, x: v.hx + (v.flip ? 8 : -8), duration: 120, onComplete: () => v.spr.setDepth(spriteDepth(v.hy)) });
+    this.tweens.add({ targets: v.spr, x: v.hx + (v.flip ? OFF : -OFF), duration: 120, onComplete: () => v.spr.setDepth(spriteDepth(v.hy)) });
     if (!v.dead) this.pose(v, 'idle');
   }
 
@@ -501,7 +539,7 @@ export class BattleScene extends Phaser.Scene {
             await wait(this, ms(300));
             if (t && t !== a) this.spark(t, C.lilac);
             this.lunged = a;
-            a.spr.x = a.hx + (a.flip ? 8 : -8);
+            a.spr.x = a.hx + (a.flip ? OFF : -OFF);
           } else {
             this.tweens.add({ targets: a.spr, y: a.hy - 6, duration: ms(100), yoyo: true });
             await wait(this, ms(220));
@@ -581,7 +619,7 @@ export class BattleScene extends Phaser.Scene {
           v.hp = 0;
           this.tweens.killTweensOf(v.spr);
           this.pose(v, 'down');
-          v.spr.setPosition(v.hx + (v.flip ? 8 : -8), v.hy);
+          v.spr.setPosition(v.hx + (v.flip ? OFF : -OFF), v.hy);
           if (this.lunged === v) this.lunged = null;
           this.tweens.add({ targets: v.spr, alpha: 0.6, duration: 300 });
           v.name.setColor('#8c8c90');
@@ -677,39 +715,53 @@ export class BattleScene extends Phaser.Scene {
 
   private showSummary(sum: BattleSummary): void {
     const c = this.add.container(0, 0).setDepth(600);
-    const w = 312;
+    const w = 320;
     const lines = sum.lines;
-    const h = Math.min(FIELD_H + 20, 120 + sum.rows.length * 18 + (sum.drops.length ? 20 : 0) + lines.length * 16);
+    const rowsH = sum.rows.length * 30;
+    const h = Math.min(CHAT_Y - 40, 176 + rowsH + (sum.drops.length ? 20 : 0) + lines.length * 16);
     const x = (W - w) / 2;
-    const y = FIELD_Y + Math.max(8, Math.floor((FIELD_H - h) / 2));
+    const y = Math.max(24, Math.floor((CHAT_Y - h) / 2));
     const g = this.add.graphics();
-    g.fillStyle(hex(C.ink), 0.45).fillRect(0, 0, W, CHAT_Y);
-    frame(g, x, y, w, h, 'paper');
+    g.fillStyle(0x000000, 0.5).fillRect(0, 0, W, CHAT_Y);
     c.add([this.add.zone(0, 0, W, H).setOrigin(0).setInteractive(), g]);
+    // 原版：灰石牌头"战果总结"，金边橙底，中间一块红漆"胜利"牌
+    c.add(this.add.image(x, y, stoneTex(this, w, 34)).setOrigin(0));
+    const fg = this.add.graphics();
+    fg.fillStyle(0x000000).fillRect(x, y + 33, w, 1);
+    goldFrame(fg, x + 6, y + 34, w - 12, h - 34, null);
+    vgrad(fg, x + 10, y + 38, w - 20, h - 42, [0xf8c860, 0xe8a040, 0xd08028]);
+    c.add(fg);
+    c.add(text(this, W / 2, y + 5, '战果总结', { align: 'center', color: 0xffe8a0, stroke: 0x5a2800, scale: 2 }));
     const title = sum.outcome === 'win' ? '胜利' : sum.outcome === 'lose' ? '失败' : '逃跑成功';
-    c.add(text(this, W / 2, y + 10, title, { align: 'center', color: sum.outcome === 'win' ? C.red : C.darkBrown, scale: 3 }));
-    let yy = y + 56;
-    if (sum.rows.length) {
-      c.add(text(this, x + 14, yy, '单位', { color: C.brown }));
-      c.add(text(this, x + 170, yy, '经验', { color: C.brown }));
-      c.add(text(this, x + 240, yy, '银两', { color: C.brown }));
-      yy += 18;
-      for (const r of sum.rows) {
-        c.add(text(this, x + 14, yy, r.name));
-        c.add(text(this, x + 170, yy, `+${r.exp}`, { color: C.green }));
-        c.add(text(this, x + 240, yy, r.silver ? `+${r.silver}` : '-', { color: C.darkRed }));
-        yy += 18;
-      }
+    const pg = this.add.graphics();
+    const pw = 200;
+    pg.fillStyle(0x3a0800).fillRect(W / 2 - pw / 2, y + 46, pw, 52);
+    pg.fillStyle(UI.gold).fillRect(W / 2 - pw / 2 + 2, y + 48, pw - 4, 48);
+    vgrad(pg, W / 2 - pw / 2 + 5, y + 51, pw - 10, 42, [0xb01810, 0x801008, 0x600804]);
+    c.add(pg);
+    c.add(text(this, W / 2, y + 54, title, { align: 'center', color: sum.outcome === 'win' ? 0xffd040 : 0xd8d8e0, stroke: 0x401000, scale: title.length > 2 ? 2 : 3 }));
+    let yy = y + 108;
+    for (const r of sum.rows) {
+      const rg = this.add.graphics();
+      rg.fillStyle(0x6a3000).fillRect(x + 16, yy, w - 32, 26);
+      vgrad(rg, x + 17, yy + 1, w - 34, 24, [0xffc850, 0xf09020, 0xd06810]);
+      c.add(rg);
+      c.add(text(this, x + 30, yy + 7, r.name, { raw: true, color: 0xffffff, stroke: 0x6a2000 }));
+      c.add(text(this, x + w - 112, yy + 1, `经验+${r.exp}`, { raw: true, color: 0xfff0a0, stroke: 0x6a2000 }));
+      c.add(text(this, x + w - 112, yy + 13, r.silver ? `银两+${r.silver}` : '', { raw: true, color: 0xffffff, stroke: 0x6a2000 }));
+      yy += 30;
     }
     if (sum.drops.length) {
-      c.add(text(this, x + 14, yy, `获得：${sum.drops.map((d) => `${d.name}×${d.n}`).join('、')}`, { color: C.blue, wrap: w - 28 }));
+      c.add(text(this, x + 18, yy, `获得：${sum.drops.map((d) => `${d.name}×${d.n}`).join('、')}`, { raw: true, color: 0x1a2a90, wrap: w - 36 }));
       yy += 20;
     }
     for (const l of lines) {
-      c.add(text(this, x + 14, yy, l, { color: l.includes('升到') ? C.red : C.darkBrown, wrap: w - 28 }));
+      c.add(text(this, x + 18, yy, l, { raw: true, color: l.includes('升到') ? 0xb00800 : 0x3a1400, wrap: w - 36 }));
       yy += 16;
     }
-    c.add(new Button(this, W / 2 - 50, y + h - 34, 100, 26, '确定', () => this.scene.start('Main'), { style: 'red' }));
+    c.add(text(this, W / 2, y + h - 52, '点击任意处继续', { align: 'center', raw: true, color: 0xc01000 }));
+    c.add(new Button(this, W / 2 - 50, y + h - 34, 100, 24, '确定', () => this.scene.start('Main'), { style: 'red' }));
+    c.add(this.add.zone(0, 0, W, CHAT_Y).setOrigin(0).setInteractive().on('pointerup', () => this.time.delayedCall(0, () => this.scene.isActive() && this.scene.start('Main'))));
     this.chat.refresh();
     hit(this, 0, 0, 1, 1, () => {});
   }
