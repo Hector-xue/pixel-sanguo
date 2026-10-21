@@ -1,5 +1,5 @@
 // 自动通关模拟：用自动战斗跑完整条新手主线，检查任务能不能走通、升级节奏合不合适。单测和数值调整都用它。
-import { aiCommand, autoCommand, canCast, foesOf, living, needsCommand, resolveRound } from '../core/battle';
+import { aiCommand, autoCommand, canCast, controlOf, foesOf, living, needsCommand, resolveRound } from '../core/battle';
 import type { BUnit, Battle, Command } from '../core/battle';
 import { Rng } from '../core/rng';
 import { classSkills, items, locations, monsters, skills } from '../data';
@@ -41,10 +41,12 @@ function playerCommand(b: Battle, u: BUnit, s: Save, captureId: string | null): 
   const own = classSkills(s.player.classId, s.player.gender).filter((id) => u.skills.some((x) => x.id === id) && canCast(u, id));
   const aoe = own.find((id) => skills[id].kind === 'aoe');
   if (aoe && foes.length >= 2) return { actor: u.id, type: 'skill', skill: aoe };
-  const dmg = own.find((id) => ['nuke', 'cleave', 'poison', 'control'].includes(skills[id].kind));
-  if (dmg && !(captureId && foes.some((f) => f.monsterId === captureId))) {
-    return { actor: u.id, type: 'skill', skill: dmg, target: [...foes].sort((a, c) => c.hp - a.hp)[0]?.id };
-  }
+  const busy = captureId && foes.some((f) => f.monsterId === captureId);
+  const ctl = own.find((id) => skills[id].kind === 'control');
+  const free = foes.filter((f) => !controlOf(f)).sort((a, c) => c.hp - a.hp);
+  if (ctl && !busy && free.length && foes.length > 1) return { actor: u.id, type: 'skill', skill: ctl, target: free[0].id };
+  const dmg = own.find((id) => ['nuke', 'cleave', 'poison'].includes(skills[id].kind));
+  if (dmg && !busy) return { actor: u.id, type: 'skill', skill: dmg, target: [...foes].sort((a, c) => c.hp - a.hp)[0]?.id };
   return autoCommand(b, u);
 }
 
@@ -99,6 +101,8 @@ export function autoplay(s: Save, seed = 7, maxBattles = 600): AutoplayReport {
   const rng = new Rng(seed);
   const rep: AutoplayReport = { finished: false, battles: 0, wins: 0, losses: 0, level: 1, steps: [], generals: 0 };
   let guard = 0;
+  // 真人打头目输了会回去多练几级，这里每输一次多要求 1 级
+  let extra = 0;
   while (guard++ < 5000 && rep.battles < maxBattles) {
     const q = currentQuest(s);
     if (!q || s.main.state === 'done') {
@@ -129,7 +133,7 @@ export function autoplay(s: Save, seed = 7, maxBattles = 600): AutoplayReport {
     const gi = groupFor(at, monster);
     if (gi < 0) throw new Error(`${locations[at].name} 没有 ${monsters[monster].name}`);
     const g = locations[at].groups[gi];
-    const need = g.level[0] - (monsters[monster].boss ? 2 : 1);
+    const need = g.level[0] - (monsters[monster].boss ? 2 : 1) + extra;
     if (s.player.level < need) {
       grind(s, rng, rep);
       continue;
@@ -138,7 +142,10 @@ export function autoplay(s: Save, seed = 7, maxBattles = 600): AutoplayReport {
     const out = fight(s, gi, rng, q.type === 'capture' ? monster : null);
     rep.battles++;
     if (out === 'win') rep.wins++;
-    if (out === 'lose') rep.losses++;
+    if (out === 'lose') {
+      rep.losses++;
+      if (monsters[monster].boss) extra = Math.min(extra + 1, 6);
+    }
   }
   rep.level = s.player.level;
   rep.generals = s.generals.length + s.inn.length;

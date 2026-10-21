@@ -8,13 +8,13 @@
   },
   "scholar": {
     "name": "文人",
-    "baseAttrs": { "con": 5, "str": 3, "int": 6, "agi": 4 },
+    "baseAttrs": { "con": 6, "str": 5, "int": 5, "agi": 4 },
     "resist": {},
     "skills": { "male": "chenhuo", "female": "simian", "common": ["huadi", "andu"] }
   },
   "mystic": {
     "name": "异人",
-    "baseAttrs": { "con": 4, "str": 4, "int": 6, "agi": 4 },
+    "baseAttrs": { "con": 6, "str": 5, "int": 5, "agi": 4 },
     "resist": {},
     "skills": { "male": "wulei", "female": "wugu", "common": ["hufeng", "yaohuo"] }
   }

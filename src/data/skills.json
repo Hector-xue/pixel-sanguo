@@ -23,7 +23,7 @@
   "chenhuo": {
     "name": "趁火打劫", "short": "乱", "class": "scholar", "kind": "control", "status": "chaos", "target": "enemy", "resist": "chaos",
     "desc": "中招者随机攻击场上目标，不能用道具",
-    "mp": [12, 4], "chance": [0.6, 0.05], "targets": [1, 1, 2, 2, 3], "turns": 2, "learnLevel": 1
+    "mp": [12, 4], "chance": [0.6, 0.05], "targets": [1, 2, 2, 3, 3], "turns": 3, "learnLevel": 1
   },
   "simian": {
     "name": "四面楚歌", "short": "封", "class": "scholar", "kind": "control", "status": "seal", "target": "enemy", "resist": "seal",

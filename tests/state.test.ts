@@ -126,3 +126,23 @@ describe('自动通关模拟', () => {
     }
   }
 });
+
+describe('新手手感', () => {
+  for (const classId of ['warrior', 'scholar', 'mystic'] as ClassId[]) {
+    it(`${classId} 1级开自动、不吃药，打2只2级小偷胜率 ≥ 80%`, async () => {
+      const { monsterUnit, playerUnit } = await import('../src/game/encounter');
+      const { createBattle, resolveRound, living, needsCommand, aiCommand, autoCommand } = await import('../src/core/battle');
+      let wins = 0;
+      for (let seed = 0; seed < 100; seed++) {
+        const s = fresh(classId);
+        const b = createBattle({ seed, allies: [playerUnit(s)], enemies: [monsterUnit('e0', 'xiaotou', 2, 0), monsterUnit('e1', 'xiaotou', 2, 0)], items: {}, title: '' });
+        for (let r = 0; r < 60 && !b.outcome; r++) {
+          resolveRound(b, living(b).filter(needsCommand).map((u) => (u.side === 'enemy' ? aiCommand(b, u) : autoCommand(b, u))));
+        }
+        if (b.outcome === 'win') wins++;
+      }
+      console.log(classId, 'win%', wins);
+      expect(wins).toBeGreaterThanOrEqual(80);
+    });
+  }
+});
