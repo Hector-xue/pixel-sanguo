@@ -5,15 +5,49 @@
   "freePointsPerLevel": 4,
   "freePointsAtStart": 0,
   "derived": {
-    "hp":  { "base": 50, "con": 8,   "level": 6 },
-    "mp":  { "base": 20, "int": 5,   "level": 3 },
-    "atk": { "base": 12, "str": 2.5, "level": 1.5 },
-    "def": { "base": 2,  "con": 1.2, "level": 0.8 },
-    "spd": { "base": 5,  "agi": 2,   "level": 0.5 },
-    "carry": { "base": 40, "str": 2 }
+    "hp": {
+      "base": 50,
+      "con": 8,
+      "level": 6
+    },
+    "mp": {
+      "base": 20,
+      "int": 5,
+      "level": 3
+    },
+    "atk": {
+      "base": 12,
+      "str": 2.5,
+      "level": 1.5
+    },
+    "def": {
+      "base": 2,
+      "con": 1.2,
+      "level": 0.8
+    },
+    "spd": {
+      "base": 5,
+      "agi": 2,
+      "level": 0.5
+    },
+    "carry": {
+      "base": 40,
+      "str": 2
+    }
   },
-  "rates": { "crit": 5, "counter": 3, "fatal": 1, "dodge": 5, "dodgePerAgi": 0.05, "dodgeCap": 30 },
-  "exp": { "a": 30, "b": 70, "_src": "升级所需经验 = a×等级² + b" },
+  "rates": {
+    "crit": 5,
+    "counter": 3,
+    "fatal": 1,
+    "dodge": 5,
+    "dodgePerAgi": 0.05,
+    "dodgeCap": 30
+  },
+  "exp": {
+    "a": 30,
+    "b": 70,
+    "_src": "升级所需经验 = a×等级² + b"
+  },
   "damage": {
     "variance": 0.1,
     "defK": 0.6,
@@ -24,8 +58,19 @@
     "resistK": 100,
     "_src": "抗性减伤 = 抗性 ÷ (抗性 + resistK)。攻略说'抗物理堆到100'，按这个公式100点是减半"
   },
-  "capture": { "base": 0.25, "hpWeight": 0.55, "levelDiff": 0.02, "min": 0.05, "max": 0.9 },
-  "flee": { "base": 0.6, "spdWeight": 0.005, "min": 0.1, "max": 0.95 },
+  "capture": {
+    "base": 0.25,
+    "hpWeight": 0.55,
+    "levelDiff": 0.02,
+    "min": 0.05,
+    "max": 0.9
+  },
+  "flee": {
+    "base": 0.6,
+    "spdWeight": 0.005,
+    "min": 0.1,
+    "max": 0.95
+  },
   "commandSeconds": 60,
   "_commandSecondsSrc": "【实锤】视频里是 60 秒",
   "skill": {
@@ -37,16 +82,148 @@
   },
   "followerMax": 3,
   "_followerSrc": "【实锤】随行副将最多3个",
-  "hospital": { "freeBelowLevel": 10, "costPerPoint": 0.5, "sellRatio": 0.5, "_src": "10级前免费是【实锤】，之后的价格是【推定】" },
-  "monster": { "baseAttr": 12, "attrPerLevel": 4, "hpMul": 0.6, "atkMul": 0.7, "expBase": 6, "expPerLevel": 6, "silverBase": 2, "silverPerLevel": 2 },
+  "hospital": {
+    "freeBelowLevel": 10,
+    "costPerPoint": 0.5,
+    "sellRatio": 0.5,
+    "_src": "10级前免费是【实锤】，之后的价格是【推定】"
+  },
+  "monster": {
+    "baseAttr": 12,
+    "attrPerLevel": 4,
+    "hpMul": 0.6,
+    "atkMul": 0.7,
+    "expBase": 6,
+    "expPerLevel": 6,
+    "silverBase": 2,
+    "silverPerLevel": 2,
+    "expSq": 0.12,
+    "_expSrc": "【推定】怪物经验 = expBase + expPerLevel×等级 + expSq×等级²；中后期升级经验涨得快，加平方项免得练级太慢"
+  },
   "expLevelDiff": [
-    { "over": 10, "mul": 0.2 },
-    { "over": 6, "mul": 0.5 },
-    { "over": 3, "mul": 0.8 }
+    {
+      "over": 10,
+      "mul": 0.2
+    },
+    {
+      "over": 6,
+      "mul": 0.5
+    },
+    {
+      "over": 3,
+      "mul": 0.8
+    }
   ],
   "generalAptitude": {
-    "常人": { "growth": [0.85, 1.1], "attr": [0.8, 1.2] }
+    "常人": {
+      "growth": [
+        0.85,
+        1.1
+      ],
+      "attr": [
+        0.8,
+        1.2
+      ],
+      "baseMul": 1.0
+    },
+    "英才": {
+      "growth": [
+        1.0,
+        1.25
+      ],
+      "attr": [
+        0.9,
+        1.3
+      ],
+      "baseMul": 1.15
+    },
+    "将才": {
+      "growth": [
+        1.2,
+        1.45
+      ],
+      "attr": [
+        1.0,
+        1.45
+      ],
+      "baseMul": 1.3
+    },
+    "_src": "三个品级和'成长决定其他四项涨得多快'是【实锤】；上下限数值【推定】"
   },
   "defeatPenaltyFromLevel": 10,
-  "defeatExpLoss": 0.1
+  "defeatExpLoss": 0.1,
+  "general": {
+    "skillMinLevel": 10,
+    "maxSkills": 3,
+    "loyaltyDecayDaily": 5,
+    "loyaltyDisobey": 60,
+    "rewardCostPerLevel": 30,
+    "rewardLoyalty": 10,
+    "rapportPerBattle": 1,
+    "rapportMax": 100,
+    "rapportRateDiv": 25,
+    "starMax": 5,
+    "starStatMul": 0.04,
+    "starLevelPer": 10,
+    "starSilverPer": 5000,
+    "recruitLevelBelowPlayer": 5,
+    "_src": "10级后学技能、学什么技能变什么职业、忠诚满值100要每天奖赏、默契度/星级/升星【实锤】；具体数值和作用【推定】：忠诚低于60有概率不听指挥，默契每25点加1%暴击和躲避，每颗星加4%气血攻击防御速度"
+  },
+  "equip": {
+    "sellRatio": 0.4,
+    "qualityChance": 0.2,
+    "qualityMul": 1.15,
+    "gemRemoveCost": 500,
+    "_src": "【实锤】商店只卖1级装备、更高级的在铁匠铺用矿石+银两打造、低级矿石能合成高级矿石、有属性门槛、装备能卖给系统；品质、价格【推定】"
+  },
+  "ore": {
+    "combineN": 3,
+    "combineSilver": [
+      200,
+      600,
+      1500
+    ],
+    "_src": "【推定】3块低级矿石+银两合成1块高一级的"
+  },
+  "gem": {
+    "combineN": 3,
+    "combineSilver": [
+      300,
+      1000,
+      3000,
+      8000
+    ],
+    "maxLevel": 5,
+    "_src": "宝石分级【实锤】；3合1和费用【推定】"
+  },
+  "stamina": {
+    "max": 100,
+    "regenMinutes": 6,
+    "pill": 20,
+    "pillPerDay": 20,
+    "_src": "体力丹补体力、一天最多20次【单源·疑似私服】；上限和恢复速度【推定】"
+  },
+  "bank": {
+    "interestDaily": 0.002,
+    "interestCap": 5000,
+    "goldBuy": 500,
+    "goldSell": 400,
+    "_src": "钱庄存钱、兑换金砖【实锤】；利息和汇率【推定】"
+  },
+  "inn": {
+    "teleportCost": 100,
+    "_src": "馆驿寄存物品、存副将、城市间传送【实锤】；传送费【推定】"
+  },
+  "temple": {
+    "cost": 1000,
+    "expBonus": 0.1,
+    "graduateLevel": 40,
+    "_src": "拜师后升级有经验加成【实锤】；单机版找NPC导师，加成和出师等级【推定】"
+  },
+  "mount": {
+    "maxLevel": 10,
+    "expPerBattle": 12,
+    "expPerLevel": 100,
+    "_src": "坐骑有等级和升级经验【实锤】；数值【推定】"
+  }
 }

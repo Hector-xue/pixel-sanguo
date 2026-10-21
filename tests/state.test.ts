@@ -116,7 +116,7 @@ describe('自动通关模拟', () => {
     for (const gender of ['male', 'female'] as Gender[]) {
       it(`${classId}/${gender} 能打通新手主线`, () => {
         const s = fresh(classId, gender);
-        const rep = autoplay(s, 11);
+        const rep = autoplay(s, 11, 600, 13);
         console.log(classId, gender, JSON.stringify({ battles: rep.battles, wins: rep.wins, losses: rep.losses, level: rep.level, generals: rep.generals }));
         expect(rep.finished).toBe(true);
         expect(rep.generals).toBeGreaterThanOrEqual(1);

@@ -1,50 +1,800 @@
 {
   "_src": "小偷/草寇/盗贼(悬赏令)、山贼、逃兵(15级武士常人副将)在老版视频里出现过【实锤】；属性权重、技能、掉落【推定】",
   "xiaotou": {
-    "name": "小偷", "class": "warrior", "gender": "male", "look": "thief", "hpMul": 0.5, "atkMul": 0.5,
-    "weights": { "con": 1, "str": 1, "int": 0.5, "agi": 1.5 },
-    "skills": [], "drops": [{ "item": "dieda", "chance": 0.15 }]
+    "name": "小偷",
+    "class": "warrior",
+    "gender": "male",
+    "look": "thief",
+    "hpMul": 0.5,
+    "atkMul": 0.5,
+    "weights": {
+      "con": 1,
+      "str": 1,
+      "int": 0.5,
+      "agi": 1.5
+    },
+    "skills": [],
+    "drops": [
+      {
+        "item": "dieda",
+        "chance": 0.15
+      }
+    ]
   },
   "caokou": {
-    "name": "草寇", "class": "warrior", "gender": "male", "look": "bandit", "hpMul": 0.55, "atkMul": 0.6,
-    "weights": { "con": 1.2, "str": 1.3, "int": 0.5, "agi": 1 },
-    "skills": [], "drops": [{ "item": "dieda", "chance": 0.15 }, { "item": "huami", "chance": 0.08 }]
+    "name": "草寇",
+    "class": "warrior",
+    "gender": "male",
+    "look": "bandit",
+    "hpMul": 0.55,
+    "atkMul": 0.6,
+    "weights": {
+      "con": 1.2,
+      "str": 1.3,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [],
+    "drops": [
+      {
+        "item": "dieda",
+        "chance": 0.15
+      },
+      {
+        "item": "huami",
+        "chance": 0.08
+      }
+    ]
   },
   "daozei": {
-    "name": "盗贼", "class": "scholar", "gender": "male", "look": "rogue",
-    "weights": { "con": 1, "str": 1, "int": 1.2, "agi": 1 },
-    "skills": [{ "id": "huadi", "level": 1, "rate": 0.25 }],
-    "drops": [{ "item": "yaocai", "chance": 0.5, "questOnly": "m7" }, { "item": "zhusun", "chance": 0.2 }, { "item": "huami", "chance": 0.1 }]
+    "name": "盗贼",
+    "class": "scholar",
+    "gender": "male",
+    "look": "rogue",
+    "weights": {
+      "con": 1,
+      "str": 1,
+      "int": 1.2,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "huadi",
+        "level": 1,
+        "rate": 0.25
+      }
+    ],
+    "drops": [
+      {
+        "item": "yaocai",
+        "chance": 0.5,
+        "questOnly": "m7"
+      },
+      {
+        "item": "zhusun",
+        "chance": 0.2
+      },
+      {
+        "item": "huami",
+        "chance": 0.1
+      }
+    ]
   },
   "taobing": {
-    "name": "逃兵", "class": "warrior", "gender": "male", "look": "soldier",
-    "weights": { "con": 1.3, "str": 1.2, "int": 0.5, "agi": 1 },
-    "skills": [], "drops": [{ "item": "zhixue", "chance": 0.12 }, { "item": "tiekuang", "chance": 0.08 }]
+    "name": "逃兵",
+    "class": "warrior",
+    "gender": "male",
+    "look": "soldier",
+    "weights": {
+      "con": 1.3,
+      "str": 1.2,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [],
+    "drops": [
+      {
+        "item": "zhixue",
+        "chance": 0.12
+      },
+      {
+        "item": "tiekuang",
+        "chance": 0.08
+      }
+    ]
   },
   "nvzei": {
-    "name": "妖女", "class": "mystic", "gender": "female", "look": "witch",
-    "weights": { "con": 0.9, "str": 0.6, "int": 1.6, "agi": 1 },
-    "skills": [{ "id": "wugu", "level": 1, "rate": 0.3 }],
-    "drops": [{ "item": "qingquan", "chance": 0.1 }]
+    "name": "妖女",
+    "class": "mystic",
+    "gender": "female",
+    "look": "witch",
+    "weights": {
+      "con": 0.9,
+      "str": 0.6,
+      "int": 1.6,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "wugu",
+        "level": 1,
+        "rate": 0.3
+      }
+    ],
+    "drops": [
+      {
+        "item": "qingquan",
+        "chance": 0.1
+      }
+    ]
   },
   "shanzei": {
-    "name": "山贼", "class": "warrior", "gender": "male", "look": "brute",
-    "weights": { "con": 1.4, "str": 1.4, "int": 0.4, "agi": 0.9 },
-    "skills": [{ "id": "sheming", "level": 1, "rate": 0.15 }],
-    "drops": [{ "item": "zhixue", "chance": 0.15 }, { "item": "tiekuang", "chance": 0.1 }]
+    "name": "山贼",
+    "class": "warrior",
+    "gender": "male",
+    "look": "brute",
+    "weights": {
+      "con": 1.4,
+      "str": 1.4,
+      "int": 0.4,
+      "agi": 0.9
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 1,
+        "rate": 0.15
+      }
+    ],
+    "drops": [
+      {
+        "item": "zhixue",
+        "chance": 0.15
+      },
+      {
+        "item": "tiekuang",
+        "chance": 0.1
+      }
+    ]
   },
   "shanzeijunshi": {
-    "name": "山贼军师", "class": "scholar", "gender": "male", "look": "strategist",
-    "weights": { "con": 1, "str": 0.6, "int": 1.6, "agi": 1.1 },
-    "skills": [{ "id": "chenhuo", "level": 1, "rate": 0.35 }],
-    "drops": [{ "item": "qingquan", "chance": 0.15 }]
+    "name": "山贼军师",
+    "class": "scholar",
+    "gender": "male",
+    "look": "strategist",
+    "weights": {
+      "con": 1,
+      "str": 0.6,
+      "int": 1.6,
+      "agi": 1.1
+    },
+    "skills": [
+      {
+        "id": "chenhuo",
+        "level": 1,
+        "rate": 0.35
+      }
+    ],
+    "drops": [
+      {
+        "item": "qingquan",
+        "chance": 0.15
+      }
+    ]
   },
   "shanzeitoumu": {
-    "name": "山贼头目", "class": "warrior", "gender": "male", "look": "chief",
-    "weights": { "con": 1.5, "str": 1.5, "int": 0.6, "agi": 1 },
-    "hpMul": 2.4, "atkMul": 1.0, "expMul": 6, "silverMul": 8,
-    "boss": true, "capturable": false, "noFlee": true,
-    "skills": [{ "id": "lipi", "level": 1, "rate": 0.3 }, { "id": "sheming", "level": 2, "rate": 0.15 }],
-    "drops": [{ "item": "jinchuang", "chance": 0.8 }, { "item": "tiekuang", "chance": 0.5 }]
+    "name": "山贼头目",
+    "class": "warrior",
+    "gender": "male",
+    "look": "chief",
+    "weights": {
+      "con": 1.5,
+      "str": 1.5,
+      "int": 0.6,
+      "agi": 1
+    },
+    "hpMul": 2.4,
+    "atkMul": 1.0,
+    "expMul": 6,
+    "silverMul": 8,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 1,
+        "rate": 0.3
+      },
+      {
+        "id": "sheming",
+        "level": 2,
+        "rate": 0.15
+      }
+    ],
+    "drops": [
+      {
+        "item": "jinchuang",
+        "chance": 0.8
+      },
+      {
+        "item": "tiekuang",
+        "chance": 0.5
+      }
+    ]
+  },
+  "_src2": "许昌线：地痞/屯田兵/腐儒/虎豹骑25、街匪/贪官/酸丁/乡绅30、假道学/污吏/酷吏/路霸35、叛军恶徒40的名字和等级【实锤】；饥民、流寇、盗马贼（补15～24级空档）、叛军统领、护宝守卫是【推定】；职业、属性、技能、掉落全部【推定】",
+  "jimin": {
+    "name": "饥民",
+    "class": "warrior",
+    "gender": "male",
+    "look": "refugee",
+    "hpMul": 0.55,
+    "atkMul": 0.6,
+    "weights": {
+      "con": 1.1,
+      "str": 1,
+      "int": 0.6,
+      "agi": 1
+    },
+    "skills": [],
+    "drops": [
+      {
+        "item": "zhixue",
+        "chance": 0.12
+      },
+      {
+        "item": "tiekuang",
+        "chance": 0.06
+      }
+    ]
+  },
+  "liukou": {
+    "name": "流寇",
+    "class": "warrior",
+    "gender": "male",
+    "look": "marauder",
+    "weights": {
+      "con": 1.2,
+      "str": 1.3,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 1,
+        "rate": 0.12
+      }
+    ],
+    "drops": [
+      {
+        "item": "zhixue",
+        "chance": 0.12
+      },
+      {
+        "item": "tiekuang",
+        "chance": 0.12
+      }
+    ]
+  },
+  "daomazei": {
+    "name": "盗马贼",
+    "class": "warrior",
+    "gender": "male",
+    "look": "horsethief",
+    "weights": {
+      "con": 1,
+      "str": 1.2,
+      "int": 0.5,
+      "agi": 1.5
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 1,
+        "rate": 0.15
+      }
+    ],
+    "drops": [
+      {
+        "item": "jinchuang",
+        "chance": 0.08
+      },
+      {
+        "item": "tiekuang",
+        "chance": 0.12
+      },
+      {
+        "item": "jingtie",
+        "chance": 0.04
+      }
+    ]
+  },
+  "dipi": {
+    "name": "地痞",
+    "class": "warrior",
+    "gender": "male",
+    "look": "thug",
+    "weights": {
+      "con": 1.3,
+      "str": 1.3,
+      "int": 0.4,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 2,
+        "rate": 0.15
+      }
+    ],
+    "drops": [
+      {
+        "item": "jinchuang",
+        "chance": 0.1
+      },
+      {
+        "item": "jingtie",
+        "chance": 0.07
+      }
+    ]
+  },
+  "tuntianbing": {
+    "name": "屯田兵",
+    "class": "warrior",
+    "gender": "male",
+    "look": "farmsoldier",
+    "weights": {
+      "con": 1.5,
+      "str": 1.1,
+      "int": 0.5,
+      "agi": 0.9
+    },
+    "skills": [
+      {
+        "id": "gujin",
+        "level": 1,
+        "rate": 0.1
+      }
+    ],
+    "drops": [
+      {
+        "item": "jinchuang",
+        "chance": 0.1
+      },
+      {
+        "item": "jingtie",
+        "chance": 0.07
+      }
+    ]
+  },
+  "furu": {
+    "name": "腐儒",
+    "class": "scholar",
+    "gender": "male",
+    "look": "pedant",
+    "weights": {
+      "con": 1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.1
+    },
+    "skills": [
+      {
+        "id": "chenhuo",
+        "level": 2,
+        "rate": 0.3
+      }
+    ],
+    "drops": [
+      {
+        "item": "qingquan",
+        "chance": 0.12
+      },
+      {
+        "item": "jingtie",
+        "chance": 0.06
+      }
+    ]
+  },
+  "hubaoqi": {
+    "name": "虎豹骑",
+    "class": "warrior",
+    "gender": "male",
+    "look": "cavalry",
+    "weights": {
+      "con": 1.2,
+      "str": 1.5,
+      "int": 0.4,
+      "agi": 1.3
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 2,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "jinchuang",
+        "chance": 0.12
+      },
+      {
+        "item": "jingtie",
+        "chance": 0.09
+      }
+    ]
+  },
+  "jiefei": {
+    "name": "街匪",
+    "class": "warrior",
+    "gender": "male",
+    "look": "streetbandit",
+    "weights": {
+      "con": 1.2,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 1.1
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 2,
+        "rate": 0.15
+      }
+    ],
+    "drops": [
+      {
+        "item": "huichun",
+        "chance": 0.06
+      },
+      {
+        "item": "jingtie",
+        "chance": 0.1
+      }
+    ]
+  },
+  "suanding": {
+    "name": "酸丁",
+    "class": "scholar",
+    "gender": "male",
+    "look": "pedant2",
+    "weights": {
+      "con": 1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.1
+    },
+    "skills": [
+      {
+        "id": "huadi",
+        "level": 2,
+        "rate": 0.3
+      }
+    ],
+    "drops": [
+      {
+        "item": "qingquan",
+        "chance": 0.12
+      },
+      {
+        "item": "jingtie",
+        "chance": 0.08
+      }
+    ]
+  },
+  "tanguan": {
+    "name": "贪官",
+    "class": "scholar",
+    "gender": "male",
+    "look": "official",
+    "weights": {
+      "con": 1.2,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 0.9
+    },
+    "skills": [
+      {
+        "id": "simian",
+        "level": 2,
+        "rate": 0.25
+      }
+    ],
+    "drops": [
+      {
+        "item": "zhangben",
+        "chance": 0.45,
+        "questOnly": "m27"
+      },
+      {
+        "item": "huichun",
+        "chance": 0.06
+      },
+      {
+        "item": "jingtie",
+        "chance": 0.08
+      }
+    ],
+    "silverMul": 1.5
+  },
+  "xiangshen": {
+    "name": "乡绅",
+    "class": "mystic",
+    "gender": "male",
+    "look": "gentry",
+    "weights": {
+      "con": 1.1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "hufeng",
+        "level": 2,
+        "rate": 0.25
+      }
+    ],
+    "drops": [
+      {
+        "item": "qingquan",
+        "chance": 0.12
+      },
+      {
+        "item": "jingtie",
+        "chance": 0.08
+      }
+    ],
+    "silverMul": 1.5
+  },
+  "jiadaoxue": {
+    "name": "假道学",
+    "class": "scholar",
+    "gender": "male",
+    "look": "pedant3",
+    "weights": {
+      "con": 1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.2
+    },
+    "skills": [
+      {
+        "id": "chenhuo",
+        "level": 3,
+        "rate": 0.3
+      }
+    ],
+    "drops": [
+      {
+        "item": "yulu",
+        "chance": 0.06
+      },
+      {
+        "item": "jinggang",
+        "chance": 0.05
+      }
+    ]
+  },
+  "luba": {
+    "name": "路霸",
+    "class": "warrior",
+    "gender": "male",
+    "look": "roadbully",
+    "weights": {
+      "con": 1.4,
+      "str": 1.4,
+      "int": 0.4,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 3,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "huichun",
+        "chance": 0.08
+      },
+      {
+        "item": "jinggang",
+        "chance": 0.05
+      }
+    ]
+  },
+  "wuli": {
+    "name": "污吏",
+    "class": "mystic",
+    "gender": "male",
+    "look": "official2",
+    "weights": {
+      "con": 1.1,
+      "str": 0.6,
+      "int": 1.6,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "wugu",
+        "level": 3,
+        "rate": 0.3
+      }
+    ],
+    "drops": [
+      {
+        "item": "yulu",
+        "chance": 0.06
+      },
+      {
+        "item": "jinggang",
+        "chance": 0.05
+      }
+    ]
+  },
+  "kuli": {
+    "name": "酷吏",
+    "class": "warrior",
+    "gender": "male",
+    "look": "official3",
+    "weights": {
+      "con": 1.3,
+      "str": 1.5,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 3,
+        "rate": 0.25
+      }
+    ],
+    "drops": [
+      {
+        "item": "huichun",
+        "chance": 0.08
+      },
+      {
+        "item": "jinggang",
+        "chance": 0.06
+      }
+    ]
+  },
+  "panjun": {
+    "name": "叛军恶徒",
+    "class": "warrior",
+    "gender": "male",
+    "look": "rebel",
+    "weights": {
+      "con": 1.4,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 3,
+        "rate": 0.15
+      }
+    ],
+    "drops": [
+      {
+        "item": "huichun",
+        "chance": 0.1
+      },
+      {
+        "item": "jinggang",
+        "chance": 0.07
+      },
+      {
+        "item": "xuantie",
+        "chance": 0.02
+      }
+    ]
+  },
+  "panjunshushi": {
+    "name": "叛军术士",
+    "class": "mystic",
+    "gender": "male",
+    "look": "rebelmage",
+    "weights": {
+      "con": 1,
+      "str": 0.6,
+      "int": 1.6,
+      "agi": 1.1
+    },
+    "skills": [
+      {
+        "id": "yaohuo",
+        "level": 3,
+        "rate": 0.3
+      },
+      {
+        "id": "wulei",
+        "level": 3,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "yulu",
+        "chance": 0.08
+      },
+      {
+        "item": "jinggang",
+        "chance": 0.06
+      }
+    ]
+  },
+  "panjuntongling": {
+    "name": "叛军统领",
+    "class": "warrior",
+    "gender": "male",
+    "look": "rebelchief",
+    "weights": {
+      "con": 1.5,
+      "str": 1.5,
+      "int": 0.6,
+      "agi": 1
+    },
+    "hpMul": 2.4,
+    "atkMul": 1.0,
+    "expMul": 8,
+    "silverMul": 10,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 3,
+        "rate": 0.3
+      },
+      {
+        "id": "gujin",
+        "level": 2,
+        "rate": 0.1
+      }
+    ],
+    "drops": [
+      {
+        "item": "xuantie",
+        "chance": 0.8
+      },
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.5
+      }
+    ]
+  },
+  "hubaoshouwei": {
+    "name": "护宝守卫",
+    "class": "warrior",
+    "gender": "male",
+    "look": "guardian",
+    "weights": {
+      "con": 1.4,
+      "str": 1.3,
+      "int": 0.6,
+      "agi": 1
+    },
+    "capturable": false,
+    "noFlee": true,
+    "expMul": 3,
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 2,
+        "rate": 0.15
+      }
+    ],
+    "drops": []
   }
 }

@@ -11,6 +11,9 @@ import {
   addGeneral, addItem, addProf, checkCollect, findGeneral, generalStats, grantGeneralExp, grantPlayerExp,
   log, makeGeneral, onBattleKills, onCapture, playerStats, questDropAllowed,
 } from './state';
+import { afterGuard } from './dig';
+import { onRingCapture, onRingKills } from './ring';
+import { mentorExpMul, mountGain } from './town';
 
 function baseUnit(id: string, stats: Stats): Pick<BUnit, 'id' | 'maxHp' | 'maxMp' | 'atk' | 'def' | 'spd' | 'resist' | 'rates' | 'status' | 'defending' | 'alive' | 'captured' | 'profGain'> {
   return {
@@ -52,7 +55,7 @@ export function generalUnit(g: General): BUnit {
     classId: g.classId, gender: g.gender, look: g.look, level: g.level, row: 0,
     hp: Math.max(0, Math.min(g.hp, st.maxHp)), mp: Math.min(g.mp, st.maxMp), alive: g.hp > 0,
     skills: g.skills.map((x) => ({ ...x })), aiSkills: [],
-    historic: false, capturable: false, expYield: 0, silverYield: 0,
+    historic: false, capturable: false, expYield: 0, silverYield: 0, loyalty: g.loyalty,
   };
 }
 
@@ -85,7 +88,10 @@ export function groupLabel(group: MonsterGroup): string {
 }
 
 export function startBattle(s: Save, groupIndex: number, seed: number): Battle {
-  const group = locations[s.location].groups[groupIndex];
+  return startGroupBattle(s, locations[s.location].groups[groupIndex], seed);
+}
+
+export function startGroupBattle(s: Save, group: MonsterGroup, seed: number): Battle {
   const rng = new Rng(seed);
   const enemies = rollEnemies(group, rng);
   const allies = [playerUnit(s)];
@@ -142,8 +148,9 @@ export function finishBattle(s: Save, b: Battle): BattleSummary {
 
   if (b.outcome === 'win' && !b.spar) {
     s.player.silver += rewards.silver;
+    const mul = mentorExpMul(s);
     for (const u of all) {
-      const exp = rewards.exp[u.id] ?? 0;
+      const exp = Math.round((rewards.exp[u.id] ?? 0) * (u.kind === 'player' ? mul : 1));
       if (u.kind === 'player') {
         sum.rows.push({ name: u.name, exp, silver: rewards.silver });
         sum.lines.push(...grantPlayerExp(s, exp));
@@ -160,9 +167,19 @@ export function finishBattle(s: Save, b: Battle): BattleSummary {
       if (lost) sum.lines.push(`负重已满，丢掉了${lost}个${items[id].name}`);
     }
     sum.lines.push(...onBattleKills(s, rewards.kills));
+    const ring = onRingKills(s, rewards.kills);
+    if (ring) sum.lines.push(ring);
     const col = checkCollect(s);
     if (col && Object.keys(rewards.drops).length) sum.lines.push(col);
+    sum.lines.push(...mountGain(s, balance.mount.expPerBattle));
+    // 一起打赢的出战副将默契+1
+    for (const u of all) {
+      if (u.kind !== 'general' || !b.units.includes(u)) continue;
+      const g = findGeneral(s, u.refId);
+      if (g) g.rapport = Math.min(balance.general.rapportMax, g.rapport + balance.general.rapportPerBattle);
+    }
   }
+  if (b.tag === 'dig') sum.lines.push(...afterGuard(s, b.outcome === 'win'));
 
   // 招降成功的单位：赢了才算数（逃跑或战败就跑了）
   if (b.outcome === 'win') {
@@ -172,6 +189,8 @@ export function finishBattle(s: Save, b: Battle): BattleSummary {
       sum.lines.push(addGeneral(s, makeGeneral(s, c.monsterId, c.level, rng)));
       const q = onCapture(s, c.monsterId);
       if (q) sum.lines.push(q);
+      const r = onRingCapture(s, c.monsterId);
+      if (r) sum.lines.push(r);
     }
   }
 

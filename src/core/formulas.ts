@@ -78,7 +78,8 @@ export function monsterStats(monsterId: string, level: number): Stats {
 
 export function monsterExp(monsterId: string, level: number): number {
   const m = monsters[monsterId];
-  return Math.round((balance.monster.expBase + balance.monster.expPerLevel * level) * (m.expMul ?? 1));
+  const B = balance.monster;
+  return Math.round((B.expBase + B.expPerLevel * level + B.expSq * level * level) * (m.expMul ?? 1));
 }
 
 export function monsterSilver(monsterId: string, level: number): number {

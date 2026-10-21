@@ -64,14 +64,45 @@ export interface SkillDef {
   base?: [number, number];
 }
 
+export type ItemUse = 'box' | 'bigbox' | 'stamina' | 'xinfa' | 'skillbook' | 'dig' | 'gemore';
+
 export interface ItemDef {
   name: string;
-  cat: 'drug' | 'equip' | 'ore' | 'misc';
+  cat: 'drug' | 'equip' | 'ore' | 'gem' | 'misc';
   hp?: number;
   mp?: number;
   price: number;
   quest?: boolean;
   desc?: string;
+  tier?: number;
+  use?: ItemUse;
+  amount?: number;
+  gem?: { kind: string; level: number };
+}
+
+export type Slot = 'head' | 'neck' | 'weapon' | 'wrist' | 'armor' | 'boots';
+
+// 装备实例：同一种装备打造出来品质、宝石可以不同，所以每件单独存
+export interface Gear {
+  uid: string;
+  slot: Slot;
+  tier: number;
+  cls?: ClassId;
+  q: number;
+  gems: (string | null)[];
+}
+
+// 装备、宝石、坐骑、副将星级等加在面板上的东西
+export interface Bonus {
+  hp: number;
+  mp: number;
+  atk: number;
+  def: number;
+  spd: number;
+  con: number;
+  resist: Partial<Resists>;
+  rates: Partial<Rates>;
+  mul: number;
 }
 
 export interface MonsterDef {

@@ -3,60 +3,814 @@
   "start": "xinshoucun",
   "locations": {
     "xinshoucun": {
-      "name": "新手村", "town": true, "art": "village",
-      "exits": { "up": "cunbei", "left": "cunxi", "right": "cundong", "down": "cunnan" },
-      "npcs": ["daohang", "cunzhang", "zhaoyun", "bangzhu", "diaochan", "bukuai"],
-      "facilities": ["hospital", "skillschool"],
+      "name": "新手村",
+      "town": true,
+      "art": "village",
+      "exits": {
+        "up": "cunbei",
+        "left": "cunxi",
+        "right": "cundong",
+        "down": "cunnan"
+      },
+      "npcs": [
+        "daohang",
+        "cunzhang",
+        "zhaoyun",
+        "bangzhu",
+        "diaochan",
+        "bukuai"
+      ],
+      "facilities": [
+        "hospital",
+        "skillschool"
+      ],
       "groups": []
     },
     "cunbei": {
-      "name": "村北山林", "art": "forest",
-      "exits": { "down": "xinshoucun", "up": "cuizhushanzhuang" },
-      "npcs": [], "groups": [{ "monster": "xiaotou", "level": [1, 2], "count": [1, 2] }]
+      "name": "村北山林",
+      "art": "forest",
+      "exits": {
+        "down": "xinshoucun",
+        "up": "cuizhushanzhuang"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "xiaotou",
+          "level": [
+            1,
+            2
+          ],
+          "count": [
+            1,
+            2
+          ]
+        }
+      ]
     },
     "cunxi": {
-      "name": "村西荒山", "art": "hill",
-      "exits": { "right": "xinshoucun" },
-      "npcs": [], "groups": [{ "monster": "caokou", "level": [3, 6], "count": [1, 3] }, { "monster": "xiaotou", "level": [3, 5], "count": [2, 3] }]
+      "name": "村西荒山",
+      "art": "hill",
+      "exits": {
+        "right": "xinshoucun"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "caokou",
+          "level": [
+            3,
+            6
+          ],
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "monster": "xiaotou",
+          "level": [
+            3,
+            5
+          ],
+          "count": [
+            2,
+            3
+          ]
+        }
+      ]
     },
     "cundong": {
-      "name": "村东竹林", "art": "bamboo",
-      "exits": { "left": "xinshoucun" },
-      "npcs": [], "groups": [{ "monster": "daozei", "level": [5, 7], "count": [1, 3] }]
+      "name": "村东竹林",
+      "art": "bamboo",
+      "exits": {
+        "left": "xinshoucun"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "daozei",
+          "level": [
+            5,
+            7
+          ],
+          "count": [
+            1,
+            3
+          ]
+        }
+      ]
     },
     "cunnan": {
-      "name": "村南草原", "art": "grass",
-      "exits": { "up": "xinshoucun", "down": "xiapizhilu" },
-      "npcs": [], "groups": [{ "monster": "caokou", "level": [2, 4], "count": [1, 2] }, { "monster": "xiaotou", "level": [1, 3], "count": [1, 2] }]
+      "name": "村南草原",
+      "art": "grass",
+      "exits": {
+        "up": "xinshoucun",
+        "down": "xiapizhilu"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "caokou",
+          "level": [
+            2,
+            4
+          ],
+          "count": [
+            1,
+            2
+          ]
+        },
+        {
+          "monster": "xiaotou",
+          "level": [
+            1,
+            3
+          ],
+          "count": [
+            1,
+            2
+          ]
+        }
+      ]
     },
     "cuizhushanzhuang": {
-      "name": "翠竹山庄", "town": true, "art": "manor",
-      "exits": { "down": "cunbei", "up": "cuizhushangu" },
-      "npcs": ["zhuangzhu"], "facilities": ["hospital"], "groups": []
+      "name": "翠竹山庄",
+      "town": true,
+      "art": "manor",
+      "exits": {
+        "down": "cunbei",
+        "up": "cuizhushangu"
+      },
+      "npcs": [
+        "zhuangzhu"
+      ],
+      "facilities": [
+        "hospital"
+      ],
+      "groups": []
     },
     "cuizhushangu": {
-      "name": "翠竹山谷", "art": "valley",
-      "exits": { "down": "cuizhushanzhuang", "right": "shanzeidamen" },
-      "npcs": [], "groups": [{ "monster": "taobing", "level": [8, 11], "count": [1, 3] }, { "monster": "nvzei", "level": [8, 10], "count": [1, 2] }]
+      "name": "翠竹山谷",
+      "art": "valley",
+      "exits": {
+        "down": "cuizhushanzhuang",
+        "right": "shanzeidamen"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "taobing",
+          "level": [
+            8,
+            11
+          ],
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "monster": "nvzei",
+          "level": [
+            8,
+            10
+          ],
+          "count": [
+            1,
+            2
+          ]
+        }
+      ]
     },
     "shanzeidamen": {
-      "name": "山贼大门", "art": "gate",
-      "exits": { "left": "cuizhushangu", "up": "shanzeiyingzhai" },
-      "npcs": [], "groups": [{ "monster": "shanzei", "level": [10, 13], "count": [2, 3] }, { "monster": "shanzeijunshi", "level": [10, 12], "count": [1, 2] }]
+      "name": "山贼大门",
+      "art": "gate",
+      "exits": {
+        "left": "cuizhushangu",
+        "up": "shanzeiyingzhai"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "shanzei",
+          "level": [
+            10,
+            13
+          ],
+          "count": [
+            2,
+            3
+          ]
+        },
+        {
+          "monster": "shanzeijunshi",
+          "level": [
+            10,
+            12
+          ],
+          "count": [
+            1,
+            2
+          ]
+        }
+      ]
     },
     "shanzeiyingzhai": {
-      "name": "山贼营寨", "art": "camp",
-      "exits": { "down": "shanzeidamen" },
-      "npcs": [], "groups": [
-        { "monster": "shanzei", "level": [12, 14], "count": [2, 4] },
-        { "monster": "shanzeitoumu", "level": [15, 15], "count": [1, 1], "escort": { "monster": "shanzei", "level": 13, "count": 2 }, "label": "山贼头目" }
+      "name": "山贼营寨",
+      "art": "camp",
+      "exits": {
+        "down": "shanzeidamen"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "shanzei",
+          "level": [
+            12,
+            14
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "shanzeitoumu",
+          "level": [
+            15,
+            15
+          ],
+          "count": [
+            1,
+            1
+          ],
+          "escort": {
+            "monster": "shanzei",
+            "level": 13,
+            "count": 2
+          },
+          "label": "山贼头目"
+        }
       ]
     },
     "xiapizhilu": {
-      "name": "下邳之路", "art": "road",
-      "exits": { "up": "cunnan", "down": "@xuchang" },
-      "npcs": ["shouguan"], "groups": [{ "monster": "taobing", "level": [13, 16], "count": [2, 3] }]
+      "name": "下邳之路",
+      "art": "road",
+      "exits": {
+        "up": "cunnan",
+        "down": "xuchang"
+      },
+      "npcs": [
+        "shouguan"
+      ],
+      "groups": [
+        {
+          "monster": "taobing",
+          "level": [
+            13,
+            16
+          ],
+          "count": [
+            2,
+            3
+          ]
+        }
+      ]
+    },
+    "xuchang": {
+      "name": "许昌",
+      "town": true,
+      "art": "city",
+      "exits": {
+        "up": "xiapizhilu",
+        "down": "xuchangjiaowai"
+      },
+      "npcs": [
+        "xuling",
+        "zhaoxian",
+        "paohuan",
+        "xcbukuai"
+      ],
+      "facilities": [
+        "hospital",
+        "weapon",
+        "temple",
+        "smith",
+        "inn",
+        "bank",
+        "skillschool",
+        "stable",
+        "casino",
+        "battlefield"
+      ],
+      "groups": []
+    },
+    "xuchangjiaowai": {
+      "name": "许昌郊外",
+      "art": "farm",
+      "exits": {
+        "up": "xuchang",
+        "left": "xuchangxijiao",
+        "right": "yingyang",
+        "down": "chen"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "jimin",
+          "level": [
+            15,
+            17
+          ],
+          "count": [
+            2,
+            3
+          ]
+        },
+        {
+          "monster": "liukou",
+          "level": [
+            16,
+            19
+          ],
+          "count": [
+            2,
+            3
+          ]
+        }
+      ]
+    },
+    "xuchangxijiao": {
+      "name": "许昌西郊",
+      "art": "road",
+      "exits": {
+        "right": "xuchangjiaowai",
+        "left": "changshe"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "daomazei",
+          "level": [
+            19,
+            23
+          ],
+          "count": [
+            2,
+            3
+          ]
+        },
+        {
+          "monster": "liukou",
+          "level": [
+            19,
+            21
+          ],
+          "count": [
+            3,
+            4
+          ]
+        }
+      ]
+    },
+    "changshe": {
+      "name": "长社",
+      "art": "grass",
+      "exits": {
+        "right": "xuchangxijiao",
+        "left": "zhongmou"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "dipi",
+          "level": [
+            23,
+            26
+          ],
+          "count": [
+            2,
+            3
+          ]
+        },
+        {
+          "monster": "tuntianbing",
+          "level": [
+            24,
+            26
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "zhongmou": {
+      "name": "中牟",
+      "art": "hill",
+      "exits": {
+        "right": "changshe",
+        "left": "@chenliu"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "hubaoqi",
+          "level": [
+            25,
+            28
+          ],
+          "count": [
+            2,
+            3
+          ]
+        },
+        {
+          "monster": "furu",
+          "level": [
+            24,
+            27
+          ],
+          "count": [
+            2,
+            3
+          ]
+        }
+      ]
+    },
+    "yingyang": {
+      "name": "颍阳",
+      "town": true,
+      "art": "city",
+      "exits": {
+        "left": "xuchangjiaowai",
+        "right": "yingchuan",
+        "down": "caixian"
+      },
+      "npcs": [
+        "yyling"
+      ],
+      "facilities": [
+        "hospital",
+        "inn",
+        "skillschool"
+      ],
+      "groups": []
+    },
+    "yingchuan": {
+      "name": "颍川",
+      "art": "river",
+      "exits": {
+        "left": "yingyang",
+        "right": "panjun1"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "jiefei",
+          "level": [
+            28,
+            31
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "suanding",
+          "level": [
+            28,
+            30
+          ],
+          "count": [
+            2,
+            3
+          ]
+        }
+      ]
+    },
+    "caixian": {
+      "name": "蔡县",
+      "art": "village",
+      "exits": {
+        "up": "yingyang"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "tanguan",
+          "level": [
+            29,
+            32
+          ],
+          "count": [
+            2,
+            3
+          ]
+        },
+        {
+          "monster": "xiangshen",
+          "level": [
+            29,
+            32
+          ],
+          "count": [
+            2,
+            3
+          ]
+        }
+      ]
+    },
+    "chen": {
+      "name": "陈",
+      "town": true,
+      "art": "city",
+      "exits": {
+        "up": "xuchangjiaowai",
+        "down": "qiaojun"
+      },
+      "npcs": [
+        "chenxiang"
+      ],
+      "facilities": [
+        "hospital",
+        "inn",
+        "skillschool"
+      ],
+      "groups": []
+    },
+    "qiaojun": {
+      "name": "谯郡",
+      "art": "forest",
+      "exits": {
+        "up": "chen",
+        "left": "nandun",
+        "right": "yingshui"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "luba",
+          "level": [
+            32,
+            35
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "jiadaoxue",
+          "level": [
+            32,
+            35
+          ],
+          "count": [
+            2,
+            3
+          ]
+        }
+      ]
+    },
+    "nandun": {
+      "name": "南顿",
+      "art": "bamboo",
+      "exits": {
+        "right": "qiaojun"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "wuli",
+          "level": [
+            34,
+            36
+          ],
+          "count": [
+            2,
+            3
+          ]
+        },
+        {
+          "monster": "luba",
+          "level": [
+            34,
+            36
+          ],
+          "count": [
+            3,
+            4
+          ]
+        }
+      ]
+    },
+    "yingshui": {
+      "name": "颍水",
+      "art": "river",
+      "exits": {
+        "left": "qiaojun"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "kuli",
+          "level": [
+            35,
+            37
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "wuli",
+          "level": [
+            35,
+            37
+          ],
+          "count": [
+            2,
+            3
+          ]
+        }
+      ]
+    },
+    "panjun1": {
+      "name": "叛军一营",
+      "art": "camp",
+      "exits": {
+        "left": "yingchuan",
+        "right": "panjun2"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "panjun",
+          "level": [
+            36,
+            38
+          ],
+          "count": [
+            3,
+            4
+          ]
+        }
+      ]
+    },
+    "panjun2": {
+      "name": "叛军二营",
+      "art": "camp",
+      "exits": {
+        "left": "panjun1",
+        "right": "panjun3"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "panjun",
+          "level": [
+            37,
+            39
+          ],
+          "count": [
+            3,
+            5
+          ]
+        },
+        {
+          "monster": "panjunshushi",
+          "level": [
+            37,
+            39
+          ],
+          "count": [
+            2,
+            3
+          ]
+        }
+      ]
+    },
+    "panjun3": {
+      "name": "叛军三营",
+      "art": "camp",
+      "exits": {
+        "left": "panjun2",
+        "right": "panjun4"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "panjun",
+          "level": [
+            38,
+            40
+          ],
+          "count": [
+            3,
+            5
+          ]
+        },
+        {
+          "monster": "panjunshushi",
+          "level": [
+            38,
+            40
+          ],
+          "count": [
+            2,
+            3
+          ]
+        }
+      ]
+    },
+    "panjun4": {
+      "name": "叛军四营",
+      "art": "camp",
+      "exits": {
+        "left": "panjun3",
+        "right": "panjun5"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "panjun",
+          "level": [
+            39,
+            41
+          ],
+          "count": [
+            3,
+            5
+          ]
+        },
+        {
+          "monster": "panjunshushi",
+          "level": [
+            39,
+            41
+          ],
+          "count": [
+            3,
+            4
+          ]
+        }
+      ]
+    },
+    "panjun5": {
+      "name": "叛军五营",
+      "art": "camp",
+      "exits": {
+        "left": "panjun4"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "panjun",
+          "level": [
+            40,
+            42
+          ],
+          "count": [
+            4,
+            5
+          ]
+        },
+        {
+          "monster": "panjuntongling",
+          "level": [
+            42,
+            42
+          ],
+          "count": [
+            1,
+            1
+          ],
+          "escort": {
+            "monster": "panjunshushi",
+            "level": 40,
+            "count": 2
+          },
+          "label": "叛军统领"
+        }
+      ]
+    },
+    "baodong": {
+      "name": "宝洞",
+      "art": "cave",
+      "exits": {},
+      "npcs": [
+        "wabao"
+      ],
+      "groups": []
     }
   },
-  "locked": { "@xuchang": "许昌（P2 开放）" }
+  "locked": {
+    "@chenliu": "陈留（P3 开放）"
+  },
+  "_src2": "许昌线地名与走向（许昌→郊外→西郊→长社→中牟；郊外另一路颍阳→颍川、蔡县、叛军一营到五营；还有一路陈→谯郡→南顿、颍水）【实锤】；具体方位、怪物分布和等级区间【推定】（实锤等级的怪按原等级放）"
 }

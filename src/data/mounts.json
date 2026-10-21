@@ -1,0 +1,19 @@
+{
+  "_src": "军马场共16匹、有等级和升级经验、加抗围困/抗扰乱/抗封锁、可骑乘或休息、有战力值、有的要金砖买【实锤】；天马白鸽、战马、逍遥灰影三个名字【实锤】，其余13个名字和全部数值【推定】。base 是1级的加成，每升一级再加 per",
+  "zhanma":    { "name": "战马",     "level": 10, "silver": 2000,  "base": { "spd": 2, "chaos": 3, "seal": 3, "trap": 3 },   "per": { "spd": 0.5, "res": 1 }, "color": "brown" },
+  "huangbiao": { "name": "黄骠马",   "level": 15, "silver": 5000,  "base": { "spd": 3, "chaos": 4, "seal": 4, "trap": 4 },   "per": { "spd": 0.6, "res": 1.2 }, "color": "gold" },
+  "qingcong":  { "name": "青骢马",   "level": 20, "silver": 10000, "base": { "spd": 4, "chaos": 6, "seal": 5, "trap": 5 },   "per": { "spd": 0.7, "res": 1.4 }, "color": "gray" },
+  "xiaoyao":   { "name": "逍遥灰影", "level": 25, "silver": 20000, "base": { "spd": 6, "chaos": 6, "seal": 6, "trap": 8 },   "per": { "spd": 0.8, "res": 1.6 }, "color": "darkGray" },
+  "dawan":     { "name": "大宛马",   "level": 30, "silver": 40000, "base": { "spd": 7, "chaos": 8, "seal": 8, "trap": 8 },   "per": { "spd": 0.9, "res": 1.8 }, "color": "tan" },
+  "zixing":    { "name": "紫骍马",   "level": 35, "silver": 60000, "base": { "spd": 8, "chaos": 9, "seal": 10, "trap": 9 },  "per": { "spd": 1, "res": 2 }, "color": "purple" },
+  "tianma":    { "name": "天马白鸽", "level": 20, "gold": 50,      "base": { "spd": 6, "chaos": 8, "seal": 8, "trap": 8 },   "per": { "spd": 0.9, "res": 1.8 }, "color": "white" },
+  "jueying":   { "name": "绝影",     "level": 30, "gold": 100,     "base": { "spd": 9, "chaos": 10, "seal": 10, "trap": 10 }, "per": { "spd": 1.1, "res": 2.2 }, "color": "ink" },
+  "dilu":      { "name": "的卢",     "level": 35, "gold": 150,     "base": { "spd": 10, "chaos": 11, "seal": 11, "trap": 11 }, "per": { "spd": 1.2, "res": 2.4 }, "color": "lightGray" },
+  "zhuahuang": { "name": "爪黄飞电", "level": 40, "gold": 200,     "base": { "spd": 11, "chaos": 12, "seal": 12, "trap": 12 }, "per": { "spd": 1.3, "res": 2.6 }, "color": "yellow" },
+  "zhaoye":    { "name": "照夜玉狮子", "level": 50, "gold": 300,   "base": { "spd": 12, "chaos": 14, "seal": 14, "trap": 14 }, "per": { "spd": 1.4, "res": 2.8 }, "color": "lightPaper" },
+  "wuzhui":    { "name": "乌骓",     "level": 60, "gold": 400,     "base": { "spd": 13, "chaos": 16, "seal": 16, "trap": 16 }, "per": { "spd": 1.5, "res": 3 }, "color": "navy" },
+  "hanxue":    { "name": "汗血宝马", "level": 70, "gold": 500,     "base": { "spd": 14, "chaos": 18, "seal": 18, "trap": 18 }, "per": { "spd": 1.6, "res": 3.2 }, "color": "darkRed" },
+  "bailong":   { "name": "白龙驹",   "level": 80, "gold": 600,     "base": { "spd": 15, "chaos": 20, "seal": 20, "trap": 20 }, "per": { "spd": 1.7, "res": 3.4 }, "color": "sky" },
+  "taxue":     { "name": "踏雪乌骓", "level": 90, "gold": 800,     "base": { "spd": 16, "chaos": 22, "seal": 22, "trap": 22 }, "per": { "spd": 1.8, "res": 3.6 }, "color": "darkPurple" },
+  "chitu":     { "name": "赤兔",     "level": 100, "gold": 1000,   "base": { "spd": 18, "chaos": 25, "seal": 25, "trap": 25 }, "per": { "spd": 2, "res": 4 }, "color": "red" }
+}

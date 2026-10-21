@@ -1,174 +1,1317 @@
 {
   "_src": "结构参照原版新手流程（开场到新手村→村长、赵云带新手任务→招降→出村），台词全部原创。奖励数值【推定】",
   "opening": [
-    { "who": "", "text": "建安元年，天下大乱。你在一阵马蹄声里醒来，身下是干草，头顶是陌生的屋梁。" },
-    { "who": "", "text": "推门出去，是一座不大的村子。几个孩子追着鸡跑，远处有人在磨刀。" },
-    { "who": "daohang", "text": "醒了？你昏在村口好几天了。这里是新手村，乱世里难得的太平地方。" },
-    { "who": "daohang", "text": "村长一直惦记你。先去见见他吧——在「人物」里找到村长，点「对话」。" }
+    {
+      "who": "",
+      "text": "建安元年，天下大乱。你在一阵马蹄声里醒来，身下是干草，头顶是陌生的屋梁。"
+    },
+    {
+      "who": "",
+      "text": "推门出去，是一座不大的村子。几个孩子追着鸡跑，远处有人在磨刀。"
+    },
+    {
+      "who": "daohang",
+      "text": "醒了？你昏在村口好几天了。这里是新手村，乱世里难得的太平地方。"
+    },
+    {
+      "who": "daohang",
+      "text": "村长一直惦记你。先去见见他吧——在「人物」里找到村长，点「对话」。"
+    }
   ],
   "main": [
     {
-      "id": "m0", "title": "初到新手村", "giver": "daohang", "turnIn": "cunzhang", "type": "talk",
-      "hint": "去见村长。", "goal": "与新手村的村长对话",
-      "accept": [{ "who": "daohang", "text": "村长就在村子里，你去找他。" }],
-      "finish": [
-        { "who": "cunzhang", "text": "好，好，能下地走路就好。你叫{name}？是个{class}的样子。" },
-        { "who": "cunzhang", "text": "这几瓶跌打药你拿着，外头用得上。" }
-      ],
-      "reward": { "exp": 50, "silver": 100, "items": { "dieda": 3 } }
-    },
-    {
-      "id": "m1", "title": "村北贼踪", "giver": "cunzhang", "turnIn": "cunzhang", "type": "kill",
-      "target": { "monster": "xiaotou", "count": 3, "at": "cunbei" },
-      "hint": "去村北山林打败3个小偷。", "goal": "打败小偷 ×3（村北山林）",
+      "id": "m0",
+      "title": "初到新手村",
+      "giver": "daohang",
+      "turnIn": "cunzhang",
+      "type": "talk",
+      "hint": "去见村长。",
+      "goal": "与新手村的村长对话",
       "accept": [
-        { "who": "cunzhang", "text": "最近村北山林里钻出一伙小偷，专偷晒在外头的粮食。" },
-        { "who": "cunzhang", "text": "你替村里去教训教训他们，打败三个就够了。" }
-      ],
-      "finish": [{ "who": "cunzhang", "text": "身手不错！村里人都看见了。这些银两是大家凑的。" }],
-      "reward": { "exp": 150, "silver": 150 }
-    },
-    {
-      "id": "m2", "title": "拜见赵云", "giver": "cunzhang", "turnIn": "zhaoyun", "type": "talk",
-      "hint": "去见赵云。", "goal": "与新手村的赵云对话",
-      "accept": [{ "who": "cunzhang", "text": "村里住着一位白袍将军，叫赵云。你若想在乱世立足，就去跟他学几手。" }],
-      "finish": [
-        { "who": "zhaoyun", "text": "村长让你来的？我看你筋骨还行，只是不会用力。" },
-        { "who": "zhaoyun", "text": "练武先练根基。" }
-      ],
-      "reward": { "exp": 100, "silver": 50 }
-    },
-    {
-      "id": "m3", "title": "根基", "giver": "zhaoyun", "turnIn": "zhaoyun", "type": "flag", "flag": "allocated",
-      "hint": "打开「功能 → 状态」，把属性点分配掉。", "goal": "分配一次属性点",
-      "accept": [
-        { "who": "zhaoyun", "text": "每升一级，你会得到几个属性点。体质长气血，力量长攻击，智力长精力，敏捷长速度。" },
-        { "who": "zhaoyun", "text": "去「功能 → 状态」里把点数分了，再回来见我。" }
-      ],
-      "finish": [{ "who": "zhaoyun", "text": "嗯，有点样子了。" }],
-      "reward": { "exp": 100, "items": { "huami": 3 } }
-    },
-    {
-      "id": "m4", "title": "学一门本事", "giver": "zhaoyun", "turnIn": "zhaoyun", "type": "flag", "flag": "learned",
-      "hint": "去「设施 → 技能学校」学一个技能。", "goal": "在技能学校学会一个技能",
-      "accept": [
-        { "who": "zhaoyun", "text": "光会挥拳不行。村里有技能学校，按你的职业教本事，不收钱。" },
-        { "who": "zhaoyun", "text": "放技能要耗精力，精力见底了就喝花蜜液。" }
-      ],
-      "finish": [{ "who": "zhaoyun", "text": "技能用得越多越熟练。熟练度够了，回技能学校升级。" }],
-      "reward": { "exp": 150, "items": { "huami": 3 } }
-    },
-    {
-      "id": "m5", "title": "收服草寇", "giver": "zhaoyun", "turnIn": "zhaoyun", "type": "capture",
-      "target": { "monster": "caokou", "count": 1, "at": "cunnan" },
-      "hint": "去村南草原招降1个草寇。", "goal": "招降草寇 ×1（村南草原）",
-      "accept": [
-        { "who": "zhaoyun", "text": "一个人打天下太累。村南草原的草寇多是活不下去的农户，可以收为己用。" },
-        { "who": "zhaoyun", "text": "先把他打到残血，再用「招降」。血越少越容易成。" }
+        {
+          "who": "daohang",
+          "text": "村长就在村子里，你去找他。"
+        }
       ],
       "finish": [
-        { "who": "zhaoyun", "text": "收下了？副将跟着你打仗也会长经验。" },
-        { "who": "zhaoyun", "text": "在「功能 → 副将」里可以让他出战或休息。战斗里用「招将」能换人。" }
+        {
+          "who": "cunzhang",
+          "text": "好，好，能下地走路就好。你叫{name}？是个{class}的样子。"
+        },
+        {
+          "who": "cunzhang",
+          "text": "这几瓶跌打药你拿着，外头用得上。"
+        }
       ],
-      "reward": { "exp": 300, "items": { "dieda": 5 } }
+      "reward": {
+        "exp": 50,
+        "silver": 100,
+        "items": {
+          "dieda": 3
+        }
+      },
+      "chapter": "新手任务"
     },
     {
-      "id": "m6", "title": "荒山清剿", "giver": "zhaoyun", "turnIn": "cunzhang", "type": "kill",
-      "target": { "monster": "caokou", "count": 5, "at": "cunxi" },
-      "hint": "去村西荒山打败5个草寇，然后回报村长。", "goal": "打败草寇 ×5（村西荒山）",
-      "accept": [{ "who": "zhaoyun", "text": "村西荒山还有一窝草寇不肯下山。带上你的副将，去打败五个，回头跟村长说一声。" }],
-      "finish": [{ "who": "cunzhang", "text": "荒山清净了，西边几户人家终于敢上山砍柴。" }],
-      "reward": { "exp": 500, "silver": 300 }
-    },
-    {
-      "id": "m7", "title": "竹林药材", "giver": "cunzhang", "turnIn": "cunzhang", "type": "collect",
-      "target": { "item": "yaocai", "count": 3, "at": "cundong", "monster": "daozei" },
-      "hint": "去村东竹林打盗贼，夺回3份药材。", "goal": "夺回药材 ×3（村东竹林的盗贼身上）",
+      "id": "m1",
+      "title": "村北贼踪",
+      "giver": "cunzhang",
+      "turnIn": "cunzhang",
+      "type": "kill",
+      "target": {
+        "monster": "xiaotou",
+        "count": 3,
+        "at": "cunbei"
+      },
+      "hint": "去村北山林打败3个小偷。",
+      "goal": "打败小偷 ×3（村北山林）",
       "accept": [
-        { "who": "cunzhang", "text": "医馆前几天被盗贼抢了一车药材，人往村东竹林跑了。" },
-        { "who": "cunzhang", "text": "盗贼会画地为牢，被围住了先喝药等它醒，挨一下打也会醒。" }
-      ],
-      "finish": [{ "who": "cunzhang", "text": "药材都在！医馆的大夫要高兴坏了。拿着，这是他托我谢你的。" }],
-      "reward": { "exp": 800, "silver": 400, "items": { "jinchuang": 2 } }
-    },
-    {
-      "id": "m8", "title": "翠竹山庄", "giver": "cunzhang", "turnIn": "zhuangzhu", "type": "talk",
-      "hint": "经村北山林往北，去翠竹山庄见庄主。", "goal": "与翠竹山庄的庄主对话",
-      "accept": [{ "who": "cunzhang", "text": "村北山林再往北是翠竹山庄，庄主托人捎信，说山里出了大事。你去看看。" }],
-      "finish": [
-        { "who": "zhuangzhu", "text": "你就是新手村那位{class}？来得正好。" },
-        { "who": "zhuangzhu", "text": "北边山谷里聚了一群逃兵，再往里是山贼的老巢。" }
-      ],
-      "reward": { "exp": 300, "silver": 100 }
-    },
-    {
-      "id": "m9", "title": "山谷逃兵", "giver": "zhuangzhu", "turnIn": "zhuangzhu", "type": "kill",
-      "target": { "monster": "taobing", "count": 6, "at": "cuizhushangu" },
-      "hint": "去翠竹山谷打败6个逃兵。", "goal": "打败逃兵 ×6（翠竹山谷）",
-      "accept": [{ "who": "zhuangzhu", "text": "逃兵穿着官军的甲，下手比草寇狠。打败六个，让他们不敢再进山庄。" }],
-      "finish": [{ "who": "zhuangzhu", "text": "山谷总算安静了。可他们是被山贼赶出来的，祸根还在。" }],
-      "reward": { "exp": 1500, "silver": 600 }
-    },
-    {
-      "id": "m10", "title": "叩关", "giver": "zhuangzhu", "turnIn": "zhuangzhu", "type": "kill",
-      "target": { "monster": "shanzei", "count": 8, "at": "shanzeidamen" },
-      "hint": "从翠竹山谷往东，到山贼大门打败8个山贼。", "goal": "打败山贼 ×8（山贼大门）",
-      "accept": [
-        { "who": "zhuangzhu", "text": "山谷东边就是山贼大门。门口的喽啰不少，还有个军师会使趁火打劫。" },
-        { "who": "zhuangzhu", "text": "中了「乱」的人会乱打一气，连自己人都打。小心。" }
-      ],
-      "finish": [{ "who": "zhuangzhu", "text": "大门打开了！寨子里只剩头目和亲兵。" }],
-      "reward": { "exp": 2500, "silver": 800 }
-    },
-    {
-      "id": "m11", "title": "擒贼擒王", "giver": "zhuangzhu", "turnIn": "zhaoyun", "type": "kill",
-      "target": { "monster": "shanzeitoumu", "count": 1, "at": "shanzeiyingzhai" },
-      "hint": "进山贼营寨打败山贼头目，然后回新手村见赵云。", "goal": "打败山贼头目（山贼营寨）",
-      "accept": [
-        { "who": "zhuangzhu", "text": "头目力气极大，会力劈华山，一刀能削掉你一截血。" },
-        { "who": "zhuangzhu", "text": "多备金创药。得手以后，回新手村告诉赵将军。" }
+        {
+          "who": "cunzhang",
+          "text": "最近村北山林里钻出一伙小偷，专偷晒在外头的粮食。"
+        },
+        {
+          "who": "cunzhang",
+          "text": "你替村里去教训教训他们，打败三个就够了。"
+        }
       ],
       "finish": [
-        { "who": "zhaoyun", "text": "山贼头目被你打败了？好！" },
-        { "who": "zhaoyun", "text": "这片地方已经容不下你了。往南过村南草原，是去下邳、许昌的大路。" }
+        {
+          "who": "cunzhang",
+          "text": "身手不错！村里人都看见了。这些银两是大家凑的。"
+        }
       ],
-      "reward": { "exp": 4000, "silver": 1500, "items": { "huichun": 3 } }
+      "reward": {
+        "exp": 150,
+        "silver": 150
+      },
+      "chapter": "新手任务"
     },
     {
-      "id": "m12", "title": "前路", "giver": "zhaoyun", "turnIn": "shouguan", "type": "talk",
-      "hint": "经村南草原往南，到下邳之路见守关士兵。", "goal": "与下邳之路的守关士兵对话",
-      "accept": [{ "who": "zhaoyun", "text": "去吧。乱世里，总有人要站出来。" }],
-      "finish": [
-        { "who": "shouguan", "text": "从新手村来的？听说山贼头目栽在你手里了。" },
-        { "who": "shouguan", "text": "许昌城门还没开（P2 开放）。到时候我第一个放你过去。" }
+      "id": "m2",
+      "title": "拜见赵云",
+      "giver": "cunzhang",
+      "turnIn": "zhaoyun",
+      "type": "talk",
+      "hint": "去见赵云。",
+      "goal": "与新手村的赵云对话",
+      "accept": [
+        {
+          "who": "cunzhang",
+          "text": "村里住着一位白袍将军，叫赵云。你若想在乱世立足，就去跟他学几手。"
+        }
       ],
-      "reward": { "exp": 500, "silver": 500 }
+      "finish": [
+        {
+          "who": "zhaoyun",
+          "text": "村长让你来的？我看你筋骨还行，只是不会用力。"
+        },
+        {
+          "who": "zhaoyun",
+          "text": "练武先练根基。"
+        }
+      ],
+      "reward": {
+        "exp": 100,
+        "silver": 50
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m3",
+      "title": "根基",
+      "giver": "zhaoyun",
+      "turnIn": "zhaoyun",
+      "type": "flag",
+      "flag": "allocated",
+      "hint": "打开「功能 → 状态」，把属性点分配掉。",
+      "goal": "分配一次属性点",
+      "accept": [
+        {
+          "who": "zhaoyun",
+          "text": "每升一级，你会得到几个属性点。体质长气血，力量长攻击，智力长精力，敏捷长速度。"
+        },
+        {
+          "who": "zhaoyun",
+          "text": "去「功能 → 状态」里把点数分了，再回来见我。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zhaoyun",
+          "text": "嗯，有点样子了。"
+        }
+      ],
+      "reward": {
+        "exp": 100,
+        "items": {
+          "huami": 3
+        }
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m4",
+      "title": "学一门本事",
+      "giver": "zhaoyun",
+      "turnIn": "zhaoyun",
+      "type": "flag",
+      "flag": "learned",
+      "hint": "去「设施 → 技能学校」学一个技能。",
+      "goal": "在技能学校学会一个技能",
+      "accept": [
+        {
+          "who": "zhaoyun",
+          "text": "光会挥拳不行。村里有技能学校，按你的职业教本事，不收钱。"
+        },
+        {
+          "who": "zhaoyun",
+          "text": "放技能要耗精力，精力见底了就喝花蜜液。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zhaoyun",
+          "text": "技能用得越多越熟练。熟练度够了，回技能学校升级。"
+        }
+      ],
+      "reward": {
+        "exp": 150,
+        "items": {
+          "huami": 3
+        }
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m5",
+      "title": "收服草寇",
+      "giver": "zhaoyun",
+      "turnIn": "zhaoyun",
+      "type": "capture",
+      "target": {
+        "monster": "caokou",
+        "count": 1,
+        "at": "cunnan"
+      },
+      "hint": "去村南草原招降1个草寇。",
+      "goal": "招降草寇 ×1（村南草原）",
+      "accept": [
+        {
+          "who": "zhaoyun",
+          "text": "一个人打天下太累。村南草原的草寇多是活不下去的农户，可以收为己用。"
+        },
+        {
+          "who": "zhaoyun",
+          "text": "先把他打到残血，再用「招降」。血越少越容易成。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zhaoyun",
+          "text": "收下了？副将跟着你打仗也会长经验。"
+        },
+        {
+          "who": "zhaoyun",
+          "text": "在「功能 → 副将」里可以让他出战或休息。战斗里用「招将」能换人。"
+        }
+      ],
+      "reward": {
+        "exp": 300,
+        "items": {
+          "dieda": 5
+        }
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m6",
+      "title": "荒山清剿",
+      "giver": "zhaoyun",
+      "turnIn": "cunzhang",
+      "type": "kill",
+      "target": {
+        "monster": "caokou",
+        "count": 5,
+        "at": "cunxi"
+      },
+      "hint": "去村西荒山打败5个草寇，然后回报村长。",
+      "goal": "打败草寇 ×5（村西荒山）",
+      "accept": [
+        {
+          "who": "zhaoyun",
+          "text": "村西荒山还有一窝草寇不肯下山。带上你的副将，去打败五个，回头跟村长说一声。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "cunzhang",
+          "text": "荒山清净了，西边几户人家终于敢上山砍柴。"
+        }
+      ],
+      "reward": {
+        "exp": 500,
+        "silver": 300
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m7",
+      "title": "竹林药材",
+      "giver": "cunzhang",
+      "turnIn": "cunzhang",
+      "type": "collect",
+      "target": {
+        "item": "yaocai",
+        "count": 3,
+        "at": "cundong",
+        "monster": "daozei"
+      },
+      "hint": "去村东竹林打盗贼，夺回3份药材。",
+      "goal": "夺回药材 ×3（村东竹林的盗贼身上）",
+      "accept": [
+        {
+          "who": "cunzhang",
+          "text": "医馆前几天被盗贼抢了一车药材，人往村东竹林跑了。"
+        },
+        {
+          "who": "cunzhang",
+          "text": "盗贼会画地为牢，被围住了先喝药等它醒，挨一下打也会醒。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "cunzhang",
+          "text": "药材都在！医馆的大夫要高兴坏了。拿着，这是他托我谢你的。"
+        }
+      ],
+      "reward": {
+        "exp": 800,
+        "silver": 400,
+        "items": {
+          "jinchuang": 2
+        }
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m8",
+      "title": "翠竹山庄",
+      "giver": "cunzhang",
+      "turnIn": "zhuangzhu",
+      "type": "talk",
+      "hint": "经村北山林往北，去翠竹山庄见庄主。",
+      "goal": "与翠竹山庄的庄主对话",
+      "accept": [
+        {
+          "who": "cunzhang",
+          "text": "村北山林再往北是翠竹山庄，庄主托人捎信，说山里出了大事。你去看看。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zhuangzhu",
+          "text": "你就是新手村那位{class}？来得正好。"
+        },
+        {
+          "who": "zhuangzhu",
+          "text": "北边山谷里聚了一群逃兵，再往里是山贼的老巢。"
+        }
+      ],
+      "reward": {
+        "exp": 300,
+        "silver": 100
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m9",
+      "title": "山谷逃兵",
+      "giver": "zhuangzhu",
+      "turnIn": "zhuangzhu",
+      "type": "kill",
+      "target": {
+        "monster": "taobing",
+        "count": 6,
+        "at": "cuizhushangu"
+      },
+      "hint": "去翠竹山谷打败6个逃兵。",
+      "goal": "打败逃兵 ×6（翠竹山谷）",
+      "accept": [
+        {
+          "who": "zhuangzhu",
+          "text": "逃兵穿着官军的甲，下手比草寇狠。打败六个，让他们不敢再进山庄。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zhuangzhu",
+          "text": "山谷总算安静了。可他们是被山贼赶出来的，祸根还在。"
+        }
+      ],
+      "reward": {
+        "exp": 1500,
+        "silver": 600
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m10",
+      "title": "叩关",
+      "giver": "zhuangzhu",
+      "turnIn": "zhuangzhu",
+      "type": "kill",
+      "target": {
+        "monster": "shanzei",
+        "count": 8,
+        "at": "shanzeidamen"
+      },
+      "hint": "从翠竹山谷往东，到山贼大门打败8个山贼。",
+      "goal": "打败山贼 ×8（山贼大门）",
+      "accept": [
+        {
+          "who": "zhuangzhu",
+          "text": "山谷东边就是山贼大门。门口的喽啰不少，还有个军师会使趁火打劫。"
+        },
+        {
+          "who": "zhuangzhu",
+          "text": "中了「乱」的人会乱打一气，连自己人都打。小心。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zhuangzhu",
+          "text": "大门打开了！寨子里只剩头目和亲兵。"
+        }
+      ],
+      "reward": {
+        "exp": 2500,
+        "silver": 800
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m11",
+      "title": "擒贼擒王",
+      "giver": "zhuangzhu",
+      "turnIn": "zhaoyun",
+      "type": "kill",
+      "target": {
+        "monster": "shanzeitoumu",
+        "count": 1,
+        "at": "shanzeiyingzhai"
+      },
+      "hint": "进山贼营寨打败山贼头目，然后回新手村见赵云。",
+      "goal": "打败山贼头目（山贼营寨）",
+      "accept": [
+        {
+          "who": "zhuangzhu",
+          "text": "头目力气极大，会力劈华山，一刀能削掉你一截血。"
+        },
+        {
+          "who": "zhuangzhu",
+          "text": "多备金创药。得手以后，回新手村告诉赵将军。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zhaoyun",
+          "text": "山贼头目被你打败了？好！"
+        },
+        {
+          "who": "zhaoyun",
+          "text": "这片地方已经容不下你了。往南过村南草原，是去下邳、许昌的大路。"
+        }
+      ],
+      "reward": {
+        "exp": 4000,
+        "silver": 1500,
+        "items": {
+          "huichun": 3
+        }
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m12",
+      "title": "前路",
+      "giver": "zhaoyun",
+      "turnIn": "shouguan",
+      "type": "talk",
+      "hint": "经村南草原往南，到下邳之路见守关士兵。",
+      "goal": "与下邳之路的守关士兵对话",
+      "accept": [
+        {
+          "who": "zhaoyun",
+          "text": "去吧。乱世里，总有人要站出来。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "shouguan",
+          "text": "赵将军让你来的？前面就是许昌，路上的逃兵别跟他们纠缠。"
+        },
+        {
+          "who": "shouguan",
+          "text": "到了许昌先去见许昌令，他正缺人手。"
+        }
+      ],
+      "reward": {
+        "exp": 500,
+        "silver": 500
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m13",
+      "title": "初入许昌",
+      "giver": "shouguan",
+      "turnIn": "xuling",
+      "type": "talk",
+      "hint": "去许昌见许昌令。",
+      "goal": "与许昌的许昌令对话",
+      "accept": [
+        {
+          "who": "shouguan",
+          "text": "沿着大路一直往南走就是许昌。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "{name}？新手村的赵将军写信提过你。"
+        },
+        {
+          "who": "xuling",
+          "text": "许昌刚遭了兵乱，城外流寇、盗马贼到处都是，正是用人的时候。"
+        }
+      ],
+      "reward": {
+        "exp": 1500,
+        "silver": 800
+      },
+      "chapter": "许昌篇"
+    },
+    {
+      "id": "m14",
+      "title": "披挂上阵",
+      "giver": "xuling",
+      "turnIn": "xuling",
+      "type": "flag",
+      "hint": "去「设施 → 武器店」买一件装备，在「物品 → 装备」里穿上。",
+      "goal": "穿上一件装备",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "你这身行头，出城就得吃亏。武器店卖一级的装备，挑一件先穿上。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "像个样子了。装备一共六个部位：头、项链、武器、护腕、铠甲、靴子，慢慢配齐。"
+        }
+      ],
+      "reward": {
+        "exp": 1500,
+        "silver": 1000
+      },
+      "chapter": "许昌篇",
+      "flag": "equipped"
+    },
+    {
+      "id": "m15",
+      "title": "郊外流寇",
+      "giver": "xuling",
+      "turnIn": "xuling",
+      "type": "kill",
+      "hint": "去许昌郊外打败8个流寇。",
+      "goal": "打败流寇 ×8（许昌郊外）",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "出城往南是许昌郊外，流寇在那里抢粮。打败八个，让他们知道许昌有人。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "干得好。他们身上搜出来的铁矿石你留着，铁匠铺用得上。"
+        }
+      ],
+      "reward": {
+        "exp": 3500,
+        "silver": 1500,
+        "items": {
+          "tiekuang": 3
+        }
+      },
+      "chapter": "许昌篇",
+      "target": {
+        "monster": "liukou",
+        "count": 8,
+        "at": "xuchangjiaowai"
+      }
+    },
+    {
+      "id": "m16",
+      "title": "百炼成器",
+      "giver": "xuling",
+      "turnIn": "xuling",
+      "type": "flag",
+      "hint": "去「设施 → 铁匠铺」打造一件2级装备。打造要铁矿石和银两。",
+      "goal": "在铁匠铺打造一件装备",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "武器店只卖一级的货。好装备得自己去铁匠铺打，铁矿石加银两，十级就能打二级装备。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "这手艺不错。矿石不够的时候，三块低级的能在铁匠铺合成一块高级的。"
+        }
+      ],
+      "reward": {
+        "exp": 3500,
+        "silver": 2500,
+        "items": {
+          "tiekuang": 2
+        }
+      },
+      "chapter": "许昌篇",
+      "flag": "forged"
+    },
+    {
+      "id": "m17",
+      "title": "良马",
+      "giver": "xuling",
+      "turnIn": "xuling",
+      "type": "flag",
+      "hint": "去「设施 → 军马场」买一匹马，点「骑乘」。",
+      "goal": "在军马场骑上一匹马",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "城外路远，没有马不行。军马场的战马不贵，买一匹骑上。坐骑能加速度和抗中计。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "马要多骑，骑得越久等级越高。"
+        }
+      ],
+      "reward": {
+        "exp": 4500,
+        "silver": 2000
+      },
+      "chapter": "许昌篇",
+      "flag": "mounted"
+    },
+    {
+      "id": "m18",
+      "title": "西郊马贼",
+      "giver": "xuling",
+      "turnIn": "xuling",
+      "type": "kill",
+      "hint": "去许昌西郊打败10个盗马贼。",
+      "goal": "打败盗马贼 ×10（许昌西郊）",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "西郊的盗马贼专偷军马场的马。你骑着马去，正好钓他们出来。打败十个。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "军马场的人说要谢你。我替他们收着，你拿这些银两吧。"
+        }
+      ],
+      "reward": {
+        "exp": 7000,
+        "silver": 3000
+      },
+      "chapter": "许昌篇",
+      "target": {
+        "monster": "daomazei",
+        "count": 10,
+        "at": "xuchangxijiao"
+      }
+    },
+    {
+      "id": "m19",
+      "title": "招贤",
+      "giver": "xuling",
+      "turnIn": "zhaoxian",
+      "type": "talk",
+      "hint": "去见许昌的招贤使者。",
+      "goal": "与许昌的招贤使者对话",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "一个人打不过一群人。招贤使者那里有能人可招，你去看看。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zhaoxian",
+          "text": "许昌令让你来的？这块将军令你拿着，凭它能招一位英才。"
+        }
+      ],
+      "reward": {
+        "exp": 2000,
+        "items": {
+          "jiangjunling": 1
+        }
+      },
+      "chapter": "许昌篇"
+    },
+    {
+      "id": "m20",
+      "title": "英才",
+      "giver": "zhaoxian",
+      "turnIn": "zhaoxian",
+      "type": "flag",
+      "hint": "在招贤使者处用将军令招募一位英才。",
+      "goal": "用将军令招募一位英才",
+      "accept": [
+        {
+          "who": "zhaoxian",
+          "text": "把将军令给我，我给你找个人。英才的成长比野外招降的常人高，十级以后还能学技能。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zhaoxian",
+          "text": "人交给你了，好好待他。忠诚低了，打仗时会不听指挥——每天去副将详情里奖赏一下。"
+        }
+      ],
+      "reward": {
+        "exp": 6000,
+        "items": {
+          "xinfa1": 2
+        }
+      },
+      "chapter": "许昌篇",
+      "flag": "recruited"
+    },
+    {
+      "id": "m21",
+      "title": "跑环",
+      "giver": "zhaoxian",
+      "turnIn": "paohuan",
+      "type": "flag",
+      "hint": "去找许昌的跑环使者，跑完一整环（10个任务）。20级才能接。",
+      "goal": "跑完一整环（10个任务）",
+      "accept": [
+        {
+          "who": "zhaoxian",
+          "text": "二十级以后，去找跑环使者。跑环奖励丰厚，矿石、宝石、宝箱都有，最后一环还给技能书。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "paohuan",
+          "text": "一环跑完了？不错，以后每天都可以来。"
+        }
+      ],
+      "reward": {
+        "exp": 8000,
+        "items": {
+          "baoxiang": 1
+        }
+      },
+      "chapter": "许昌篇",
+      "flag": "ringRound"
+    },
+    {
+      "id": "m22",
+      "title": "长社地痞",
+      "giver": "paohuan",
+      "turnIn": "xuling",
+      "type": "kill",
+      "hint": "去长社打败12个地痞，然后回报许昌令。",
+      "goal": "打败地痞 ×12（长社）",
+      "accept": [
+        {
+          "who": "paohuan",
+          "text": "许昌令托我带句话：长社的地痞闹得厉害，你得空去一趟，打败十二个，回去跟他说。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "长社安静了。这块钻石是从地痞窝里搜出来的，镶到装备上能加抗物理和暴击。"
+        }
+      ],
+      "reward": {
+        "exp": 12000,
+        "silver": 3000,
+        "items": {
+          "jingtie": 2,
+          "gem_zuanshi_1": 1
+        }
+      },
+      "chapter": "许昌篇",
+      "target": {
+        "monster": "dipi",
+        "count": 12,
+        "at": "changshe"
+      }
+    },
+    {
+      "id": "m23",
+      "title": "镶嵌",
+      "giver": "xuling",
+      "turnIn": "xuling",
+      "type": "flag",
+      "hint": "去「设施 → 铁匠铺 → 宝石」把一颗宝石镶到装备上。2级以上的装备才有孔。",
+      "goal": "在装备上镶嵌一颗宝石",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "二级以上的装备有孔，能镶宝石。钻石加抗物理，绿宝石加抗围困，红宝石加抗扰乱，蓝宝石加抗封锁。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "宝石三颗同级的能合成一颗高一级的，跑环和挖宝都会出。"
+        }
+      ],
+      "reward": {
+        "exp": 8000,
+        "items": {
+          "gem_lanbaoshi_1": 1,
+          "gem_hongbaoshi_1": 1
+        }
+      },
+      "chapter": "许昌篇",
+      "flag": "gemmed"
+    },
+    {
+      "id": "m24",
+      "title": "中牟虎豹",
+      "giver": "xuling",
+      "turnIn": "xuling",
+      "type": "kill",
+      "hint": "去中牟打败10个虎豹骑。",
+      "goal": "打败虎豹骑 ×10（中牟）",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "中牟来了一支虎豹骑，来历不明，专截过路的粮车。他们骑射了得，打败十个。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "这支兵马背后有人指使，线索指向颍阳那边。"
+        }
+      ],
+      "reward": {
+        "exp": 18000,
+        "silver": 4000,
+        "items": {
+          "jingtie": 3
+        }
+      },
+      "chapter": "许昌篇",
+      "target": {
+        "monster": "hubaoqi",
+        "count": 10,
+        "at": "zhongmou"
+      }
+    },
+    {
+      "id": "m25",
+      "title": "颍阳",
+      "giver": "xuling",
+      "turnIn": "yyling",
+      "type": "talk",
+      "hint": "去颍阳见颍阳县令。从许昌郊外往右走。",
+      "goal": "与颍阳的颍阳县令对话",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "颍阳县令是我的旧识，你带我的信去见他。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yyling",
+          "text": "信我看了。颍川的街匪、蔡县的贪官，都和城外的叛军有勾连。"
+        }
+      ],
+      "reward": {
+        "exp": 6000,
+        "silver": 2000
+      },
+      "chapter": "许昌篇"
+    },
+    {
+      "id": "m26",
+      "title": "颍川街匪",
+      "giver": "yyling",
+      "turnIn": "yyling",
+      "type": "kill",
+      "hint": "去颍川打败12个街匪。",
+      "goal": "打败街匪 ×12（颍川）",
+      "accept": [
+        {
+          "who": "yyling",
+          "text": "颍川的街匪是叛军的耳目，先拔掉他们。打败十二个。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yyling",
+          "text": "耳目没了，叛军就成了瞎子。"
+        }
+      ],
+      "reward": {
+        "exp": 25000,
+        "silver": 5000
+      },
+      "chapter": "许昌篇",
+      "target": {
+        "monster": "jiefei",
+        "count": 12,
+        "at": "yingchuan"
+      }
+    },
+    {
+      "id": "m27",
+      "title": "黑账",
+      "giver": "yyling",
+      "turnIn": "yyling",
+      "type": "collect",
+      "hint": "去蔡县从贪官身上夺回5本账本。",
+      "goal": "夺回账本 ×5（蔡县）",
+      "accept": [
+        {
+          "who": "yyling",
+          "text": "蔡县的贪官给叛军运粮，账本就在他们身上。夺五本回来，我好上报朝廷。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yyling",
+          "text": "铁证如山。这些精钢矿是查抄来的，你拿去打装备。"
+        }
+      ],
+      "reward": {
+        "exp": 30000,
+        "items": {
+          "jinggang": 2
+        }
+      },
+      "chapter": "许昌篇",
+      "target": {
+        "item": "zhangben",
+        "count": 5,
+        "at": "caixian"
+      }
+    },
+    {
+      "id": "m28",
+      "title": "陈国",
+      "giver": "yyling",
+      "turnIn": "chenxiang",
+      "type": "talk",
+      "hint": "去陈见陈国相。从许昌郊外往下走。",
+      "goal": "与陈的陈国相对话",
+      "accept": [
+        {
+          "who": "yyling",
+          "text": "账本里还有陈国那边的人。你去见陈国相，他会安排。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "chenxiang",
+          "text": "颍阳的事我听说了。谯郡、南顿、颍水，三处都有叛军的人，一处一处来。"
+        }
+      ],
+      "reward": {
+        "exp": 8000,
+        "silver": 3000
+      },
+      "chapter": "许昌篇"
+    },
+    {
+      "id": "m29",
+      "title": "谯郡路霸",
+      "giver": "chenxiang",
+      "turnIn": "chenxiang",
+      "type": "kill",
+      "hint": "去谯郡打败12个路霸。",
+      "goal": "打败路霸 ×12（谯郡）",
+      "accept": [
+        {
+          "who": "chenxiang",
+          "text": "谯郡的路霸替叛军守着官道，打败十二个，把路打通。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "chenxiang",
+          "text": "官道通了。"
+        }
+      ],
+      "reward": {
+        "exp": 40000,
+        "silver": 6000,
+        "items": {
+          "jinggang": 2
+        }
+      },
+      "chapter": "许昌篇",
+      "target": {
+        "monster": "luba",
+        "count": 12,
+        "at": "qiaojun"
+      }
+    },
+    {
+      "id": "m30",
+      "title": "南顿污吏",
+      "giver": "chenxiang",
+      "turnIn": "chenxiang",
+      "type": "kill",
+      "hint": "去南顿打败12个污吏。",
+      "goal": "打败污吏 ×12（南顿）",
+      "accept": [
+        {
+          "who": "chenxiang",
+          "text": "南顿的污吏会用邪术，中了毒记得吃药。打败十二个。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "chenxiang",
+          "text": "南顿的百姓总算能喘口气了。"
+        }
+      ],
+      "reward": {
+        "exp": 45000,
+        "silver": 8000
+      },
+      "chapter": "许昌篇",
+      "target": {
+        "monster": "wuli",
+        "count": 12,
+        "at": "nandun"
+      }
+    },
+    {
+      "id": "m31",
+      "title": "颍水酷吏",
+      "giver": "chenxiang",
+      "turnIn": "chenxiang",
+      "type": "kill",
+      "hint": "去颍水打败10个酷吏。",
+      "goal": "打败酷吏 ×10（颍水）",
+      "accept": [
+        {
+          "who": "chenxiang",
+          "text": "最后是颍水的酷吏，他们手里攥着叛军的兵册。打败十个。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "chenxiang",
+          "text": "兵册到手。叛军在颍川以东扎了五座营，统领就在第五营。"
+        }
+      ],
+      "reward": {
+        "exp": 50000,
+        "items": {
+          "jinggang": 3
+        }
+      },
+      "chapter": "许昌篇",
+      "target": {
+        "monster": "kuli",
+        "count": 10,
+        "at": "yingshui"
+      }
+    },
+    {
+      "id": "m32",
+      "title": "五营",
+      "giver": "chenxiang",
+      "turnIn": "yyling",
+      "type": "talk",
+      "hint": "回颍阳见颍阳县令。",
+      "goal": "与颍阳的颍阳县令对话",
+      "accept": [
+        {
+          "who": "chenxiang",
+          "text": "兵册你带给颍阳县令，打叛军要从他那边出兵。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yyling",
+          "text": "五座营，一营比一营难打。准备好药，副将都练起来。"
+        }
+      ],
+      "reward": {
+        "exp": 12000,
+        "silver": 5000
+      },
+      "chapter": "许昌篇"
+    },
+    {
+      "id": "m33",
+      "title": "破营",
+      "giver": "yyling",
+      "turnIn": "yyling",
+      "type": "kill",
+      "hint": "去叛军二营打败15个叛军恶徒。从颍川往右走。",
+      "goal": "打败叛军恶徒 ×15（叛军二营）",
+      "accept": [
+        {
+          "who": "yyling",
+          "text": "先破二营，打败十五个叛军恶徒，挫他们的锐气。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yyling",
+          "text": "叛军乱了。这两块玄铁矿，能打五级装备。"
+        }
+      ],
+      "reward": {
+        "exp": 70000,
+        "silver": 10000,
+        "items": {
+          "xuantie": 2
+        }
+      },
+      "chapter": "许昌篇",
+      "target": {
+        "monster": "panjun",
+        "count": 15,
+        "at": "panjun2"
+      }
+    },
+    {
+      "id": "m34",
+      "title": "擒贼先擒王",
+      "giver": "yyling",
+      "turnIn": "xuling",
+      "type": "kill",
+      "hint": "去叛军五营打败叛军统领，然后回许昌复命。",
+      "goal": "打败叛军统领（叛军五营）",
+      "accept": [
+        {
+          "who": "yyling",
+          "text": "统领就在五营。他身边有术士护着，这一仗不能逃。准备好了再去。"
+        },
+        {
+          "who": "yyling",
+          "text": "打完了直接回许昌，许昌令在等你。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "叛军统领伏诛，许昌一带总算太平了。"
+        },
+        {
+          "who": "xuling",
+          "text": "你的名字已经报到朝廷。往西是陈留，那里还有更大的乱子……"
+        }
+      ],
+      "reward": {
+        "exp": 120000,
+        "silver": 20000,
+        "items": {
+          "xuantie": 3,
+          "gaojibaoxiang": 1
+        }
+      },
+      "chapter": "许昌篇",
+      "target": {
+        "monster": "panjuntongling",
+        "count": 1,
+        "at": "panjun5"
+      }
+    },
+    {
+      "id": "m35",
+      "title": "陈留在望",
+      "giver": "xuling",
+      "turnIn": "xuling",
+      "type": "talk",
+      "hint": "许昌篇完成了。陈留在 P3 开放。",
+      "goal": "与许昌令对话",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "歇一歇吧。跑环、挖宝、娱乐场，许昌城里够你忙的。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "陈留的路还没打通。等消息吧。"
+        }
+      ],
+      "reward": {
+        "exp": 10000
+      },
+      "chapter": "许昌篇"
     }
   ],
   "bounty": {
     "_src": "【实锤】老版视频：杀50小偷赏500两、50草寇赏800两、50盗贼赏1000两",
     "options": [
-      { "id": "b_xiaotou", "monster": "xiaotou", "count": 50, "silver": 500 },
-      { "id": "b_caokou",  "monster": "caokou",  "count": 50, "silver": 800 },
-      { "id": "b_daozei",  "monster": "daozei",  "count": 50, "silver": 1000 }
-    ]
+      {
+        "id": "b_xiaotou",
+        "monster": "xiaotou",
+        "count": 50,
+        "silver": 500
+      },
+      {
+        "id": "b_caokou",
+        "monster": "caokou",
+        "count": 50,
+        "silver": 800
+      },
+      {
+        "id": "b_daozei",
+        "monster": "daozei",
+        "count": 50,
+        "silver": 1000
+      },
+      {
+        "id": "b_liukou",
+        "monster": "liukou",
+        "count": 50,
+        "silver": 3000
+      },
+      {
+        "id": "b_dipi",
+        "monster": "dipi",
+        "count": 50,
+        "silver": 6000
+      },
+      {
+        "id": "b_jiefei",
+        "monster": "jiefei",
+        "count": 50,
+        "silver": 9000
+      }
+    ],
+    "_src2": "许昌捕快的三档悬赏【推定】（新手村三档是【实锤】）"
   },
   "quiz": {
     "_src": "老版剧情里有NPC出三国知识二选一题【实锤】；题目原创",
     "reward": 50,
     "questions": [
-      { "q": "桃园结义的三个人是刘备、关羽和谁？", "a": ["张飞", "赵云"], "ok": 0 },
-      { "q": "赤壁之战中，曹操败给了哪两家联军？", "a": ["袁绍和袁术", "孙权和刘备"], "ok": 1 },
-      { "q": "「三顾茅庐」请出的是谁？", "a": ["诸葛亮", "庞统"], "ok": 0 },
-      { "q": "长坂坡单骑救阿斗的是谁？", "a": ["张飞", "赵云"], "ok": 1 },
-      { "q": "「过五关斩六将」的是谁？", "a": ["关羽", "吕布"], "ok": 0 },
-      { "q": "曹操「挟天子以令诸侯」，挟的是哪位皇帝？", "a": ["汉献帝", "汉灵帝"], "ok": 0 },
-      { "q": "「既生瑜，何生亮」中的「瑜」是谁？", "a": ["周瑜", "鲁肃"], "ok": 0 },
-      { "q": "吕布的坐骑叫什么？", "a": ["的卢", "赤兔"], "ok": 1 },
-      { "q": "「七擒七纵」中被擒的是谁？", "a": ["孟获", "祝融"], "ok": 0 },
-      { "q": "官渡之战中被曹操击败的是谁？", "a": ["袁绍", "刘表"], "ok": 0 },
-      { "q": "「司马昭之心，路人皆知」，司马昭的父亲是谁？", "a": ["司马懿", "司马师"], "ok": 0 },
-      { "q": "刘备的结义兄弟中，谁被称为「美髯公」？", "a": ["张飞", "关羽"], "ok": 1 }
+      {
+        "q": "桃园结义的三个人是刘备、关羽和谁？",
+        "a": [
+          "张飞",
+          "赵云"
+        ],
+        "ok": 0
+      },
+      {
+        "q": "赤壁之战中，曹操败给了哪两家联军？",
+        "a": [
+          "袁绍和袁术",
+          "孙权和刘备"
+        ],
+        "ok": 1
+      },
+      {
+        "q": "「三顾茅庐」请出的是谁？",
+        "a": [
+          "诸葛亮",
+          "庞统"
+        ],
+        "ok": 0
+      },
+      {
+        "q": "长坂坡单骑救阿斗的是谁？",
+        "a": [
+          "张飞",
+          "赵云"
+        ],
+        "ok": 1
+      },
+      {
+        "q": "「过五关斩六将」的是谁？",
+        "a": [
+          "关羽",
+          "吕布"
+        ],
+        "ok": 0
+      },
+      {
+        "q": "曹操「挟天子以令诸侯」，挟的是哪位皇帝？",
+        "a": [
+          "汉献帝",
+          "汉灵帝"
+        ],
+        "ok": 0
+      },
+      {
+        "q": "「既生瑜，何生亮」中的「瑜」是谁？",
+        "a": [
+          "周瑜",
+          "鲁肃"
+        ],
+        "ok": 0
+      },
+      {
+        "q": "吕布的坐骑叫什么？",
+        "a": [
+          "的卢",
+          "赤兔"
+        ],
+        "ok": 1
+      },
+      {
+        "q": "「七擒七纵」中被擒的是谁？",
+        "a": [
+          "孟获",
+          "祝融"
+        ],
+        "ok": 0
+      },
+      {
+        "q": "官渡之战中被曹操击败的是谁？",
+        "a": [
+          "袁绍",
+          "刘表"
+        ],
+        "ok": 0
+      },
+      {
+        "q": "「司马昭之心，路人皆知」，司马昭的父亲是谁？",
+        "a": [
+          "司马懿",
+          "司马师"
+        ],
+        "ok": 0
+      },
+      {
+        "q": "刘备的结义兄弟中，谁被称为「美髯公」？",
+        "a": [
+          "张飞",
+          "关羽"
+        ],
+        "ok": 1
+      }
     ]
-  }
+  },
+  "_src2": "许昌篇：结构参照原版（许昌城里有招贤使者、跑环使者，20级开跑环，铁匠铺打造、宝石镶嵌、军马场）；剧情、台词、奖励全部原创【推定】"
 }

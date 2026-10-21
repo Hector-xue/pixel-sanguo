@@ -2,8 +2,9 @@
 import { balance, bountyOptions, classSkills, classes, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation } from '../data';
 import type { Dir, QuestDef } from '../data';
 import { deriveStats, expToNext, monsterAttrs, playerAttrsAt } from '../core/formulas';
+import { addBonus, applyBonus, emptyBonus, gearsBonus, mountBonus } from '../core/gear';
 import { Rng } from '../core/rng';
-import type { Attrs, ClassId, Gender, SkillState, Stats } from '../core/types';
+import type { Attrs, ClassId, Gear, Gender, SkillState, Slot, Stats } from '../core/types';
 import { ATTR_KEYS } from '../core/types';
 
 export type Channel = 'sys' | 'qu' | 'pai' | 'shang' | 'shi';
@@ -15,24 +16,50 @@ export interface Msg {
   text: string;
 }
 
+export type Grade = '常人' | '英才' | '将才';
+
 export interface General {
   uid: string;
   monsterId: string;
+  recruitId?: string;
   name: string;
   classId: ClassId;
   gender: Gender;
   look: string;
-  grade: '常人' | '英才' | '将才';
+  baseLook?: string;
+  grade: Grade;
   level: number;
   exp: number;
   apt: { growth: number } & Attrs;
-  attrs: Attrs;
+  // 属性 = base（baseLevel 级时的属性）+ 之后每级按资质成长
+  base: Attrs;
+  baseLevel: number;
   hp: number;
   mp: number;
   loyalty: number;
   rapport: number;
   star: number;
   skills: SkillState[];
+  attrs?: Attrs;
+}
+
+export type RingType = 'goto' | 'buy' | 'kill' | 'capture' | 'deliver';
+
+export interface RingTask {
+  type: RingType;
+  at?: string;
+  monster?: string;
+  item?: string;
+  count: number;
+  have: number;
+  arrived?: boolean;
+}
+
+export interface ChibiRound {
+  id: number;
+  start: number;
+  end: number;
+  bets: number[];
 }
 
 export type QuestState = 'available' | 'active' | 'ready' | 'done';
@@ -71,6 +98,26 @@ export interface Save {
   quiz: { day: string; answered: number[] };
   messages: Msg[];
   battles: number;
+  // ===== P2 =====
+  equip: Partial<Record<Slot, Gear>>;
+  gear: Gear[];
+  storage: Record<string, number>;
+  bank: number;
+  mounts: Record<string, { level: number; exp: number }>;
+  riding: string | null;
+  stamina: number;
+  staminaAt: number;
+  pills: { day: string; n: number };
+  day: string;
+  ring: { index: number; task: RingTask | null };
+  signin: { count: number; day: string };
+  online: { day: string; seconds: number; claimed: number[] };
+  mentor: { joined: boolean; graduated: boolean };
+  dig: { left: number; n: number } | null;
+  casino: { chibi: ChibiRound | null; net: number; guess: { pot: number; base: number } | null };
+  life: Record<string, number>;
+  rolls: number;
+  dayN?: number;
 }
 
 export interface NewGameOpts {
@@ -83,6 +130,35 @@ export interface NewGameOpts {
 }
 
 const zeroAttrs = (): Attrs => ({ con: 0, str: 0, int: 0, agi: 0 });
+
+function p2Defaults(): Pick<Save, 'equip' | 'gear' | 'storage' | 'bank' | 'mounts' | 'riding' | 'stamina' | 'staminaAt' | 'pills' | 'day' | 'ring' | 'signin' | 'online' | 'mentor' | 'dig' | 'casino' | 'life' | 'rolls'> {
+  return {
+    equip: {}, gear: [], storage: {}, bank: 0, mounts: {}, riding: null,
+    stamina: balance.stamina.max, staminaAt: Date.now(), pills: { day: '', n: 0 }, day: '',
+    ring: { index: 0, task: null }, signin: { count: 0, day: '' }, online: { day: '', seconds: 0, claimed: [] },
+    mentor: { joined: false, graduated: false }, dig: null, casino: { chibi: null, net: 0, guess: null }, life: {}, rolls: 0,
+  };
+}
+
+// 存档自带的随机数：每次取一个新种子，结果可复现
+export function rollRng(s: Save): Rng {
+  s.rolls = (s.rolls ?? 0) + 1;
+  return new Rng((Math.imul(s.seed, 2654435761) + Math.imul(s.rolls, 40503)) >>> 0);
+}
+
+export function dayKey(now = Date.now()): string {
+  const d = new Date(now);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+// 本地时区的第几天（跨天判断用）
+export function dayNum(now = Date.now()): number {
+  return Math.floor((now - new Date(now).getTimezoneOffset() * 60000) / 86400000);
+}
+
+export function bump(s: Save, key: string, n = 1): void {
+  s.life[key] = (s.life[key] ?? 0) + n;
+}
 
 export function newSave(o: NewGameOpts): Save {
   const s: Save = {
@@ -119,6 +195,7 @@ export function newSave(o: NewGameOpts): Save {
     quiz: { day: '', answered: [] },
     messages: [],
     battles: 0,
+    ...p2Defaults(),
   };
   const st = playerStats(s);
   s.player.hp = st.maxHp;
@@ -137,12 +214,34 @@ export function playerAttrs(s: Save): Attrs {
   return playerAttrsAt(s.player.classId, s.player.level, s.player.added);
 }
 
+export function playerBonus(s: Save) {
+  const ride = s.riding ? s.mounts[s.riding] : undefined;
+  return addBonus(gearsBonus(Object.values(s.equip)), mountBonus(ride ? s.riding : null, ride?.level ?? 1));
+}
+
 export function playerStats(s: Save): Stats {
-  return deriveStats(playerAttrs(s), s.player.level, s.player.classId);
+  const b = playerBonus(s);
+  const a = playerAttrs(s);
+  a.con += b.con;
+  return applyBonus(deriveStats(a, s.player.level, s.player.classId), b);
+}
+
+const GEN_PER = (balance.autoAttrPerLevel * 4 + balance.freePointsPerLevel) / 4;
+
+export function generalAttrs(g: General): Attrs {
+  const up = Math.max(0, g.level - g.baseLevel);
+  const out = zeroAttrs();
+  for (const k of ATTR_KEYS) out[k] = Math.round(g.base[k] + up * GEN_PER * g.apt[k] * g.apt.growth);
+  return out;
 }
 
 export function generalStats(g: General): Stats {
-  return deriveStats(g.attrs, g.level, g.classId);
+  const G = balance.general;
+  const b = emptyBonus();
+  b.mul = g.star * G.starStatMul;
+  b.rates.crit = Math.floor(g.rapport / G.rapportRateDiv);
+  b.rates.dodge = Math.floor(g.rapport / G.rapportRateDiv);
+  return applyBonus(deriveStats(generalAttrs(g), g.level, g.classId), b);
 }
 
 export function className(id: ClassId): string {
@@ -186,9 +285,7 @@ export function grantGeneralExp(g: General, amount: number): string[] {
   while (g.level < balance.levelCap && g.exp >= expToNext(g.level)) {
     g.exp -= expToNext(g.level);
     g.level++;
-    // 副将升级按资质自动分配属性（每级 自动点+自由点，乘成长）
-    const per = (balance.autoAttrPerLevel * 4 + balance.freePointsPerLevel) / 4;
-    for (const k of ATTR_KEYS) g.attrs[k] += per * g.apt[k] * g.apt.growth;
+    // 副将升级按资质自动长属性（见 generalAttrs）
     const st = generalStats(g);
     g.hp = st.maxHp;
     g.mp = st.maxMp;
@@ -200,7 +297,7 @@ export function grantGeneralExp(g: General, amount: number): string[] {
 // ===== 背包 =====
 
 export function bagUsed(s: Save): number {
-  return Object.entries(s.bag).reduce((n, [id, c]) => n + (items[id]?.quest ? 0 : c), 0);
+  return Object.entries(s.bag).reduce((n, [id, c]) => n + (items[id]?.quest ? 0 : c), 0) + s.gear.length;
 }
 
 export function bagCap(s: Save): number {
@@ -395,10 +492,14 @@ export function findGeneral(s: Save, uid: string): General | undefined {
   return s.generals.find((g) => g.uid === uid) ?? s.inn.find((g) => g.uid === uid);
 }
 
+export function rollApt(grade: Grade, rng: Rng): General['apt'] {
+  const A = balance.generalAptitude[grade];
+  const roll = (r: number[]) => Math.round(rng.range(r[0], r[1]) * 100) / 100;
+  return { growth: roll(A.growth), con: roll(A.attr), str: roll(A.attr), int: roll(A.attr), agi: roll(A.attr) };
+}
+
 export function makeGeneral(s: Save, monsterId: string, level: number, rng: Rng): General {
   const m = monsters[monsterId];
-  const A = balance.generalAptitude['常人'];
-  const roll = (r: number[]) => Math.round(rng.range(r[0], r[1]) * 100) / 100;
   const g: General = {
     uid: `g${s.nextUid++}`,
     monsterId,
@@ -409,8 +510,9 @@ export function makeGeneral(s: Save, monsterId: string, level: number, rng: Rng)
     grade: '常人',
     level,
     exp: 0,
-    apt: { growth: roll(A.growth), con: roll(A.attr), str: roll(A.attr), int: roll(A.attr), agi: roll(A.attr) },
-    attrs: monsterAttrs(monsterId, level),
+    apt: rollApt('常人', rng),
+    base: monsterAttrs(monsterId, level),
+    baseLevel: level,
     hp: 0,
     mp: 0,
     loyalty: 100,
@@ -505,9 +607,17 @@ export function findPath(from: string, to: string): string[] | null {
   return null;
 }
 
+// 到达某地：记下去过（馆驿传送、跑环用），跑环的"送信"到了就算完成
+export function arrive(s: Save, to: string): void {
+  s.location = to;
+  s.flags[`v_${to}`] = true;
+  const t = s.ring?.task;
+  if (t && t.type === 'goto' && t.at === to) t.arrived = true;
+}
+
 export function moveTo(s: Save, to: string): boolean {
-  const ok = exitsOf(s.location).some((e) => e.to === to && !e.locked) || (to === startLocation && s.location !== to);
-  if (ok) s.location = to;
+  const ok = exitsOf(s.location).some((e) => e.to === to && !e.locked) || (to === startLocation && s.location !== to) || (s.location === 'baodong' && to === 'xuchang');
+  if (ok) arrive(s, to);
   return ok;
 }
 
@@ -701,6 +811,16 @@ export function deserialize(text: string): Save {
   s.kills ??= {};
   s.inn ??= [];
   s.quiz ??= { day: '', answered: [] };
+  const d = p2Defaults();
+  for (const [k, v] of Object.entries(d)) if ((s as unknown as Record<string, unknown>)[k] === undefined) (s as unknown as Record<string, unknown>)[k] = v;
+  // P1 的副将存的是当前属性，换算成"起点属性 + 成长"后数值不变
+  for (const g of [...s.generals, ...s.inn]) {
+    if (!g.base) {
+      g.base = g.attrs ?? zeroAttrs();
+      g.baseLevel = g.level;
+    }
+    delete g.attrs;
+  }
   return s;
 }
 

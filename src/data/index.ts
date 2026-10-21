@@ -6,7 +6,11 @@ import monstersJson from './monsters.json';
 import mapsJson from './maps.json';
 import npcsJson from './npcs.json';
 import questsJson from './quests.json';
-import type { Attrs, ClassId, Gender, ItemDef, MonsterDef, Resists, SkillDef } from '../core/types';
+import equipsJson from './equips.json';
+import mountsJson from './mounts.json';
+import generalsJson from './generals.json';
+import systemsJson from './systems.json';
+import type { Attrs, ClassId, Gender, ItemDef, MonsterDef, Resists, SkillDef, Slot } from '../core/types';
 
 // JSON 里以 _ 开头的键是出处注释，读表时去掉
 function table<T>(json: Record<string, unknown>): Record<string, T> {
@@ -46,7 +50,10 @@ export interface NpcDef {
   look: string;
   lines: string[];
   quiz?: boolean;
-  bounty?: boolean;
+  bounty?: string[];
+  recruit?: boolean;
+  ring?: boolean;
+  dig?: boolean;
 }
 
 export interface DialogLine {
@@ -68,6 +75,7 @@ export interface QuestDef {
   accept: DialogLine[];
   finish: DialogLine[];
   reward: { exp?: number; silver?: number; items?: Record<string, number> };
+  chapter?: string;
 }
 
 export interface BountyOption {
@@ -77,10 +85,73 @@ export interface BountyOption {
   silver: number;
 }
 
+export interface Reward {
+  silver?: number;
+  gold?: number;
+  items?: Record<string, number>;
+  general?: string;
+}
+
+// 随机奖励表的一项：w 是权重；ore/gem 是"按人物等级给的矿石/宝石"，数字是档位
+export interface LootEntry {
+  w: number;
+  silver?: [number, number];
+  items?: Record<string, number>;
+  general?: string;
+  ore?: number;
+  gem?: number;
+  nothing?: boolean;
+  minLevel?: number;
+}
+
+export interface MountDef {
+  name: string;
+  level: number;
+  silver?: number;
+  gold?: number;
+  base: { spd: number; chaos: number; seal: number; trap: number };
+  per: { spd: number; res: number };
+  color: string;
+}
+
+export interface RecruitDef {
+  id: string;
+  name: string;
+  class: ClassId;
+  gender: Gender;
+  look: string;
+}
+
+export interface TierDef {
+  level: number;
+  ore?: string;
+  oreN?: number;
+  silver?: number;
+}
+
+export interface GemKind {
+  name: string;
+  color: string;
+  per: { resist?: Partial<Resists>; rates?: Record<string, number>; spd?: number; con?: number };
+}
+
 export const balance = balanceJson;
 export const classes = table<ClassDef>(classesJson) as Record<ClassId, ClassDef>;
 export const skills = table<SkillDef>(skillsJson);
-export const items = table<ItemDef>(itemsJson);
+const { gems: gemsJson, ...itemsOnly } = itemsJson;
+export const gemKinds = table<GemKind>(gemsJson.kinds) as Record<string, GemKind>;
+export const GEM_KINDS = Object.keys(gemKinds);
+export const GEM_LEVELS = gemsJson.levels;
+export const items = table<ItemDef>(itemsOnly as Record<string, unknown>);
+// 宝石：每种 1～5 级各一个物品，id 形如 gem_zuanshi_2
+for (const kind of GEM_KINDS) {
+  for (let lv = 1; lv <= GEM_LEVELS; lv++) {
+    items[gemId(kind, lv)] = { name: `${lv}级${gemKinds[kind].name}`, cat: 'gem', price: gemsJson.basePrice * 3 ** (lv - 1), gem: { kind, level: lv } };
+  }
+}
+export function gemId(kind: string, level: number): string {
+  return `gem_${kind}_${level}`;
+}
 export const monsters = table<MonsterDef>(monstersJson);
 export const npcs = table<NpcDef>(npcsJson);
 export const locations = mapsJson.locations as unknown as Record<string, LocationDef>;
@@ -90,6 +161,37 @@ export const opening = questsJson.opening as DialogLine[];
 export const mainQuests = questsJson.main as QuestDef[];
 export const bountyOptions = questsJson.bounty.options as BountyOption[];
 export const quiz = questsJson.quiz as { reward: number; questions: { q: string; a: string[]; ok: number }[] };
+
+export const equips = equipsJson as unknown as {
+  slots: Slot[];
+  slotNames: Record<Slot, string>;
+  tiers: TierDef[];
+  sockets: number[];
+  shopPrice: Record<Slot, number>;
+  stats: Record<Slot, Record<string, number[]>>;
+  attrReq: Partial<Record<Slot, number[]>>;
+  names: Record<Exclude<Slot, 'weapon'>, string[]> & { weapon: Record<ClassId, string[]> };
+};
+export const mounts = table<MountDef>(mountsJson);
+export const recruits = generalsJson as unknown as { yingcai: RecruitDef[]; jiangcai: RecruitDef[]; tokens: Record<string, string> };
+export const systems = systemsJson as unknown as {
+  signin: { days: Reward[] };
+  online: { tiers: (Reward & { minutes: number })[] };
+  boxes: Record<'box' | 'bigbox', LootEntry[]>;
+  ring: {
+    minLevel: number; rounds: number; stamina: number; types: Record<string, number>; killCount: [number, number];
+    buyDrugs: string[]; buyCount: [number, number]; deliverItems: string[]; expRatio: number; expStep: number; silverPerLevel: number;
+    drops: (Reward & { chance: number; ore?: number; gem?: number })[];
+    final: { items: Record<string, number>; chance: number; bonus: Record<string, number> };
+  };
+  dig: { digs: number; guardAt: number[]; guardCount: [number, number]; loot: LootEntry[] };
+  casino: { chibiMinutes: number; houseCut: number; minBet: number; maxBet: number; guessMul: number; sides: string[]; titles: { net: number; name: string }[] };
+  shop: { goods: { item: string; gold: number }[] };
+};
+// 有馆驿的城镇（馆驿传送的目的地）
+export function innTowns(): string[] {
+  return Object.keys(locations).filter((id) => locations[id].facilities?.includes('inn'));
+}
 
 export const CLASS_IDS: ClassId[] = ['warrior', 'scholar', 'mystic'];
 export const GENDER_NAMES: Record<Gender, string> = { male: '男', female: '女' };

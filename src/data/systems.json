@@ -1,0 +1,371 @@
+{
+  "signin": {
+    "_src": "七日签到、第7天送大乔、奖励里有小乔令牌和赵云令牌【实锤】；其余每天的奖励【推定】。累计签到，漏了不清零",
+    "days": [
+      {
+        "silver": 2000,
+        "items": {
+          "zhixue": 10
+        }
+      },
+      {
+        "items": {
+          "jiangjunling": 1,
+          "huami": 10
+        }
+      },
+      {
+        "items": {
+          "tilidan": 5,
+          "baoxiang": 1
+        }
+      },
+      {
+        "items": {
+          "zhaoyunling": 1
+        }
+      },
+      {
+        "gold": 20,
+        "items": {
+          "xinfa2": 2
+        }
+      },
+      {
+        "items": {
+          "xiaoqiaoling": 1,
+          "gaojibaoxiang": 1
+        }
+      },
+      {
+        "general": "daqiao"
+      }
+    ]
+  },
+  "online": {
+    "_src": "在线奖励按当天在线时长发【实锤】；档位和奖励【推定】",
+    "tiers": [
+      {
+        "minutes": 5,
+        "silver": 500
+      },
+      {
+        "minutes": 15,
+        "items": {
+          "zhixue": 5,
+          "huami": 5
+        }
+      },
+      {
+        "minutes": 30,
+        "items": {
+          "baoxiang": 1
+        }
+      },
+      {
+        "minutes": 60,
+        "items": {
+          "tilidan": 3,
+          "xinfa1": 1
+        }
+      },
+      {
+        "minutes": 120,
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      }
+    ]
+  },
+  "boxes": {
+    "_src": "宝箱能开出武将和材料【实锤】；具体概率【推定】。ore 按人物等级给对应档的矿石，gem 是随机一种宝石的对应级别",
+    "box": [
+      {
+        "w": 30,
+        "silver": [
+          500,
+          2000
+        ]
+      },
+      {
+        "w": 18,
+        "items": {
+          "zhixue": 5
+        }
+      },
+      {
+        "w": 8,
+        "items": {
+          "jinchuang": 3
+        }
+      },
+      {
+        "w": 20,
+        "ore": 1
+      },
+      {
+        "w": 14,
+        "gem": 1
+      },
+      {
+        "w": 5,
+        "items": {
+          "xinfa1": 1
+        }
+      },
+      {
+        "w": 3,
+        "items": {
+          "tilidan": 2
+        }
+      },
+      {
+        "w": 2,
+        "items": {
+          "jiangjunling": 1
+        }
+      }
+    ],
+    "bigbox": [
+      {
+        "w": 20,
+        "silver": [
+          5000,
+          15000
+        ]
+      },
+      {
+        "w": 20,
+        "gem": 2
+      },
+      {
+        "w": 18,
+        "ore": 2
+      },
+      {
+        "w": 14,
+        "items": {
+          "xinfa2": 1
+        }
+      },
+      {
+        "w": 10,
+        "items": {
+          "jiangjunling": 1
+        }
+      },
+      {
+        "w": 8,
+        "items": {
+          "jinengshu": 1
+        }
+      },
+      {
+        "w": 6,
+        "items": {
+          "huichun": 5,
+          "yulu": 3
+        }
+      },
+      {
+        "w": 3,
+        "general": "yingcai"
+      },
+      {
+        "w": 1,
+        "items": {
+          "dajiangjunling": 1
+        }
+      }
+    ]
+  },
+  "ring": {
+    "_src": "一环20级开（第1–10环）；中途断了从头跑；任务类型=传送到某地/买药/杀N只指定怪/招降指定怪/上交物品（宝箱、体力丹之类）；奖励=矿石、宝石、宝箱、将军令、最后一环给技能书；没有单独面板，跑环使者用对话框派任务，进度记在任务里【实锤】。权重、数量、奖励数值、体力消耗【推定】",
+    "minLevel": 20,
+    "rounds": 10,
+    "stamina": 5,
+    "types": {
+      "goto": 20,
+      "buy": 15,
+      "kill": 35,
+      "capture": 15,
+      "deliver": 15
+    },
+    "killCount": [
+      6,
+      10
+    ],
+    "buyDrugs": [
+      "zhixue",
+      "jinchuang",
+      "huichun",
+      "qingquan"
+    ],
+    "buyCount": [
+      3,
+      6
+    ],
+    "deliverItems": [
+      "tilidan",
+      "baoxiang"
+    ],
+    "expRatio": 0.05,
+    "expStep": 0.12,
+    "silverPerLevel": 30,
+    "drops": [
+      {
+        "chance": 0.2,
+        "ore": 1
+      },
+      {
+        "chance": 0.1,
+        "gem": 1
+      },
+      {
+        "chance": 0.06,
+        "items": {
+          "baoxiang": 1
+        }
+      }
+    ],
+    "final": {
+      "items": {
+        "jinengshu": 1,
+        "baoxiang": 1
+      },
+      "chance": 0.3,
+      "bonus": {
+        "jiangjunling": 1
+      }
+    }
+  },
+  "dig": {
+    "_src": "宝洞从主城'战场'传送进去、铲子1万银两、产出低级宝石和跑环要交的道具、高等级可能挖到宝石珍矿、过程中3次护宝守卫战且打赢必得经验和宝箱【单源】；VIP门槛去掉。每把铲子能挖几铲、概率【推定】",
+    "digs": 10,
+    "guardAt": [
+      3,
+      6,
+      9
+    ],
+    "guardCount": [
+      2,
+      3
+    ],
+    "loot": [
+      {
+        "w": 25,
+        "gem": 1
+      },
+      {
+        "w": 25,
+        "ore": 1
+      },
+      {
+        "w": 15,
+        "items": {
+          "tilidan": 1
+        }
+      },
+      {
+        "w": 8,
+        "items": {
+          "baoxiang": 1
+        }
+      },
+      {
+        "w": 15,
+        "silver": [
+          300,
+          1500
+        ]
+      },
+      {
+        "w": 12,
+        "nothing": true
+      },
+      {
+        "w": 4,
+        "items": {
+          "zhenkuang": 1
+        },
+        "minLevel": 40
+      }
+    ]
+  },
+  "casino": {
+    "_src": "娱乐场赤壁是押银两的竞猜，能看到各方押了多少，有娱乐场称号；猜猜看押注猜结果、能翻倍再押【单源】。魏蜀吴三方、奖池分成、AI 下注、每局时长、抽成、2.5倍、称号门槛【推定】",
+    "chibiMinutes": 3,
+    "houseCut": 0.1,
+    "minBet": 100,
+    "maxBet": 100000,
+    "guessMul": 2.5,
+    "sides": [
+      "魏",
+      "蜀",
+      "吴"
+    ],
+    "titles": [
+      {
+        "net": 200000,
+        "name": "赤壁赌圣"
+      },
+      {
+        "net": 50000,
+        "name": "赤壁豪客"
+      },
+      {
+        "net": 5000,
+        "name": "赤壁常胜"
+      },
+      {
+        "net": -5000,
+        "name": "赤壁看客"
+      },
+      {
+        "net": -50000,
+        "name": "赤壁散财童子"
+      },
+      {
+        "net": -1000000000000000.0,
+        "name": "赤壁冤大头"
+      }
+    ]
+  },
+  "shop": {
+    "_src": "商城用金砖买东西（宝箱等）【实锤】；货单和价格【推定】",
+    "goods": [
+      {
+        "item": "jiangjunling",
+        "gold": 30
+      },
+      {
+        "item": "dajiangjunling",
+        "gold": 150
+      },
+      {
+        "item": "baoxiang",
+        "gold": 5
+      },
+      {
+        "item": "gaojibaoxiang",
+        "gold": 40
+      },
+      {
+        "item": "tilidan",
+        "gold": 2
+      },
+      {
+        "item": "xinfa2",
+        "gold": 20
+      },
+      {
+        "item": "xinfa3",
+        "gold": 60
+      },
+      {
+        "item": "jinengshu",
+        "gold": 50
+      }
+    ]
+  }
+}

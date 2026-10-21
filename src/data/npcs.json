@@ -1,11 +1,127 @@
 {
   "_src": "导航使者、任务帮助使者、貂蝉、赵云、村长、捕快在原版新手村出现过【实锤】；台词全部原创",
-  "daohang":  { "name": "导航使者", "look": "guide",    "lines": ["新手村四面都有路：北边山林、西边荒山、东边竹林、南边草原。", "点下面的「移动」可以换地方，点「功能」里的「任务」能看到要去哪。"] },
-  "cunzhang": { "name": "村长",     "look": "elder",    "lines": ["村子小，人心不坏。外头不太平，出门多带几瓶药。"] },
-  "zhaoyun":  { "name": "赵云",     "look": "zhaoyun",  "lines": ["我在此地暂歇几日。练武一事，急不得。"] },
-  "bangzhu":  { "name": "任务帮助使者", "look": "helper", "lines": ["不知道下一步做什么？打开「功能 → 任务」，选中任务点「开启寻路」，会自动走过去。", "名字后面带「!」的人有事找你。", "把敌人打到残血再「招降」，成功率高得多。历史名将不能招降。"] },
-  "diaochan": { "name": "貂蝉",     "look": "diaochan", "lines": ["公子也是来避乱的吗？"], "quiz": true },
-  "bukuai":   { "name": "捕快",     "look": "constable", "lines": ["附近贼人越来越多，县里贴了悬赏令。"], "bounty": true },
-  "zhuangzhu":{ "name": "翠竹庄主", "look": "squire",   "lines": ["翠竹山庄世代种竹，如今被山贼搅得不得安宁。"] },
-  "shouguan": { "name": "守关士兵", "look": "soldier_npc", "lines": ["前面就是去许昌的大路。许昌城还没修好（P2 开放），过些日子再来吧。"] }
+  "daohang": {
+    "name": "导航使者",
+    "look": "guide",
+    "lines": [
+      "新手村四面都有路：北边山林、西边荒山、东边竹林、南边草原。",
+      "点下面的「移动」可以换地方，点「功能」里的「任务」能看到要去哪。"
+    ]
+  },
+  "cunzhang": {
+    "name": "村长",
+    "look": "elder",
+    "lines": [
+      "村子小，人心不坏。外头不太平，出门多带几瓶药。"
+    ]
+  },
+  "zhaoyun": {
+    "name": "赵云",
+    "look": "zhaoyun",
+    "lines": [
+      "我在此地暂歇几日。练武一事，急不得。"
+    ]
+  },
+  "bangzhu": {
+    "name": "任务帮助使者",
+    "look": "helper",
+    "lines": [
+      "不知道下一步做什么？打开「功能 → 任务」，选中任务点「开启寻路」，会自动走过去。",
+      "名字后面带「!」的人有事找你。",
+      "把敌人打到残血再「招降」，成功率高得多。历史名将不能招降。"
+    ]
+  },
+  "diaochan": {
+    "name": "貂蝉",
+    "look": "diaochan",
+    "lines": [
+      "公子也是来避乱的吗？"
+    ],
+    "quiz": true
+  },
+  "bukuai": {
+    "name": "捕快",
+    "look": "constable",
+    "lines": [
+      "附近贼人越来越多，县里贴了悬赏令。"
+    ],
+    "bounty": [
+      "b_xiaotou",
+      "b_caokou",
+      "b_daozei"
+    ]
+  },
+  "zhuangzhu": {
+    "name": "翠竹庄主",
+    "look": "squire",
+    "lines": [
+      "翠竹山庄世代种竹，如今被山贼搅得不得安宁。"
+    ]
+  },
+  "shouguan": {
+    "name": "守关士兵",
+    "look": "soldier_npc",
+    "lines": [
+      "往南就是许昌。路上逃兵多，结伴走。"
+    ]
+  },
+  "_src2": "许昌线：招贤使者、跑环使者、捕快是原版NPC【实锤】；许昌令、颍阳县令、陈国相、宝洞老人是【推定】；台词全部原创",
+  "xuling": {
+    "name": "许昌令",
+    "look": "magistrate",
+    "lines": [
+      "许昌城刚经过一场兵乱，百废待兴。",
+      "城里铁匠铺、武器店、馆驿、钱庄都开着，缺什么去「设施」里找。"
+    ]
+  },
+  "zhaoxian": {
+    "name": "招贤使者",
+    "look": "recruiter",
+    "lines": [
+      "天下英才，有令者可得。将军令招英才，大将军令招将才，令牌可以点名招人。"
+    ],
+    "recruit": true
+  },
+  "paohuan": {
+    "name": "跑环使者",
+    "look": "courier",
+    "lines": [
+      "二十级以上的侠士，可以来我这里跑环。一环十个任务，中途断了要从头来。"
+    ],
+    "ring": true
+  },
+  "xcbukuai": {
+    "name": "捕快",
+    "look": "constable",
+    "lines": [
+      "许昌周边流寇、地痞横行，县里加了悬赏。"
+    ],
+    "bounty": [
+      "b_liukou",
+      "b_dipi",
+      "b_jiefei"
+    ]
+  },
+  "yyling": {
+    "name": "颍阳县令",
+    "look": "magistrate2",
+    "lines": [
+      "颍阳小县，夹在颍川和蔡县之间，两头都不太平。"
+    ]
+  },
+  "chenxiang": {
+    "name": "陈国相",
+    "look": "minister",
+    "lines": [
+      "陈国往南是谯郡，再往两边是南顿、颍水。那一带的官吏，比贼还狠。"
+    ]
+  },
+  "wabao": {
+    "name": "宝洞老人",
+    "look": "oldminer",
+    "lines": [
+      "这洞里埋着前朝的宝贝。拿铲子来，一把铲子挖十铲。挖得深了会惊动护宝守卫，小心。"
+    ],
+    "dig": true
+  }
 }

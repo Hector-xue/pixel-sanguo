@@ -54,6 +54,8 @@ export interface BUnit {
   monsterId?: string;
   profGain: Record<string, number>;
   variant?: number;
+  // 副将忠诚：低了打仗时有概率不听指挥
+  loyalty?: number;
 }
 
 export type CommandType = 'attack' | 'skill' | 'capture' | 'item' | 'summon' | 'defend' | 'flee';
@@ -100,6 +102,8 @@ export interface Battle {
   canFlee: boolean;
   spar: boolean;
   lastCmd: Record<string, Command>;
+  // 特殊战斗的标记（挖宝守卫等），战后结算用
+  tag?: string;
 }
 
 export interface BattleInit {
@@ -111,6 +115,7 @@ export interface BattleInit {
   title: string;
   spar?: boolean;
   canFlee?: boolean;
+  tag?: string;
 }
 
 export function emptyStatus(): UnitStatus {
@@ -131,6 +136,7 @@ export function createBattle(init: BattleInit): Battle {
     canFlee: init.canFlee ?? true,
     spar: !!init.spar,
     lastCmd: {},
+    tag: init.tag,
   };
 }
 
@@ -503,6 +509,12 @@ class Resolver {
       return;
     }
     const c = cmd ?? { actor: u.id, type: 'attack' };
+    const L = balance.general.loyaltyDisobey;
+    if (u.kind === 'general' && u.loyalty !== undefined && u.loyalty < L && this.rng.chance((L - u.loyalty) / 100)) {
+      this.emit({ t: 'text', text: `${u.name}忠诚太低，不听指挥` });
+      this.emit({ t: 'defend', actor: u.id });
+      return;
+    }
     if (u.status.trap > 0) {
       u.status.trap--;
       const blocked = c.type === 'attack' || c.type === 'skill' || c.type === 'capture';
