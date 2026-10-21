@@ -2,7 +2,7 @@
 import { Grid, dither, ridge, seeded } from './pixel';
 import { C } from './palette';
 
-export type SceneArt = 'village' | 'forest' | 'hill' | 'bamboo' | 'grass' | 'manor' | 'valley' | 'gate' | 'camp' | 'road';
+export type SceneArt = 'village' | 'forest' | 'hill' | 'bamboo' | 'grass' | 'manor' | 'valley' | 'gate' | 'camp' | 'road' | 'city' | 'farm' | 'river' | 'cave';
 
 interface Ctx {
   g: Grid;
@@ -263,6 +263,102 @@ export function drawScene(art: SceneArt, w: number, h: number, horizonRatio: num
       g.rect(Math.floor(w * 0.75) - 6, hz - 3, 12, 4, C.tan);
       g.rect(Math.floor(w * 0.75) - 6, hz + 1, 12, 1, C.brown);
       roundTree(c, w * 0.12, hz + 6, 5, C.green, C.darkGreen);
+      break;
+    }
+    case 'city': {
+      sky(c, C.sky, C.lightPaper);
+      clouds(c, 2);
+      mountains(c, seed, hz - 4, hz * 0.4, 34, C.lightBlue);
+      ground(c, C.sand, C.tan, C.lightBrown);
+      // 城墙：垛口 + 墙砖缝；高度按地平线缩放，矮横幅里城楼也放得下
+      const wallH = Math.max(10, Math.round(hz * 0.42));
+      const top = hz + 2 - wallH;
+      g.rect(0, top, w, wallH, C.lightGray);
+      for (let x = 0; x < w; x += 6) g.rect(x, top - 2, 4, 2, C.lightGray);
+      for (let y = top + 3; y < hz + 2; y += 4) for (let x = Math.floor(y / 4) % 2 ? 0 : 4; x < w; x += 8) g.rect(x, y, 1, 3, C.gray);
+      g.rect(0, top, w, 1, C.gray);
+      g.rect(0, hz + 1, w, 1, C.darkGray);
+      // 城门楼
+      const tw = 28;
+      const th = Math.max(6, Math.round(hz * 0.22));
+      const gx = Math.floor(w / 2) - tw / 2;
+      const ty = top - th;
+      g.rect(gx, ty, tw, th, C.red);
+      g.rect(gx + 3, ty + 2, 4, th - 3, C.darkRed);
+      g.rect(gx + tw - 7, ty + 2, 4, th - 3, C.darkRed);
+      g.poly([[gx - 6, ty], [gx + tw + 6, ty], [gx + tw, ty - 5], [gx, ty - 5]], C.darkGray);
+      g.rect(gx - 6, ty, tw + 12, 1, C.ink);
+      g.rect(gx + 10, ty - 4, 8, 2, C.gold);
+      const dh = Math.round(wallH * 0.6);
+      g.rect(gx + 8, hz + 2 - dh, 12, dh, C.darkBrown);
+      g.ellipse(gx + 14, hz + 2 - dh, 6, 3, C.darkBrown);
+      path(c, C.lightBrown, C.tan, w / 2, w / 2);
+      break;
+    }
+    case 'farm': {
+      sky(c, C.sky, C.lightPaper);
+      clouds(c, 3);
+      mountains(c, seed, hz - 2, hz * 0.3, 40, C.grass, C.green);
+      ground(c, C.green, C.grass, C.darkGreen);
+      // 一垄一垄的田
+      for (let y = hz + 3; y < h; y += 4) {
+        const t = (y - hz) / (h - hz);
+        for (let x = 0; x < w; x++) if ((x + Math.floor(y / 4) * 3) % 7 < 3) g.set(x, y, t > 0.5 ? C.lime : C.yellow);
+        g.rect(0, y + 2, w, 1, C.lightBrown);
+      }
+      house(c, Math.floor(w * 0.12), hz + 2, 16, 10, C.tan, C.brown);
+      g.rect(Math.floor(w * 0.8), hz - 8, 1, 12, C.brown);
+      g.rect(Math.floor(w * 0.8) - 3, hz - 5, 7, 1, C.brown);
+      g.ellipse(Math.floor(w * 0.8) + 0.5, hz - 9, 2, 2, C.tan);
+      roundTree(c, w * 0.6, hz + 2, 4, C.green, C.darkGreen);
+      break;
+    }
+    case 'river': {
+      sky(c, C.paper, C.sky);
+      mountains(c, seed, hz - 4, hz * 0.55, 26, C.lightBlue, C.blue);
+      ground(c, C.grass, C.lime, C.green);
+      // 河横穿画面下半部
+      const ry = Math.round(hz + (h - hz) * 0.35);
+      for (let y = ry; y < ry + Math.max(8, (h - hz) * 0.3); y++) {
+        for (let x = 0; x < w; x++) g.set(x, y, (x * 3 + y * 5) % 11 === 0 ? C.white : (x + y) % 4 === 0 ? C.sky : C.lightBlue);
+        g.set(0, y, C.blue);
+      }
+      g.rect(0, ry, w, 1, C.blue);
+      // 木桥
+      const bx = Math.floor(w * 0.6);
+      g.rect(bx, ry - 2, 16, 3, C.lightBrown);
+      g.rect(bx, ry + 1, 16, 1, C.brown);
+      for (let x = bx; x < bx + 16; x += 5) g.rect(x, ry - 5, 1, 5, C.brown);
+      for (let i = 0; i < w / 12; i++) {
+        const x = Math.floor(c.rnd() * w);
+        g.rect(x, ry - 4, 1, 4, C.green);
+        g.set(x, ry - 5, C.brown);
+      }
+      pine(c, w * 0.1, hz - 2, 6, C.darkGreen, C.ink);
+      break;
+    }
+    case 'cave': {
+      // 洞里没有天：顶上是石壁，往下渐亮，地上散着宝石的反光
+      for (let y = 0; y < h; y++) {
+        const t = y / h;
+        for (let x = 0; x < w; x++) g.set(x, y, dither(x, y, t) ? C.darkBrown : C.ink);
+      }
+      for (let x = 0; x < w; x += 5 + Math.floor(c.rnd() * 6)) {
+        const len = 3 + Math.floor(c.rnd() * (hz * 0.4));
+        g.poly([[x, 0], [x + 4, 0], [x + 2, len]], C.brown);
+      }
+      for (let y = hz; y < h; y++) for (let x = 0; x < w; x++) g.set(x, y, dither(x, y, (y - hz) / (h - hz)) ? C.lightBrown : C.brown);
+      for (let i = 0; i < w / 6; i++) {
+        const x = Math.floor(c.rnd() * w);
+        const y = hz + 2 + Math.floor(c.rnd() * (h - hz - 3));
+        g.set(x, y, [C.sky, C.red, C.lime, C.white][i % 4]);
+      }
+      rock(c, w * 0.2, hz + 6, 5);
+      rock(c, w * 0.75, hz + 10, 7);
+      const tx = Math.floor(w * 0.5);
+      g.rect(tx, hz - 14, 2, 10, C.brown);
+      g.poly([[tx - 2, hz - 14], [tx + 4, hz - 14], [tx + 1, hz - 21]], C.orange);
+      g.poly([[tx, hz - 14], [tx + 2, hz - 14], [tx + 1, hz - 18]], C.yellow);
       break;
     }
   }

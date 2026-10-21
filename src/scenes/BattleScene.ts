@@ -58,6 +58,11 @@ const MENU: { type: CommandType; label: string; x: number; y: number }[] = [
 
 const wait = (scene: Phaser.Scene, ms: number) => new Promise<void>((r) => scene.time.delayedCall(ms, r));
 
+// 人物贴图按站位高度排前后（下面的盖住上面的），压在 100～199 之间：名字血条在 200，菜单在 250 以上
+function spriteDepth(hy: number): number {
+  return 100 + Math.min(99, hy / 5);
+}
+
 export class BattleScene extends Phaser.Scene {
   private b!: Battle;
   private views = new Map<string, View>();
@@ -135,7 +140,7 @@ export class BattleScene extends Phaser.Scene {
       [hx, hy] = ALLY_SLOTS[u.kind === 'player' ? 0 : 1];
     }
     const flip = u.side === 'enemy';
-    const spr = this.add.image(hx + (flip ? 8 : -8), hy, unitTex(this, u.look, u.variant ?? 0, u.alive ? 'idle' : 'down')).setOrigin(0.5, 29 / 32).setScale(2).setFlipX(flip).setDepth(hy);
+    const spr = this.add.image(hx + (flip ? 8 : -8), hy, unitTex(this, u.look, u.variant ?? 0, u.alive ? 'idle' : 'down')).setOrigin(0.5, 29 / 32).setScale(2).setFlipX(flip).setDepth(spriteDepth(hy));
     const bars = this.add.graphics().setDepth(200);
     const name = text(this, hx, hy - 7, `${u.name}`, { align: 'center', color: u.side === 'enemy' ? C.lightPaper : C.yellow, stroke: C.ink }).setDepth(200);
     const badge = text(this, hx, hy - 76, '', { align: 'center', color: C.yellow, stroke: C.ink }).setDepth(201);
@@ -463,7 +468,7 @@ export class BattleScene extends Phaser.Scene {
     const v = this.lunged;
     if (!v) return;
     this.lunged = null;
-    this.tweens.add({ targets: v.spr, x: v.hx + (v.flip ? 8 : -8), duration: 120 });
+    this.tweens.add({ targets: v.spr, x: v.hx + (v.flip ? 8 : -8), duration: 120, onComplete: () => v.spr.setDepth(spriteDepth(v.hy)) });
     if (!v.dead) this.pose(v, 'idle');
   }
 
@@ -485,7 +490,7 @@ export class BattleScene extends Phaser.Scene {
             const dir = a.flip ? -1 : 1;
             const tx = t.hx + (t.flip ? 34 : -34) * 1 + (a.flip === t.flip ? -dir * 10 : 0);
             this.pose(a, 'atk');
-            a.spr.setDepth(t.hy + 1);
+            a.spr.setDepth(spriteDepth(t.hy) + 0.5);
             await new Promise<void>((r) => this.tweens.add({ targets: a.spr, x: tx, duration: ms(180), ease: 'Quad.easeOut', onComplete: () => r() }));
             this.lunged = a;
           } else if (e.kind === 'cast') {

@@ -67,9 +67,57 @@ export const LOOKS: Record<string, Look> = {
   constable: { outfit: [C.navy, C.ink], trim: C.red, belt: C.red, boots: C.ink, hair: [C.darkBrown, C.ink], style: 'topknot', weapon: 'saber', hat: C.ink },
   squire: { outfit: [C.green, C.darkGreen], trim: C.paper, belt: C.gold, boots: C.darkBrown, hair: [C.darkBrown, C.ink], style: 'topknot', weapon: 'none', beard: C.darkBrown, hat: C.darkGreen },
   soldier_npc: { outfit: [C.red, C.darkRed], trim: C.gold, belt: C.brown, boots: C.darkBrown, hair: [C.gray, C.darkGray], style: 'helmet', accent: C.gold, weapon: 'spear', armor: true },
+  // ===== 许昌线 =====
+  refugee: { outfit: [C.tan, C.lightBrown], trim: C.sand, belt: C.brown, boots: C.brown, hair: [C.darkBrown, C.ink], style: 'short', weapon: 'club' },
+  marauder: { outfit: [C.darkRed, C.brown], trim: C.tan, belt: C.ink, boots: C.ink, hair: [C.ink, C.ink], style: 'band', accent: C.orange, weapon: 'saber', beard: C.ink },
+  horsethief: { outfit: [C.brown, C.darkBrown], trim: C.gold, belt: C.red, boots: C.ink, hair: [C.darkBrown, C.ink], style: 'tail', weapon: 'saber', mask: C.darkRed },
+  thug: { outfit: [C.darkGray, C.ink], trim: C.red, belt: C.red, boots: C.ink, hair: [C.ink, C.ink], style: 'short', weapon: 'club', broad: true },
+  farmsoldier: { outfit: [C.grass, C.green], trim: C.tan, belt: C.brown, boots: C.brown, hair: [C.gray, C.darkGray], style: 'helmet', accent: C.green, weapon: 'spear', armor: true },
+  pedant: { outfit: [C.lightGray, C.gray], trim: C.darkGray, belt: C.darkBrown, boots: C.ink, hair: [C.gray, C.darkGray], style: 'topknot', weapon: 'scroll', hat: C.ink, beard: C.gray },
+  pedant2: { outfit: [C.sky, C.lightBlue], trim: C.white, belt: C.navy, boots: C.ink, hair: [C.darkBrown, C.ink], style: 'topknot', weapon: 'fan', hat: C.navy },
+  pedant3: { outfit: [C.paper, C.sand], trim: C.darkRed, belt: C.darkRed, boots: C.darkBrown, hair: [C.darkGray, C.ink], style: 'topknot', weapon: 'fan', hat: C.darkRed, beard: C.darkGray, longBeard: true },
+  cavalry: { outfit: [C.ink, C.darkGray], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.orange, weapon: 'spear', armor: true, metal: C.gold, cape: C.darkRed },
+  streetbandit: { outfit: [C.purple, C.darkPurple], trim: C.yellow, belt: C.ink, boots: C.ink, hair: [C.darkBrown, C.ink], style: 'band', accent: C.yellow, weapon: 'dagger' },
+  official: { outfit: [C.darkRed, C.darkPurple], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.darkGray, C.ink], style: 'topknot', weapon: 'scroll', hat: C.ink, beard: C.ink, broad: true },
+  official2: { outfit: [C.darkGreen, C.ink], trim: C.lime, belt: C.gold, boots: C.ink, hair: [C.darkGray, C.ink], style: 'topknot', weapon: 'staff', orb: C.lime, hat: C.ink },
+  official3: { outfit: [C.navy, C.ink], trim: C.gold, belt: C.red, boots: C.ink, hair: [C.ink, C.ink], style: 'topknot', weapon: 'saber', hat: C.ink, beard: C.ink },
+  gentry: { outfit: [C.gold, C.orange], trim: C.darkRed, belt: C.darkRed, boots: C.darkBrown, hair: [C.darkBrown, C.ink], style: 'topknot', weapon: 'staff', orb: C.sky, hat: C.darkRed, broad: true },
+  roadbully: { outfit: [C.lightBrown, C.brown], trim: C.ink, belt: C.ink, boots: C.ink, hair: [C.ink, C.ink], style: 'band', accent: C.darkRed, weapon: 'axe', broad: true, beard: C.ink },
+  rebel: { outfit: [C.yellow, C.gold], trim: C.brown, belt: C.darkRed, boots: C.darkBrown, hair: [C.darkBrown, C.ink], style: 'band', accent: C.yellow, weapon: 'spear', armor: true },
+  rebelmage: { outfit: [C.darkPurple, C.ink], trim: C.yellow, belt: C.yellow, boots: C.ink, hair: [C.ink, C.ink], style: 'hood', weapon: 'staff', orb: C.orange },
+  rebelchief: { outfit: [C.gold, C.darkRed], trim: C.yellow, belt: C.ink, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.yellow, weapon: 'axe', metal: C.yellow, broad: true, armor: true, beard: C.ink, cape: C.yellow },
+  guardian: { outfit: [C.darkGray, C.ink], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.darkGray, C.ink], style: 'helmet', accent: C.gold, weapon: 'spear', armor: true, metal: C.gold, mask: C.gray },
+  magistrate: { outfit: [C.darkRed, C.darkPurple], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.darkGray, C.ink], style: 'topknot', weapon: 'none', hat: C.ink, beard: C.darkGray },
+  magistrate2: { outfit: [C.navy, C.ink], trim: C.white, belt: C.gold, boots: C.ink, hair: [C.darkBrown, C.ink], style: 'topknot', weapon: 'none', hat: C.ink, beard: C.darkBrown },
+  minister: { outfit: [C.purple, C.darkPurple], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.lightGray, C.gray], style: 'topknot', weapon: 'scroll', hat: C.ink, beard: C.lightGray, longBeard: true },
+  recruiter: { outfit: [C.red, C.darkRed], trim: C.white, belt: C.gold, boots: C.darkBrown, hair: [C.darkBrown, C.ink], style: 'topknot', weapon: 'scroll', hat: C.darkRed },
+  courier: { outfit: [C.orange, C.darkRed], trim: C.yellow, belt: C.brown, boots: C.brown, hair: [C.darkBrown, C.ink], style: 'band', accent: C.yellow, weapon: 'scroll' },
+  oldminer: { outfit: [C.brown, C.darkBrown], trim: C.tan, belt: C.ink, boots: C.ink, hair: [C.lightGray, C.gray], style: 'band', accent: C.tan, weapon: 'cane', beard: C.white, longBeard: true },
+  // ===== 名将（招贤） =====
+  g_caobao: { outfit: [C.brown, C.darkBrown], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.darkGray, C.ink], style: 'helmet', accent: C.red, weapon: 'saber', armor: true, beard: C.ink, broad: true },
+  g_weixu: { outfit: [C.darkRed, C.ink], trim: C.gray, belt: C.ink, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.darkRed, weapon: 'spear', armor: true },
+  g_songxian: { outfit: [C.navy, C.ink], trim: C.lightBlue, belt: C.gold, boots: C.ink, hair: [C.darkBrown, C.ink], style: 'helmet', accent: C.lightBlue, weapon: 'sword', armor: true, beard: C.darkBrown },
+  g_houcheng: { outfit: [C.green, C.darkGreen], trim: C.paper, belt: C.gold, boots: C.darkBrown, hair: [C.darkBrown, C.ink], style: 'topknot', weapon: 'fan', hat: C.darkGreen },
+  g_sunqian: { outfit: [C.sky, C.blue], trim: C.white, belt: C.navy, boots: C.darkBrown, hair: [C.darkGray, C.ink], style: 'topknot', weapon: 'fan', beard: C.darkGray },
+  g_jianyong: { outfit: [C.lilac, C.purple], trim: C.white, belt: C.yellow, boots: C.ink, hair: [C.darkBrown, C.ink], style: 'tail', weapon: 'staff', orb: C.sky, beard: C.darkBrown },
+  g_mifang: { outfit: [C.gold, C.brown], trim: C.paper, belt: C.darkRed, boots: C.darkBrown, hair: [C.darkBrown, C.ink], style: 'topknot', weapon: 'staff', orb: C.red, hat: C.brown },
+  g_daqiao: { outfit: [C.sky, C.lightBlue], trim: C.white, belt: C.pink, boots: C.navy, hair: [C.ink, C.ink], style: 'highbun', female: true, weapon: 'staff', orb: C.pink, accent: C.pink },
+  g_xiaoqiao: { outfit: [C.pink, C.red], trim: C.white, belt: C.gold, boots: C.darkRed, hair: [C.darkBrown, C.ink], style: 'buns', female: true, weapon: 'fan', accent: C.gold },
+  g_chendeng: { outfit: [C.lightGray, C.gray], trim: C.blue, belt: C.navy, boots: C.ink, hair: [C.darkBrown, C.ink], style: 'topknot', weapon: 'sword', armor: true, beard: C.darkBrown },
 };
 
+// 副将学了别的职业的技能：保留脸、发型、胡子，换成那个职业的衣服和兵器
+function classedLook(base: Look, cls: string): Look {
+  const h = HERO[cls];
+  if (!h) return base;
+  return { ...base, outfit: h.outfit, trim: h.trim, belt: h.belt, weapon: h.weapon, armor: h.armor, orb: h.orb, metal: undefined, accent: base.accent ?? h.accent };
+}
+
 export function lookFor(key: string, variant = 0): Look {
+  if (key.startsWith('cls:')) {
+    const [, base, cls] = key.split(':');
+    return classedLook(lookFor(base, variant), cls);
+  }
   if (key.startsWith('hero_')) {
     const [, cls, gender] = key.split('_');
     return heroLook(cls, gender, variant);

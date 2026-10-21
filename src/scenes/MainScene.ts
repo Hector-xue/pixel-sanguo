@@ -8,8 +8,14 @@ import { expToNext } from '../core/formulas';
 import { chatterTick, playersAt } from '../game/chatter';
 import { groupLabel, startBattle } from '../game/encounter';
 import {
-  currentQuest, exitsOf, findPath, generalStats, moneyText, moveTo, npcMark, playerStats, questDestination, questProgressText,
+  arrive, currentQuest, exitsOf, findPath, generalStats, moneyText, moveTo, npcMark, playerStats, questDestination, questProgressText,
 } from '../game/state';
+import { dailyTick, welfarePending } from '../game/welfare';
+import { welfarePanel } from '../ui/fun';
+import { FACILITIES } from '../ui/town';
+import * as T from '../ui/town';
+import * as F from '../ui/fun';
+import * as R from '../ui/role';
 import { store } from '../game/store';
 import { ChatBox } from '../ui/chat';
 import { Button, H, ScrollArea, W, bar, frame, hit, rect, sfx, text, toast } from '../ui/widgets';
@@ -53,8 +59,10 @@ export class MainScene extends Phaser.Scene implements P.Host {
         }
       },
     });
+    const daily = dailyTick(store.save);
     this.refresh();
-    if (import.meta.env.DEV) Object.assign(window, { __P: P, __store: store });
+    if (daily.length) toast(this, daily.join('\n'), 2600);
+    if (import.meta.env.DEV) Object.assign(window, { __P: P, __T: T, __F: F, __R: R, __store: store, __main: this });
   }
 
   // 存档变了就整页重画，简单可靠
@@ -225,24 +233,21 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const loc = locations[store.save.location];
     const fac = loc.facilities ?? [];
     if (!loc.town || !fac.length) {
-      this.layer.add(text(this, x + 2, y + 2, '野外没有设施。\n回城镇（新手村、翠竹山庄）才能用医馆等设施。', { wrap: w - 6, color: C.gray }));
+      this.layer.add(text(this, x + 2, y + 2, '野外没有设施。\n回城镇（新手村、翠竹山庄、许昌、颍阳、陈）才能用医馆等设施。', { wrap: w - 6, color: C.gray }));
       return;
     }
-    const names: Record<string, [string, string]> = {
-      hospital: ['医馆', '治疗、买药、药品回收'],
-      skillschool: ['技能学校', '学习和升级职业技能'],
-    };
+    const area = new ScrollArea(this, x, y, w, MID_H - 8, this.layer);
     fac.forEach((f, i) => {
-      const yy = y + i * 46;
+      const [name, desc, open] = FACILITIES[f];
+      const yy = i * 40;
       const g = this.add.graphics();
-      frame(g, x, yy, w - 4, 42, 'tan');
-      this.layer.add(g);
-      this.layer.add(text(this, x + 8, yy + 6, names[f][0], { color: C.darkRed }));
-      this.layer.add(text(this, x + 8, yy + 22, names[f][1], { color: C.brown }));
-      this.layer.add(new Button(this, x + w - 58, yy + 10, 48, 22, '进入', () => (f === 'hospital' ? P.hospitalPanel(this) : P.skillSchoolPanel(this))));
+      frame(g, 0, yy, w - 6, 36, 'tan');
+      area.content.add(g);
+      area.content.add(text(this, 8, yy + 3, name, { color: C.darkRed }));
+      area.content.add(text(this, 8, yy + 19, desc, { color: C.brown }));
+      area.content.add(new Button(this, w - 58, yy + 7, 48, 22, '进入', () => open(this), { clip: area }));
     });
-    const more = ['武器店', '孔庙', '铁匠铺', '馆驿', '钱庄'];
-    this.layer.add(text(this, x + 4, y + fac.length * 46 + 6, `${more.join('、')}在许昌开放（P2）`, { wrap: w - 8, color: C.gray }));
+    area.setContentHeight(fac.length * 40);
   }
 
   private drawMove(x: number, y: number, w: number): void {
@@ -261,7 +266,9 @@ export class MainScene extends Phaser.Scene implements P.Host {
         this.walkTo(e.to);
       }, { disabled: false, color: e.locked ? C.gray : undefined }));
     });
-    if (s.location !== 'xinshoucun' && !exits.some((e) => e.to === 'xinshoucun')) {
+    if (s.location === 'baodong') {
+      this.layer.add(new Button(this, x + 104, y, w - 108, 30, '离开宝洞，回许昌', () => this.walkTo('xuchang'), { style: 'red' }));
+    } else if (s.location !== 'xinshoucun' && !exits.some((e) => e.to === 'xinshoucun')) {
       this.layer.add(new Button(this, x + 104, y + exits.length * 34, w - 108, 30, '返回新手村', () => {
         moveTo(s, 'xinshoucun');
         sfx('step');
@@ -277,7 +284,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const items: [string, () => void][] = [
       ['状态', () => P.statusPanel(this)], ['物品', () => P.bagPanel(this)], ['副将', () => P.generalsPanel(this)],
       ['组队', () => P.notYet(this, '组队', '单机版改成雇 AI 队友，P3 开放')], ['排行', () => P.notYet(this, '排行', '和 AI 玩家一起排名，P3 开放')], ['好友', () => P.notYet(this, '好友', '单机版没有其他真人玩家，去掉了好友')],
-      ['邮件', () => P.notYet(this, '邮件', '只用来收系统奖励，P2 开放')], ['任务', () => P.questPanel(this)], ['擂台', () => P.notYet(this, '擂台', '打 AI 排位赛，P3 开放')],
+      ['邮件', () => welfarePanel(this)], ['任务', () => P.questPanel(this)], ['擂台', () => P.notYet(this, '擂台', '打 AI 排位赛，P3 开放')],
       ['帮派', () => P.notYet(this, '帮派', '34级开放，加入 NPC 帮派，P3 开放')], ['训练', () => P.notYet(this, '训练', '花银两挂机涨经验，P3 开放')], ['宝库', () => P.notYet(this, '宝库', '存放超出负重的物品，P3 开放')],
       ['公告', () => P.messagesPanel(this)], ['攻略', () => P.helpPanel(this)], ['退出', () => P.exitPanel(this)],
     ];
@@ -285,7 +292,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     items.forEach(([name, fn], i) => {
       const bx = x + (i % 3) * (bw + 4);
       const by = y + Math.floor(i / 3) * 36;
-      const dot = (name === '状态' && store.save.player.free > 0) || (name === '任务' && store.save.main.state === 'ready');
+      const dot = (name === '状态' && store.save.player.free > 0) || (name === '任务' && store.save.main.state === 'ready') || (name === '邮件' && welfarePending(store.save));
       this.layer.add(new Button(this, bx, by, bw, 32, name, fn, { style: dot ? 'red' : 'tan' }));
     });
     this.layer.add(new Button(this, x, y + 5 * 36 + 4, w - 4, 26, '任务帮助使者', () => P.talkTo(this, 'bangzhu')));
@@ -324,7 +331,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     this.walking = true;
     let i = 1;
     const step = () => {
-      store.save.location = path[i];
+      arrive(store.save, path[i]);
       sfx('step');
       tab = 'people';
       this.refresh();

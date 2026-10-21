@@ -4,7 +4,8 @@ import { drawAvatar, drawUnit, lookFor } from './units';
 import type { Pose } from './units';
 import { drawScene } from './scenes';
 import type { SceneArt } from './scenes';
-import { drawItemIcon } from './icons';
+import { drawGearIcon, drawItemIcon, drawMount } from './icons';
+import { C } from './palette';
 import type { Grid } from './pixel';
 
 function ensure(scene: Phaser.Scene, key: string, make: () => Grid): string {
@@ -26,6 +27,17 @@ export function sceneTex(scene: Phaser.Scene, art: string, w: number, h: number,
 
 export function iconTex(scene: Phaser.Scene, item: string): string {
   return ensure(scene, `i:${item}`, () => drawItemIcon(item));
+}
+
+export function gearTex(scene: Phaser.Scene, slot: string, tier: number, cls?: string): string {
+  return ensure(scene, `g:${slot}:${tier}:${cls ?? ''}`, () => drawGearIcon(slot, tier, cls));
+}
+
+export function mountTex(scene: Phaser.Scene, color: string): string {
+  const pal = C as Record<string, number>;
+  const body = pal[color] ?? C.brown;
+  const mane = body === C.ink || body === C.navy || body === C.darkPurple ? C.gray : body === C.white || body === C.lightPaper ? C.lightGray : C.ink;
+  return ensure(scene, `m:${color}`, () => drawMount(body, mane));
 }
 
 export function heroLookKey(classId: string, gender: string): string {

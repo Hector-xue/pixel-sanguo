@@ -4,6 +4,8 @@ import { TitleScene } from './scenes/TitleScene';
 import { MainScene } from './scenes/MainScene';
 import { BattleScene } from './scenes/BattleScene';
 import { H, W } from './ui/widgets';
+import { store } from './game/store';
+import { onlineTick } from './game/welfare';
 
 // 按设备像素整数倍放大，保证像素和点阵字清晰；屏幕太小时才退回非整数缩放
 function fitZoom(): number {
@@ -33,6 +35,10 @@ async function boot(): Promise<void> {
     scene: [BootScene, TitleScene, MainScene, BattleScene],
   });
   window.addEventListener('resize', () => game.scale.setZoom(fitZoom()));
+  // 在线奖励按当天在线时长算：页面在前台时每 10 秒记一次
+  setInterval(() => {
+    if (!document.hidden && store.has()) onlineTick(store.save, 10);
+  }, 10000);
   (window as unknown as { __game: Phaser.Game }).__game = game;
 }
 

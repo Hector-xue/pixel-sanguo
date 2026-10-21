@@ -1,12 +1,15 @@
 // 主界面里点开的各个面板：状态/加点/物品/副将/任务/医馆/技能学校/公告/攻略/退出/此地玩家，以及 NPC 对话
 import Phaser from 'phaser';
 import { C } from '../art/palette';
-import { avatarTex, heroLookKey, iconTex } from '../art/textures';
+import { avatarTex, gearTex, heroLookKey, iconTex } from '../art/textures';
 import { balance, bountyOptions, classes, items, locations, mainQuests, monsters, npcs, quiz, skills } from '../data';
 import { expToNext, skillMp } from '../core/formulas';
 import type { Attrs } from '../core/types';
-import { ATTR_KEYS, ATTR_NAMES, RESIST_KEYS, RESIST_NAMES } from '../core/types';
+import { ATTR_KEYS, ATTR_NAMES } from '../core/types';
+import { gearLines, gearName } from '../core/gear';
 import { playerClassName, playersAt } from '../game/chatter';
+import { allGenerals, readXinfa, rerollApt, rewardCost, rewardGeneral, starCost, starUp } from '../game/generals';
+import { ringDestination, ringStatusText } from '../game/ring';
 import type { AiPlayer } from '../game/chatter';
 import {
   abandonBounty, acceptBounty, acceptQuest, allocate, bagCap, bagUsed, buy, currentQuest, findGeneral, generalStats, heal,
@@ -18,6 +21,8 @@ import type { Target } from '../game/state';
 import { store } from '../game/store';
 import type { ChatBox } from './chat';
 import { fillText, showDialog } from './dialog';
+import { digTalk, generalSkillPanel, pickGeneral, recruitPanel, ringTalk, useMisc } from './fun';
+import { equipGrid, gearDetail, power, rolePanel } from './role';
 import { Button, Modal, ScrollArea, bar, confirm, frame, isMuted, setMuted, sfx, text, textLines, toast } from './widgets';
 
 export interface Host extends Phaser.Scene {
@@ -26,12 +31,12 @@ export interface Host extends Phaser.Scene {
   autoPath(dest: string): void;
 }
 
-function done(h: Host, msg?: string): void {
+export function done(h: Host, msg?: string): void {
   if (msg) toast(h, msg);
   h.refresh();
 }
 
-function section(m: Modal, y: number, title: string): number {
+export function section(m: Modal, y: number, title: string): number {
   const g = m.scene.add.graphics();
   frame(g, m.cx, y, m.cw, 18, 'tan');
   m.inner.add(g);
@@ -39,7 +44,7 @@ function section(m: Modal, y: number, title: string): number {
   return y + 22;
 }
 
-function kv(m: Modal, x: number, y: number, k: string, v: string | number, color: number = C.darkBrown): void {
+export function kv(m: Modal, x: number, y: number, k: string, v: string | number, color: number = C.darkBrown): void {
   m.inner.add(text(m.scene, x, y, `${k}：`, { color: C.brown }));
   m.inner.add(text(m.scene, x + (k.length + 1) * 12, y, String(v), { color }));
 }
@@ -48,56 +53,9 @@ export function notYet(h: Host, name: string, why: string): void {
   toast(h, `${name}：${why}`);
 }
 
-// ===== 状态（人物详情） =====
+// ===== 状态：新版角色面板（信息、属性、装备、战力、生平） =====
 export function statusPanel(h: Host): void {
-  const s = store.save;
-  const p = s.player;
-  const st = playerStats(s);
-  const a = playerAttrs(s);
-  const m = new Modal(h, '人物状态');
-  const L = m.cx + 4;
-  const R = m.cx + m.cw / 2 + 4;
-  let y = m.cy;
-  const g = h.add.graphics();
-  frame(g, L - 4, y, 52, 52, 'tan');
-  m.inner.add(g);
-  m.inner.add(h.add.image(L - 2, y + 2, avatarTex(h, heroLookKey(p.classId, p.gender), p.avatar)).setOrigin(0).setScale(2));
-  m.inner.add(text(h, L + 56, y + 4, p.name, { color: C.darkRed, scale: 2 }));
-  m.inner.add(text(h, L + 56, y + 34, `${s.server} · ID ${String(s.createdAt).slice(-6)}`, { color: C.brown }));
-  y += 58;
-  y = section(m, y, '基本');
-  kv(m, L, y, '职业', `${p.level}级${classes[p.classId].name}`);
-  kv(m, R, y, '称号', '无');
-  y += 16;
-  kv(m, L, y, '升级还需经验', expToNext(p.level) - p.exp);
-  y += 16;
-  kv(m, L, y, '银两', p.silver);
-  kv(m, R, y, '金砖', p.gold, C.darkRed);
-  y += 16;
-  kv(m, L, y, '绑定银', p.boundSilver);
-  kv(m, R, y, '居住地', '新手村');
-  y += 16;
-  kv(m, L, y, '战斗次数', s.battles);
-  kv(m, R, y, '击败数', Object.values(s.kills).reduce((a2, b) => a2 + b, 0));
-  y += 22;
-  y = section(m, y, `属性（剩余点数 ${p.free}）`);
-  const derived: [string, string][] = [['气血', `${p.hp}/${st.maxHp}`], ['精力', `${p.mp}/${st.maxMp}`], ['攻击', `${st.atk}`], ['防御', `${st.def}`], ['速度', `${st.spd}`], ['负重', `${bagUsed(s)}/${st.carry}`]];
-  ATTR_KEYS.forEach((k, i) => kv(m, L, y + i * 16, ATTR_NAMES[k], a[k]));
-  derived.forEach(([k, v], i) => kv(m, R, y + i * 16, k, v));
-  y += 6 * 16 + 4;
-  y = section(m, y, '抗性与概率');
-  const res = RESIST_KEYS.filter((k) => k !== 'poison' && k !== 'mystic');
-  res.forEach((k, i) => kv(m, i % 2 ? R : L, y + Math.floor(i / 2) * 16, RESIST_NAMES[k], st.resist[k]));
-  y += Math.ceil(res.length / 2) * 16;
-  kv(m, L, y, '暴击', `${st.rates.crit}%`);
-  kv(m, R, y, '躲避', `${Math.round(st.rates.dodge * 10) / 10}%`);
-  y += 16;
-  kv(m, L, y, '反击', `${st.rates.counter}%`);
-  kv(m, R, y, '致命', `${st.rates.fatal}%`);
-  m.inner.add(new Button(h, m.cx, m.py + m.ph - 34, m.cw, 26, p.free > 0 ? `分配属性点（${p.free}）` : '分配属性点', () => {
-    m.close();
-    allocatePanel(h);
-  }, { style: p.free > 0 ? 'red' : 'tan', disabled: p.free <= 0 }));
+  rolePanel(h);
 }
 
 // ===== 分配属性点 =====
@@ -164,7 +122,7 @@ export function allocatePanel(h: Host): void {
 }
 
 // ===== 选择用药对象 =====
-function chooseTarget(h: Host, title: string, onPick: (t: Target) => void): void {
+export function chooseTarget(h: Host, title: string, onPick: (t: Target) => void): void {
   const s = store.save;
   const list: Target[] = ['player', ...s.generals.map((g) => g.uid)];
   const m = new Modal(h, title, { h: 60 + list.length * 40, w: 280 });
@@ -182,13 +140,27 @@ function chooseTarget(h: Host, title: string, onPick: (t: Target) => void): void
   });
 }
 
-function chooseCount(h: Host, title: string, max: number, onPick: (n: number) => void): void {
+export function chooseCount(h: Host, title: string, max: number, onPick: (n: number) => void): void {
   const m = new Modal(h, title, { w: 280, h: 110 });
   [1, 5, 10, 20].forEach((n, i) => {
     m.inner.add(new Button(h, m.cx + i * 66, m.cy + 10, 60, 30, `${n}个`, () => {
       m.close();
       onPick(n);
     }, { disabled: n > max }));
+  });
+}
+
+// 选银两数额：常用档位 + 全部
+export function chooseAmount(h: Host, title: string, max: number, onPick: (n: number) => void, min = 1): void {
+  const opts = [100, 500, 1000, 5000, 10000, 50000, 100000].filter((n) => n >= min && n <= max);
+  const m = new Modal(h, title, { w: 300, h: 92 + Math.ceil((opts.length + 1) / 4) * 34 });
+  m.inner.add(text(h, m.cx, m.cy, `最多${max}`, { color: C.brown }));
+  [...opts, max].forEach((n, i) => {
+    const label = i === opts.length ? '全部' : n >= 10000 ? `${n / 10000}万` : String(n);
+    m.inner.add(new Button(h, m.cx + (i % 4) * 70, m.cy + 20 + Math.floor(i / 4) * 34, 64, 28, label, () => {
+      m.close();
+      onPick(n);
+    }, { disabled: n < min || n <= 0 }));
   });
 }
 
@@ -214,14 +186,29 @@ export function bagPanel(h: Host): void {
       bagTab = id;
       render();
     }, { style: bagTab === id ? 'dark' : 'tan' })));
-    const area = new ScrollArea(h, m.cx, m.cy + 50, m.cw, m.ph - 90, dyn);
-    let y = 0;
-    if (bagTab === 'mine' || bagTab === 'equip') {
-      area.content.add(text(h, 4, 4, bagTab === 'mine' ? '头、项链、武器、护腕、铠甲、靴子六个部位。\n装备系统在许昌开放（P2）：武器店买1级装备，铁匠铺打造更高级的。' : '还没有装备。', { wrap: m.cw - 8, color: C.gray }));
-      area.setContentHeight(60);
+    if (bagTab === 'mine') {
+      equipGrid(h, m, m.cy + 52, render, dyn);
+      dyn.add(text(h, m.cx, m.cy + 52 + 3 * 54 + 6, '点格子看详情、卸下。武器店买1级装备，铁匠铺打造更高级的。', { wrap: m.cw, color: C.gray }));
       return;
     }
-    const ids = Object.keys(s.bag).filter((id) => items[id] && items[id].cat === bagTab);
+    const area = new ScrollArea(h, m.cx, m.cy + 50, m.cw, m.ph - 90, dyn);
+    let y = 0;
+    if (bagTab === 'equip') {
+      for (const g of s.gear) {
+        const bg = h.add.graphics();
+        frame(bg, 0, y, m.cw - 6, 34, 'tan');
+        area.content.add(bg);
+        area.content.add(h.add.image(6, y + 5, gearTex(h, g.slot, g.tier, g.cls)).setOrigin(0).setScale(2));
+        area.content.add(text(h, 36, y + 3, `${gearName(g)}（不绑定）`, { color: g.q ? C.purple : C.darkBrown }));
+        area.content.add(text(h, 36, y + 18, `${g.tier}级 ${gearLines(g).slice(0, 2).join(' ')}`, { color: C.brown }));
+        area.content.add(new Button(h, m.cw - 58, y + 6, 48, 22, '装备', () => gearDetail(h, g, render), { clip: area }));
+        y += 38;
+      }
+      if (!s.gear.length) area.content.add(text(h, 4, 4, '背包里没有装备。许昌的武器店卖1级装备，铁匠铺能打造。', { wrap: m.cw - 8, color: C.gray }));
+      area.setContentHeight(y);
+      return;
+    }
+    const ids = Object.keys(s.bag).filter((id) => items[id] && (items[id].cat === bagTab || (bagTab === 'ore' && items[id].cat === 'gem')));
     for (const id of ids) {
       const def = items[id];
       const g = h.add.graphics();
@@ -229,8 +216,11 @@ export function bagPanel(h: Host): void {
       area.content.add(g);
       area.content.add(h.add.image(6, y + 5, iconTex(h, id)).setOrigin(0).setScale(2));
       area.content.add(text(h, 36, y + 3, `${def.name}${def.quest ? '（任务）' : '（不绑定）'}`, { color: C.darkBrown }));
-      const eff = [def.hp ? `气血+${def.hp}` : '', def.mp ? `精力+${def.mp}` : '', def.desc ?? ''].filter(Boolean).join(' ');
+      const eff = [def.hp ? `气血+${def.hp}` : '', def.mp ? `精力+${def.mp}` : '', def.gem ? '去铁匠铺镶到装备上' : '', def.desc ?? ''].filter(Boolean).join(' ');
       area.content.add(text(h, 36, y + 18, `×${s.bag[id]}  ${eff}`, { color: C.brown }));
+      if (def.use) {
+        area.content.add(new Button(h, m.cw - 58, y + 6, 48, 22, '使用', () => useMisc(h, id, render), { clip: area }));
+      }
       if (def.cat === 'drug') {
         area.content.add(new Button(h, m.cw - 58, y + 6, 48, 22, '使用', () => {
           chooseTarget(h, `使用${def.name}`, (t) => {
@@ -322,6 +312,8 @@ export function generalDetail(h: Host, uid: string): void {
   kv(m, L, y, '职业', `${g.level}级${classes[g.classId].name}`);
   kv(m, R, y, '转数', `${g.level}级(0转)`);
   y += 16;
+  kv(m, L, y, '战力', power(st), C.red);
+  y += 16;
   kv(m, L, y, '升级还需经验', expToNext(g.level) - g.exp);
   y += 16;
   kv(m, L, y, '默契度', g.rapport);
@@ -345,11 +337,41 @@ export function generalDetail(h: Host, uid: string): void {
   y += 16;
   kv(m, L, y, '速度', st.spd);
   y += 16;
-  kv(m, L, y, '技能', g.skills.length ? g.skills.map((k) => skills[k.id].name).join('、') : '无（常人不能学技能）');
-  const by = m.py + m.ph - 64;
-  const btns: [string, () => void, boolean?][] = [
-    ['升星', () => toast(h, '升星在 P2 开放')],
-    ['迅速升级', () => toast(h, '用心法书升级，P2 开放')],
+  kv(m, L, y, '技能', g.skills.length ? g.skills.map((k) => `${skills[k.id].name}${k.level}级`).join('、') : g.grade === '常人' ? '无（常人不能学技能）' : '无（10级后能学）');
+  const by = m.py + m.ph - 92;
+  const reopen = () => {
+    m.close();
+    h.refresh();
+    generalDetail(h, uid);
+  };
+  const sc = starCost(g);
+  const btns: [string, () => void][] = [
+    ['升星', () => confirm(h, g.star >= balance.general.starMax ? '已经满星了' : `升到${g.star + 1}星要：副将${sc.level}级、将军令×${sc.tokens}、${sc.silver}两。每颗星加4%气血攻击防御速度。`, () => {
+      toast(h, starUp(s, uid));
+      reopen();
+    }, '升星')],
+    ['迅速升级', () => {
+      const books = ['xinfa1', 'xinfa2', 'xinfa3'].filter((b) => (s.bag[b] ?? 0) > 0);
+      if (!books.length) return toast(h, '迅速升级要用心法书（常人心法、高级心法、特级心法），跑环、宝箱、签到都会给');
+      const mm = new Modal(h, '用哪本心法书', { w: 280, h: 60 + books.length * 36 });
+      books.forEach((b, i) => mm.inner.add(new Button(h, mm.cx, mm.cy + i * 36, mm.cw, 30, `${items[b].name}×${s.bag[b]}（经验+${items[b].amount}）`, () => {
+        mm.close();
+        toast(h, readXinfa(s, uid, b), 2000);
+        reopen();
+      })));
+    }],
+    ['奖赏', () => {
+      toast(h, rewardGeneral(s, uid));
+      reopen();
+    }],
+    ['洗资质', () => confirm(h, `用1个将军令重洗${g.name}的五项资质（成长、体质、智力、力量、敏捷）？结果随机，可能变差。你有${s.bag.jiangjunling ?? 0}个将军令。`, () => {
+      toast(h, rerollApt(s, uid), 2000);
+      reopen();
+    }, '洗')],
+    ['学技能', () => {
+      m.close();
+      generalSkillPanel(h, uid);
+    }],
   ];
   if (inTeam) {
     btns.push([s.activeGeneral === uid ? '休息' : '出战', () => {
@@ -369,9 +391,11 @@ export function generalDetail(h: Host, uid: string): void {
       done(h, r);
     }]);
   }
-  const bw = Math.floor((m.cw - (btns.length - 1) * 4) / btns.length);
-  btns.forEach(([name, fn], i) => m.inner.add(new Button(h, m.cx + i * (bw + 4), by, bw, 26, name, fn)));
-  m.inner.add(new Button(h, m.cx, by + 30, m.cw, 24, '放生', () => confirm(h, `确定放生${g.name}吗？放生后就找不回来了。`, () => {
+  const per = 4;
+  const bw = Math.floor((m.cw - (per - 1) * 4) / per);
+  btns.forEach(([name, fn], i) => m.inner.add(new Button(h, m.cx + (i % per) * (bw + 4), by + Math.floor(i / per) * 30, bw, 26, name, fn)));
+  m.inner.add(text(h, m.cx, by - 18, `奖赏${rewardCost(g)}两加10忠诚；忠诚低于60打仗会不听指挥`, { color: C.gray }));
+  m.inner.add(new Button(h, m.cx, by + 60, m.cw, 24, '放生', () => confirm(h, `确定放生${g.name}吗？放生后就找不回来了。`, () => {
     const r = releaseGeneral(s, uid);
     m.close();
     done(h, r);
@@ -384,12 +408,14 @@ export function questPanel(h: Host): void {
   const m = new Modal(h, '任务');
   const q = currentQuest(s);
   let y = m.cy;
-  y = section(m, y, '主线 · 新手任务');
-  const done2 = mainQuests.slice(0, s.main.step).length;
-  m.inner.add(text(h, m.cx + 4, y, `进度 ${done2}/${mainQuests.length}`, { color: C.brown }));
+  const chapter = q?.chapter ?? '许昌篇';
+  y = section(m, y, `主线 · ${chapter}`);
+  const inCh = mainQuests.filter((x) => (x.chapter ?? '新手任务') === chapter);
+  const done2 = inCh.filter((x) => mainQuests.indexOf(x) < s.main.step).length;
+  m.inner.add(text(h, m.cx + 4, y, `进度 ${done2}/${inCh.length}`, { color: C.brown }));
   y += 18;
   if (!q || s.main.state === 'done') {
-    m.inner.add(text(h, m.cx + 4, y, '新手任务都完成了！往南经村南草原去下邳之路，许昌在 P2 开放。', { wrap: m.cw - 8, color: C.green }));
+    m.inner.add(text(h, m.cx + 4, y, '许昌篇都完成了！陈留在 P3 开放。跑环、挖宝、娱乐场可以接着玩。', { wrap: m.cw - 8, color: C.green }));
     y += 40;
   } else {
     const g = h.add.graphics();
@@ -413,12 +439,22 @@ export function questPanel(h: Host): void {
     }, { style: 'red', disabled: !dest }));
     y += 36;
   }
+  y = section(m, y, '支线 · 跑环');
+  const ringText = ringStatusText(s);
+  m.inner.add(text(h, m.cx + 4, y, ringText, { wrap: m.cw - 70, color: s.ring.task ? C.darkBrown : C.gray }));
+  const rd = ringDestination(s);
+  if (rd) m.inner.add(new Button(h, m.cx + m.cw - 60, y - 2, 60, 22, '寻路', () => {
+    m.close();
+    h.autoPath(rd);
+  }, { style: 'red' }));
+  y += Math.max(20, textLines(ringText, m.cw - 70)) + 6;
   y = section(m, y, '支线 · 赏金猎人');
   if (s.bounty) {
     const o = bountyOptions.find((b) => b.id === s.bounty!.id)!;
-    m.inner.add(text(h, m.cx + 4, y, `悬赏令：打败${monsters[o.monster].name} ${s.bounty.count}/${o.count}，赏银${o.silver}两。${s.bounty.count >= o.count ? '已完成，回新手村找捕快领赏。' : ''}`, { wrap: m.cw - 8 }));
+    const where = npcs.bukuai.bounty?.includes(o.id) ? '新手村' : '许昌';
+    m.inner.add(text(h, m.cx + 4, y, `悬赏令：打败${monsters[o.monster].name} ${s.bounty.count}/${o.count}，赏银${o.silver}两。${s.bounty.count >= o.count ? `已完成，回${where}找捕快领赏。` : ''}`, { wrap: m.cw - 8 }));
   } else {
-    m.inner.add(text(h, m.cx + 4, y, '没有进行中的悬赏令。新手村的捕快那里可以接。', { wrap: m.cw - 8, color: C.gray }));
+    m.inner.add(text(h, m.cx + 4, y, '没有进行中的悬赏令。新手村和许昌的捕快那里可以接。', { wrap: m.cw - 8, color: C.gray }));
   }
 }
 
@@ -514,7 +550,12 @@ export function skillSchoolPanel(h: Host): void {
     dyn.add(text(h, m.cx, y + 2, `熟练度够了回来升级，升级后熟练度不清零。人物每${balance.skill.roleLevelPerSkillLevel}级可以多升一级技能。`, { wrap: m.cw, color: C.gray }));
     y += 36;
     const extra = ['副将技能学习', '副将技能升级', '研习神将技', '转熟练度'];
-    extra.forEach((name, i) => dyn.add(new Button(h, m.cx + (i % 2) * (m.cw / 2 + 2), y + Math.floor(i / 2) * 30, m.cw / 2 - 2, 26, name, () => toast(h, i < 2 ? '常人副将不能学技能；英才、将才在 P2 开放' : `${name}在 P3 开放`))));
+    extra.forEach((name, i) => dyn.add(new Button(h, m.cx + (i % 2) * (m.cw / 2 + 2), y + Math.floor(i / 2) * 30, m.cw / 2 - 2, 26, name, () => {
+      if (i >= 2) return toast(h, `${name}在 P3 开放`);
+      const list = allGenerals(s).filter((g) => g.grade !== '常人');
+      if (!list.length) return toast(h, '常人副将不能学技能。去许昌找招贤使者招英才、将才');
+      pickGeneral(h, name, list, (g) => generalSkillPanel(h, g.uid));
+    })));
   };
   render();
 }
@@ -550,6 +591,16 @@ export function helpPanel(h: Host): void {
     '【前后排】敌人前排没倒下之前，普攻打不到后排；技能不受影响。',
     '【医馆】10级以前治疗免费。背包满了（负重）就买不了药、捡不了东西。',
     '【寻路】「功能 → 任务」里点「开启寻路」，会自动走到任务地点。',
+    '【装备】六个部位：头、项链、武器、护腕、铠甲、靴子。许昌武器店只卖1级的；10/20/30/40级可以在铁匠铺用矿石+银两打2～5级装备，有机会出精良。三块低级矿石能合成一块高级的。',
+    '【宝石】2级以上装备有孔。钻石加抗物理、暴击、速度；绿宝石加抗围困、抗风沙、反击；红宝石加抗扰乱、抗妖火、致命；蓝宝石加抗封锁、抗落雷、体质。三颗同级合成一颗高一级的。',
+    '【副将】招贤使者那里用将军令招英才、大将军令招将才、令牌招指定的人。英才和将才10级后能学技能，学了哪个职业的技能就变成哪个职业。忠诚低于60打仗会不听指挥，每天要奖赏。心法书能让副将迅速升级。',
+    '【跑环】20级以后找许昌的跑环使者，一环10个任务，每接一环用5点体力，跑完一整环给技能书。中途放弃要从第1环重新跑。',
+    '【体力】每6分钟恢复1点，体力丹能补，一天最多吃20颗。',
+    '【坐骑】军马场买马骑上，加速度和抗扰乱、抗封锁、抗围困。马骑着打仗会升级。',
+    '【挖宝】许昌「设施 → 战场」进宝洞，找宝洞老人买铲子挖宝，第3、6、9铲有护宝守卫。',
+    '【娱乐场】赤壁：押魏、蜀、吴其中一方，押中的按比例分全部奖池，押的人越少赔率越高。猜猜看：三个锦囊选一个，猜中2.5倍，可以接着猜。',
+    '【福利】「功能 → 邮件」里有七日签到（第7天送大乔）和在线奖励。',
+    '【馆驿】寄存物品不占负重；还能传送到去过的城镇。钱庄存钱有利息，还能换金砖去商城买东西。',
     '【存档】自动保存在这个浏览器里。换手机、清缓存前，在「功能 → 退出」里导出存档。',
   ];
   const area = new ScrollArea(h, m.cx, m.cy, m.cw, m.ph - 40, m.inner);
@@ -663,7 +714,10 @@ export function talkTo(h: Host, npcId: string): void {
   if (q && s.main.state === 'active' && q.giver === npcId) lines.push({ who: npcId, text: `任务提示：${q.hint}` });
   const opts = [];
   if (n.quiz) opts.push({ label: '答题', fn: () => quizRound(h, npcId) });
-  if (n.bounty) opts.push({ label: '悬赏令', fn: () => bountyPanel(h) });
+  if (n.bounty) opts.push({ label: '悬赏令', fn: () => bountyPanel(h, npcId) });
+  if (n.recruit) opts.push({ label: '招贤', fn: () => recruitPanel(h) });
+  if (n.ring) opts.push({ label: '跑环', fn: () => ringTalk(h) });
+  if (n.dig) opts.push({ label: '挖宝', fn: () => digTalk(h) });
   if (opts.length) opts.push({ label: '返回', fn: () => {} });
   showDialog(h, lines, opts);
 }
@@ -701,7 +755,7 @@ function quizRound(h: Host, npcId: string): void {
   })));
 }
 
-function bountyPanel(h: Host): void {
+function bountyPanel(h: Host, npcId: string): void {
   const s = store.save;
   const m = new Modal(h, '悬赏令', { h: 280 });
   if (s.bounty) {
@@ -722,7 +776,7 @@ function bountyPanel(h: Host): void {
     return;
   }
   m.inner.add(text(h, m.cx, m.cy, '选一张悬赏令，一次只能接一张：', { color: C.brown }));
-  bountyOptions.forEach((o, i) => {
+  bountyOptions.filter((o) => npcs[npcId].bounty?.includes(o.id)).forEach((o, i) => {
     const y = m.cy + 22 + i * 40;
     m.inner.add(new Button(h, m.cx, y, m.cw, 34, '', () => {
       const r = acceptBounty(s, o.id);
@@ -732,6 +786,6 @@ function bountyPanel(h: Host): void {
     m.inner.add(text(h, m.cx + 10, y + 10, `打败${o.count}个${monsters[o.monster].name}`, { color: C.darkRed }));
     m.inner.add(text(h, m.cx + m.cw - 10, y + 10, `赏银${o.silver}两`, { align: 'right', color: C.darkRed }));
   });
-  m.inner.add(text(h, m.cx, m.cy + 150, '小偷在村北山林、村南草原、村西荒山；草寇在村南草原、村西荒山；盗贼在村东竹林。', { wrap: m.cw, color: C.gray }));
+  m.inner.add(text(h, m.cx, m.cy + 150, npcId === 'bukuai' ? '小偷在村北山林、村南草原、村西荒山；草寇在村南草原、村西荒山；盗贼在村东竹林。' : '流寇在许昌郊外、西郊；地痞在长社；街匪在颍川。', { wrap: m.cw, color: C.gray }));
 }
 
