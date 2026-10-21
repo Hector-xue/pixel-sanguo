@@ -104,6 +104,15 @@ export interface Battle {
   lastCmd: Record<string, Command>;
   // 特殊战斗的标记（挖宝守卫等），战后结算用
   tag?: string;
+  // 战斗录像：开局快照 + 每回合的指令（同一种子重算就能复现）
+  init?: BattleInit;
+  log?: ReplayRound[];
+}
+
+// 一回合的录像：结算前的随机数状态 + 指令（AI 下指令也会用随机数，所以要记状态）
+export interface ReplayRound {
+  s: number;
+  c: Command[];
 }
 
 export interface BattleInit {
@@ -123,7 +132,10 @@ export function emptyStatus(): UnitStatus {
 }
 
 export function createBattle(init: BattleInit): Battle {
+  const snapshot = JSON.parse(JSON.stringify(init)) as BattleInit;
   return {
+    init: snapshot,
+    log: [],
     rng: new Rng(init.seed),
     round: 0,
     units: [...init.allies, ...init.enemies],
@@ -205,7 +217,8 @@ export function attackableFoes(b: Battle, u: BUnit): BUnit[] {
 
 function profCoef(st: SkillState): number {
   const full = balance.skill.maxLevel * balance.skill.profPerLevel;
-  return 1 + (Math.min(st.prof, full) / full) * 0.3;
+  // 化境（第 6 级）再乘一次
+  return (1 + (Math.min(st.prof, full) / full) * 0.3) * (st.level > balance.skill.maxLevel ? balance.skill.huajingMul : 1);
 }
 
 function guardOf(u: BUnit): number {
@@ -550,6 +563,7 @@ class Resolver {
 export function resolveRound(b: Battle, cmds: Command[]): BEvent[] {
   const r = new Resolver(b);
   if (b.outcome) return r.ev;
+  b.log?.push({ s: b.rng.state, c: cmds.map((c) => ({ ...c })) });
   b.round++;
   r.emit({ t: 'round', round: b.round });
 

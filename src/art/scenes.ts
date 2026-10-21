@@ -2,7 +2,8 @@
 import { Grid, dither, ridge, seeded } from './pixel';
 import { C } from './palette';
 
-export type SceneArt = 'village' | 'forest' | 'hill' | 'bamboo' | 'grass' | 'manor' | 'valley' | 'gate' | 'camp' | 'road' | 'city' | 'farm' | 'river' | 'cave';
+export type SceneArt = 'village' | 'forest' | 'hill' | 'bamboo' | 'grass' | 'manor' | 'valley' | 'gate' | 'camp' | 'road' | 'city' | 'farm' | 'river' | 'cave'
+  | 'tomb' | 'marsh' | 'ruins' | 'pass' | 'altar';
 
 interface Ctx {
   g: Grid;
@@ -110,6 +111,21 @@ function rock(c: Ctx, x: number, base: number, r: number): void {
   c.g.ellipse(x, base - r * 0.5, r, r * 0.6, C.gray);
   c.g.ellipse(x + r * 0.3, base - r * 0.4, r * 0.6, r * 0.4, C.darkGray);
   c.g.set(Math.round(x - r * 0.4), Math.round(base - r * 0.8), C.lightGray);
+}
+
+// 枯树：歪干 + 几根秃枝
+function deadTree(c: Ctx, x: number, base: number, h: number): void {
+  c.g.rect(x, base - h, 2, h, C.darkBrown);
+  c.g.line(x + 1, base - h + 3, x + 6, base - h - 1, C.darkBrown);
+  c.g.line(x, base - h + 6, x - 5, base - h + 2, C.darkBrown);
+  c.g.line(x + 1, base - h * 0.5, x + 5, base - h * 0.5 - 3, C.darkBrown);
+}
+
+// 坟包 + 墓碑
+function grave(c: Ctx, x: number, base: number, r: number): void {
+  c.g.ellipse(x, base, r, r * 0.55, C.lightBrown, (_x, y) => y <= base);
+  c.g.rect(x - 1, base - r * 0.55 - 5, 3, 5, C.lightGray);
+  c.g.rect(x + 1, base - r * 0.55 - 5, 1, 5, C.gray);
 }
 
 function path(c: Ctx, col: number, edge: number, x0: number, x1: number): void {
@@ -359,6 +375,90 @@ export function drawScene(art: SceneArt, w: number, h: number, horizonRatio: num
       g.rect(tx, hz - 14, 2, 10, C.brown);
       g.poly([[tx - 2, hz - 14], [tx + 4, hz - 14], [tx + 1, hz - 21]], C.orange);
       g.poly([[tx, hz - 14], [tx + 2, hz - 14], [tx + 1, hz - 18]], C.yellow);
+      break;
+    }
+    case 'tomb': {
+      // 乱葬岗：暮紫的天、秃树、坟包和墓碑，地上发灰
+      sky(c, C.darkPurple, C.purple);
+      mountains(c, seed, hz - 2, hz * 0.45, 30, C.darkGray, C.ink);
+      ground(c, C.gray, C.darkGray, C.lightBrown);
+      for (let i = 0; i < w / 22; i++) grave(c, 8 + i * 22 + c.rnd() * 8, hz + 5 + (i % 3) * 4, 6 + c.rnd() * 3);
+      deadTree(c, Math.floor(w * 0.15), hz + 2, 18);
+      deadTree(c, Math.floor(w * 0.82), hz + 3, 22);
+      for (let i = 0; i < 6; i++) g.ellipse(c.rnd() * w, hz - 4 - c.rnd() * 10, 1.5, 1.5, C.lime);
+      break;
+    }
+    case 'marsh': {
+      // 大泽：灰绿的天，芦苇和一汪一汪的水
+      sky(c, C.lightGray, C.sky);
+      mountains(c, seed, hz - 2, hz * 0.3, 40, C.grass, C.green);
+      ground(c, C.green, C.grass, C.darkGreen);
+      for (let i = 0; i < 5; i++) {
+        const px = c.rnd() * w;
+        const py = hz + 4 + c.rnd() * (h - hz - 8);
+        g.ellipse(px, py, 10 + c.rnd() * 12, 2.5 + c.rnd() * 2, C.lightBlue);
+        g.ellipse(px - 2, py - 0.5, 4, 1, C.sky);
+      }
+      for (let i = 0; i < w / 4; i++) {
+        const x = Math.floor(c.rnd() * w);
+        const base = hz + 2 + Math.floor(c.rnd() * (h - hz - 2));
+        g.rect(x, base - 6, 1, 6, C.lime);
+        g.rect(x, base - 8, 1, 2, C.lightBrown);
+      }
+      break;
+    }
+    case 'ruins': {
+      // 焚毁的宫城：暗红的天、残墙断柱、黑烟
+      sky(c, C.darkRed, C.orange);
+      ground(c, C.darkGray, C.gray, C.ink);
+      for (let i = 0; i < 4; i++) {
+        const x = Math.floor(i * w / 4 + c.rnd() * 10);
+        const hh = 10 + Math.floor(c.rnd() * 16);
+        g.rect(x, hz - hh, 14, hh + 2, C.gray);
+        g.rect(x + 11, hz - hh, 3, hh + 2, C.darkGray);
+        for (let k = 0; k < 4; k++) g.set(x + Math.floor(c.rnd() * 14), hz - hh, C.clear);
+        g.rect(x + 3, hz - hh + 4, 4, 4, C.ink);
+      }
+      for (const x of [w * 0.3, w * 0.7]) {
+        g.rect(Math.floor(x), hz - 26, 4, 28, C.darkRed);
+        g.rect(Math.floor(x) + 3, hz - 26, 1, 28, C.ink);
+      }
+      for (let i = 0; i < 8; i++) g.ellipse(w * 0.5 + (c.rnd() - 0.5) * w * 0.6, hz - 30 - i * 3, 4 + i, 2.5, C.darkGray);
+      break;
+    }
+    case 'pass': {
+      // 蜀道栈道：两侧峭壁，栈道横在崖上
+      sky(c, C.paper, C.sky);
+      mountains(c, seed, hz - 4, hz * 0.9, 16, C.lightBrown, C.brown);
+      mountains(c, seed + 3, hz, hz * 0.5, 22, C.brown, C.darkBrown);
+      ground(c, C.brown, C.lightBrown, C.darkBrown);
+      const py = hz + Math.round((h - hz) * 0.3);
+      g.rect(0, py, w, 3, C.tan);
+      g.rect(0, py + 3, w, 1, C.darkBrown);
+      for (let x = 2; x < w; x += 7) g.line(x, py + 3, x - 3, py + 9, C.darkBrown);
+      for (let x = 0; x < w; x += 9) g.rect(x, py - 5, 1, 5, C.darkBrown);
+      g.rect(0, py - 5, w, 1, C.darkBrown);
+      pine(c, w * 0.85, hz - 6, 6, C.darkGreen, C.ink);
+      break;
+    }
+    case 'altar': {
+      // 天师坛：三层石台，香炉，两面道幡
+      sky(c, C.lilac, C.paper);
+      mountains(c, seed, hz - 2, hz * 0.55, 26, C.lightBlue, C.blue);
+      ground(c, C.lightGray, C.gray, C.darkGray);
+      const ax = Math.floor(w / 2);
+      g.rect(ax - 26, hz - 4, 52, 6, C.gray);
+      g.rect(ax - 18, hz - 10, 36, 6, C.lightGray);
+      g.rect(ax - 10, hz - 16, 20, 6, C.gray);
+      g.rect(ax - 26, hz + 1, 52, 1, C.darkGray);
+      g.rect(ax - 3, hz - 22, 6, 6, C.darkBrown);
+      g.ellipse(ax, hz - 25, 2, 3, C.lightGray);
+      for (const fx of [ax - 34, ax + 34]) {
+        g.rect(fx, hz - 30, 1, 32, C.darkBrown);
+        g.rect(fx + 1, hz - 29, 5, 16, C.yellow);
+        g.rect(fx + 2, hz - 26, 3, 1, C.red);
+        g.rect(fx + 2, hz - 22, 3, 1, C.red);
+      }
       break;
     }
   }

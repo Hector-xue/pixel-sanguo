@@ -123,5 +123,101 @@
       "这洞里埋着前朝的宝贝。拿铲子来，一把铲子挖十铲。挖得深了会惊动护宝守卫，小心。"
     ],
     "dig": true
+  },
+  "chenliutaishou": {
+    "name": "陈留太守",
+    "look": "magistrate",
+    "lines": [
+      "西凉兵就屯在城北，陈留人心惶惶。"
+    ]
+  },
+  "caocao": {
+    "name": "曹操",
+    "look": "g_caocao_npc",
+    "lines": [
+      "宁我负人，毋人负我……这话你可别往外传。"
+    ]
+  },
+  "jiaopai": {
+    "name": "教派使者",
+    "look": "m_jiaopai",
+    "lines": [
+      "三十四级以后可以入教派，每天做教派任务攒声望。"
+    ],
+    "sect": true
+  },
+  "dingtaoling": {
+    "name": "定陶令",
+    "look": "magistrate2",
+    "lines": [
+      "濮阳南郊的恶仆横行乡里，没人敢管。"
+    ]
+  },
+  "puyangtaishou": {
+    "name": "濮阳太守",
+    "look": "official3",
+    "lines": [
+      "黄巾余党还在东郡荒野出没。"
+    ]
+  },
+  "yingbing": {
+    "name": "佣兵头领",
+    "look": "m_yingbing",
+    "lines": [
+      "一个人闯太险了，雇几个兄弟一起上吧。"
+    ],
+    "mercenary": true
+  },
+  "yuanshao": {
+    "name": "袁绍",
+    "look": "g_yuanshao_npc",
+    "lines": [
+      "十八路诸侯会盟讨董，我是盟主。"
+    ]
+  },
+  "wangyun": {
+    "name": "王允",
+    "look": "minister",
+    "lines": [
+      "洛阳被董贼烧成一片焦土……"
+    ]
+  },
+  "zuoci": {
+    "name": "左慈",
+    "look": "m_zuoci",
+    "lines": [
+      "百级之人，可以脱胎换骨，重选一条路。"
+    ],
+    "rebirth": true
+  },
+  "yuelao": {
+    "name": "月老",
+    "look": "elder",
+    "lines": [
+      "有缘千里来相会。"
+    ],
+    "marriage": true
+  },
+  "jingzhaoyin": {
+    "name": "京兆尹",
+    "look": "official",
+    "lines": [
+      "长安城外全是李傕、郭汜的兵。"
+    ]
+  },
+  "yanpu": {
+    "name": "阎圃",
+    "look": "pedant3",
+    "lines": [
+      "汉中是五斗米道的地盘，张天师不好惹。"
+    ]
+  },
+  "lujiangduwei": {
+    "name": "庐江都尉",
+    "look": "official2",
+    "lines": [
+      "逃兵把军需都抢走了。帮我追回来，按件给赏钱。"
+    ],
+    "silverRing": true
   }
 }

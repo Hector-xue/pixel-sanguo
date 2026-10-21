@@ -6,7 +6,7 @@ import type { ClassId } from '../core/types';
 import { ATTR_KEYS } from '../core/types';
 import type { General, Grade, Save } from './state';
 import {
-  addGeneral, bagCount, bump, findGeneral, generalStats, grantGeneralExp, log, onFlag, profCap, removeItem, rollApt, rollRng,
+  addGeneral, bagCount, bump, findGeneral, generalStats, grantGeneralExp, huajingReason, log, onFlag, profCap, removeItem, rollApt, rollRng,
 } from './state';
 
 const G = balance.general;
@@ -139,7 +139,7 @@ export function rewardGeneral(s: Save, uid: string): string {
 
 // 每过一天忠诚掉一点
 export function decayLoyalty(s: Save, days: number): void {
-  for (const g of [...s.generals, ...s.inn]) g.loyalty = Math.max(0, g.loyalty - G.loyaltyDecayDaily * days);
+  for (const g of [...s.generals, ...s.inn]) if (!g.sworn) g.loyalty = Math.max(0, g.loyalty - G.loyaltyDecayDaily * days);
 }
 
 // ===== 洗资质 =====
@@ -201,8 +201,11 @@ export function generalSkillRows(g: General): GenSkillRow[] {
       const row: GenSkillRow = { id, cls, level: st?.level ?? null, prof: st?.prof ?? 0, action: null, reason: '', changesClass: cls !== g.classId };
       if (g.grade === '常人') row.reason = '常人不能学技能';
       else if (st) {
-        if (st.level >= balance.skill.maxLevel) row.reason = '已满级';
-        else if (st.prof < profCap(st.level)) row.reason = `熟练度${st.prof}/${profCap(st.level)}`;
+        if (st.level > balance.skill.maxLevel) row.reason = '已入化境';
+        else if (st.level === balance.skill.maxLevel) {
+          row.reason = huajingReason(g.level, st);
+          if (!row.reason) row.action = 'upgrade';
+        } else if (st.prof < profCap(st.level)) row.reason = `熟练度${st.prof}/${profCap(st.level)}`;
         else if (g.level < st.level * balance.skill.roleLevelPerSkillLevel) row.reason = `副将${st.level * balance.skill.roleLevelPerSkillLevel}级可升`;
         else row.action = 'upgrade';
       } else if (g.level < Math.max(G.skillMinLevel, def.learnLevel)) row.reason = `副将${Math.max(G.skillMinLevel, def.learnLevel)}级可学`;
@@ -239,7 +242,7 @@ export function generalUpgrade(s: Save, uid: string, skillId: string): string {
   const st = g.skills.find((x) => x.id === skillId);
   if (!row || row.action !== 'upgrade' || !st) return row?.reason || '不能升级';
   st.level++;
-  return `${g.name}的${skills[skillId].name}升到了${st.level}级`;
+  return `${g.name}的${skills[skillId].name}${st.level > balance.skill.maxLevel ? '进入化境' : `升到了${st.level}级`}`;
 }
 
 // 招贤使者能用的副将（技能书、心法书的对象选择也用它）

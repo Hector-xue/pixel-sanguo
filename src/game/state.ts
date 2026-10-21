@@ -1,5 +1,5 @@
 // 存档与游戏规则（纯逻辑，可测）。界面只调这里的函数，不直接改存档字段。
-import { balance, bountyOptions, classSkills, classes, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation } from '../data';
+import { balance, bountyOptions, classSkills, classes, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation, systems } from '../data';
 import type { Dir, QuestDef } from '../data';
 import { deriveStats, expToNext, monsterAttrs, playerAttrsAt } from '../core/formulas';
 import { addBonus, applyBonus, emptyBonus, gearsBonus, mountBonus } from '../core/gear';
@@ -41,6 +41,10 @@ export interface General {
   star: number;
   skills: SkillState[];
   attrs?: Attrs;
+  // 转数：100 级以后转一次才能继续升
+  reborn?: number;
+  // 和主角结拜过：忠诚不掉、属性加成
+  sworn?: boolean;
 }
 
 export type RingType = 'goto' | 'buy' | 'kill' | 'capture' | 'deliver';
@@ -118,6 +122,80 @@ export interface Save {
   life: Record<string, number>;
   rolls: number;
   dayN?: number;
+  // ===== P3 =====
+  p3: P3State;
+}
+
+export interface ReplayRecord {
+  t: number;
+  title: string;
+  at: string;
+  init: import('../core/battle').BattleInit;
+  rounds: import('../core/battle').ReplayRound[];
+  outcome: 'win' | 'lose' | 'flee' | null;
+}
+
+export interface P3State {
+  // 转数（100级转职一次 +1）
+  reborn: number;
+  sect: { id: string | null; rep: number; day: string; done: number; task: RingTask | null };
+  arena: { rank: number; best: number; day: string; fights: number; wins: number };
+  duel: { rank: number; best: number; day: string; fights: number };
+  pk: { day: string; fights: number };
+  evil: number;
+  evilAt?: number;
+  training: { who: string; start: number; hours: number } | null;
+  vault: Record<string, number>;
+  vaultCap: number;
+  titles: string[];
+  title: string | null;
+  achv: Record<string, number>;
+  treasure: { day: string; used: number; found: string | null; at: string | null };
+  silverRing: { day: string; earned: number; task: { need: number; have: number } | null };
+  wenqu: { day: string; answered: number[]; right: number };
+  lucky: { day: string; luck: number; draws: number };
+  stall: { name: string; goods: { item: string; price: number; n: number }[]; last: number; sold: number; income: number };
+  festival: string[];
+  marriage: { spouse: string | null; favor: Record<string, number>; sworn: string[] };
+  merc: { id: string; battles: number } | null;
+  replays: ReplayRecord[];
+  charm: number;
+  vigor: number;
+  vigorDay: string;
+}
+
+export function p3Defaults(): P3State {
+  return {
+    reborn: 0,
+    sect: { id: null, rep: 0, day: '', done: 0, task: null },
+    arena: { rank: 0, best: 0, day: '', fights: 0, wins: 0 },
+    duel: { rank: 0, best: 0, day: '', fights: 0 },
+    pk: { day: '', fights: 0 },
+    evil: 0,
+    training: null,
+    vault: {},
+    vaultCap: 40,
+    titles: [],
+    title: null,
+    achv: {},
+    treasure: { day: '', used: 0, found: null, at: null },
+    silverRing: { day: '', earned: 0, task: null },
+    wenqu: { day: '', answered: [], right: 0 },
+    lucky: { day: '', luck: 0, draws: 0 },
+    stall: { name: '', goods: [], last: 0, sold: 0, income: 0 },
+    festival: [],
+    marriage: { spouse: null, favor: {}, sworn: [] },
+    merc: null,
+    replays: [],
+    charm: 0,
+    vigor: 0,
+    vigorDay: '',
+  };
+}
+
+// 转职前等级停在 100
+export function levelCap(s: Save): number {
+  return s.p3.reborn > 0 ? balance.levelCap : balance.levelCapBeforeRebirth;
 }
 
 export interface NewGameOpts {
@@ -196,6 +274,7 @@ export function newSave(o: NewGameOpts): Save {
     messages: [],
     battles: 0,
     ...p2Defaults(),
+    p3: p3Defaults(),
   };
   const st = playerStats(s);
   s.player.hp = st.maxHp;
@@ -216,7 +295,37 @@ export function playerAttrs(s: Save): Attrs {
 
 export function playerBonus(s: Save) {
   const ride = s.riding ? s.mounts[s.riding] : undefined;
-  return addBonus(gearsBonus(Object.values(s.equip)), mountBonus(ride ? s.riding : null, ride?.level ?? 1));
+  return addBonus(addBonus(gearsBonus(Object.values(s.equip)), mountBonus(ride ? s.riding : null, ride?.level ?? 1)), p3Bonus(s));
+}
+
+// 教派职位、转数、配偶带来的加成
+export function sectRank(rep: number): number {
+  let r = 0;
+  systems.sect.ranks.forEach((x, i) => {
+    if (rep >= x.rep) r = i;
+  });
+  return r;
+}
+
+export function p3Bonus(s: Save) {
+  const b = emptyBonus();
+  const p3 = s.p3;
+  if (!p3) return b;
+  const sect = p3.sect.id && systems.sect.sects.find((x) => x.id === p3.sect.id);
+  if (sect) {
+    const k = (sectRank(p3.sect.rep) + 1) * s.player.level;
+    const per = systems.sect.perkPerRank;
+    if (sect.perk === 'atk') b.atk += Math.round(k * per.atk);
+    if (sect.perk === 'spd') b.spd += Math.round(k * per.spd);
+    if (sect.perk === 'mp') b.mp += Math.round(k * per.mp);
+    if (sect.perk === 'def') {
+      b.def += Math.round(k * per.def);
+      b.hp += Math.round(k * per.hp);
+    }
+  }
+  b.mul += p3.reborn * balance.rebirth.statMul;
+  if (p3.marriage.spouse) b.hp += s.player.level * balance.marriage.hpPerLevel;
+  return b;
 }
 
 export function playerStats(s: Save): Stats {
@@ -238,7 +347,7 @@ export function generalAttrs(g: General): Attrs {
 export function generalStats(g: General): Stats {
   const G = balance.general;
   const b = emptyBonus();
-  b.mul = g.star * G.starStatMul;
+  b.mul = g.star * G.starStatMul + (g.sworn ? systems.marriage.swornMul : 0);
   b.rates.crit = Math.floor(g.rapport / G.rapportRateDiv);
   b.rates.dodge = Math.floor(g.rapport / G.rapportRateDiv);
   return applyBonus(deriveStats(generalAttrs(g), g.level, g.classId), b);
@@ -266,7 +375,8 @@ export function grantPlayerExp(s: Save, amount: number): string[] {
   const p = s.player;
   if (amount <= 0) return out;
   p.exp += amount;
-  while (p.level < balance.levelCap && p.exp >= expToNext(p.level)) {
+  const cap = levelCap(s);
+  while (p.level < cap && p.exp >= expToNext(p.level)) {
     p.exp -= expToNext(p.level);
     p.level++;
     p.free += balance.freePointsPerLevel;
@@ -275,6 +385,14 @@ export function grantPlayerExp(s: Save, amount: number): string[] {
     p.mp = st.maxMp;
     out.push(`恭喜！${p.name}升到了${p.level}级，获得${balance.freePointsPerLevel}个属性点`);
   }
+  // 到了上限经验不再往上涨（转职前是 100 级）
+  if (p.level >= cap && p.exp >= expToNext(p.level)) {
+    p.exp = expToNext(p.level) - 1;
+    if (cap < balance.levelCap && !s.flags.capNotice) {
+      s.flags.capNotice = true;
+      out.push('已经100级了，去洛阳找左慈转职，才能继续升级');
+    }
+  }
   return out;
 }
 
@@ -282,7 +400,8 @@ export function grantGeneralExp(g: General, amount: number): string[] {
   const out: string[] = [];
   if (amount <= 0) return out;
   g.exp += amount;
-  while (g.level < balance.levelCap && g.exp >= expToNext(g.level)) {
+  const cap = g.reborn ? balance.levelCap : balance.levelCapBeforeRebirth;
+  while (g.level < cap && g.exp >= expToNext(g.level)) {
     g.exp -= expToNext(g.level);
     g.level++;
     // 副将升级按资质自动长属性（见 generalAttrs）
@@ -456,7 +575,11 @@ export function skillSchool(s: Save): SkillRow[] {
       const ok = p.level >= def.learnLevel;
       return { id, name: def.name, desc: def.desc, state: null, action: ok ? 'learn' : null, reason: ok ? '' : `${def.learnLevel}级可学` };
     }
-    if (st.level >= balance.skill.maxLevel) return { id, name: def.name, desc: def.desc, state: st, action: null, reason: '已满级' };
+    if (st.level > balance.skill.maxLevel) return { id, name: def.name, desc: def.desc, state: st, action: null, reason: '已入化境' };
+    if (st.level === balance.skill.maxLevel) {
+      const r = huajingReason(p.level, st);
+      return { id, name: def.name, desc: def.desc, state: st, action: r ? null : 'upgrade', reason: r || '可以进入化境' };
+    }
     const needLv = st.level * balance.skill.roleLevelPerSkillLevel;
     const needProf = profCap(st.level);
     let reason = '';
@@ -464,6 +587,18 @@ export function skillSchool(s: Save): SkillRow[] {
     else if (p.level < needLv) reason = `人物${needLv}级可升`;
     return { id, name: def.name, desc: def.desc, state: st, action: reason ? null : 'upgrade', reason };
   });
+}
+
+// 化境：5 级满熟练度、人物 90 级（第 6 级）
+export function huajingReason(level: number, st: SkillState): string {
+  const full = profCap(balance.skill.maxLevel);
+  if (st.prof < full) return `熟练度${st.prof}/${full}后可入化境`;
+  if (level < balance.skill.huajingLevel) return `${balance.skill.huajingLevel}级可入化境`;
+  return '';
+}
+
+export function skillLevelText(level: number): string {
+  return level > balance.skill.maxLevel ? '化境' : `${level}级`;
 }
 
 export function learnSkill(s: Save, id: string): string {
@@ -479,6 +614,11 @@ export function upgradeSkill(s: Save, id: string): string {
   const row = skillSchool(s).find((r) => r.id === id);
   if (!row || row.action !== 'upgrade' || !row.state) return row?.reason || '不能升级';
   row.state.level++;
+  if (row.state.level > balance.skill.maxLevel) {
+    bump(s, 'huajing');
+    log(s, `${row.name}进入化境`);
+    return `${row.name}进入化境！威力大增`;
+  }
   return `${row.name}升到了${row.state.level}级（熟练度不清零）`;
 }
 
@@ -538,6 +678,8 @@ export function addGeneral(s: Save, g: General): string {
 }
 
 export function setActive(s: Save, uid: string | null): void {
+  // 训练中的副将不能出战
+  if (uid !== null && s.p3?.training?.who === uid) return;
   if (uid === null || s.generals.some((g) => g.uid === uid)) s.activeGeneral = uid;
 }
 
@@ -613,6 +755,8 @@ export function arrive(s: Save, to: string): void {
   s.flags[`v_${to}`] = true;
   const t = s.ring?.task;
   if (t && t.type === 'goto' && t.at === to) t.arrived = true;
+  const st = s.p3?.sect.task;
+  if (st && st.type === 'goto' && st.at === to) st.arrived = true;
 }
 
 export function moveTo(s: Save, to: string): boolean {
@@ -767,6 +911,7 @@ export function checkCollect(s: Save): string | null {
 // 掉落里标了 questOnly 的物品，只有做那个任务时才掉
 export function questDropAllowed(s: Save, questOnly?: string): boolean {
   if (!questOnly) return true;
+  if (questOnly === 'silverRing') return !!s.p3?.silverRing.task;
   const q = currentQuest(s);
   return !!q && q.id === questOnly && (s.main.state === 'active' || s.main.state === 'ready');
 }
@@ -813,6 +958,9 @@ export function deserialize(text: string): Save {
   s.quiz ??= { day: '', answered: [] };
   const d = p2Defaults();
   for (const [k, v] of Object.entries(d)) if ((s as unknown as Record<string, unknown>)[k] === undefined) (s as unknown as Record<string, unknown>)[k] = v;
+  s.p3 = { ...p3Defaults(), ...(s.p3 ?? {}) };
+  // 主线加长了：之前停在「全部完成」的存档接着往下走
+  if (s.main.state === 'done' && mainQuests[s.main.step]) s.main.state = 'available';
   // P1 的副将存的是当前属性，换算成"起点属性 + 成长"后数值不变
   for (const g of [...s.generals, ...s.inn]) {
     if (!g.base) {

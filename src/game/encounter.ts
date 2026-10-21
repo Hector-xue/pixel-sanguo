@@ -12,6 +12,18 @@ import {
   log, makeGeneral, onBattleKills, onCapture, playerStats, questDropAllowed,
 } from './state';
 import { afterGuard } from './dig';
+import { afterArena } from './arena';
+import { onSectKills } from './sect';
+import { afterTreasure, festivalExpMul } from './events';
+import { mercUnit, mercUsed } from './social';
+
+// 战斗录像：存最近几场的开局和每回合的指令，回放时重算一遍
+const REPLAYS = 8;
+function saveReplay(s: Save, b: Battle): void {
+  if (!b.init || !b.log) return;
+  s.p3.replays.unshift({ t: Date.now(), title: b.title, at: s.location, init: b.init, rounds: b.log, outcome: b.outcome === 'fled' ? 'flee' : b.outcome });
+  s.p3.replays.length = Math.min(s.p3.replays.length, REPLAYS);
+}
 import { onRingCapture, onRingKills } from './ring';
 import { mentorExpMul, mountGain } from './town';
 
@@ -101,6 +113,8 @@ export function startGroupBattle(s: Save, group: MonsterGroup, seed: number): Ba
     if (g.uid === s.activeGeneral && u.alive) allies.push(u);
     else reserve.push(u);
   }
+  const merc = mercUnit(s);
+  if (merc) allies.push(merc);
   const all = [group.monster, group.escort?.monster].filter(Boolean) as string[];
   const canFlee = !all.some((m) => monsters[m].noFlee || monsters[m].historic);
   return createBattle({ seed: rng.next() * 4294967296 >>> 0, allies, reserve, enemies, items: { ...s.bag }, title: groupLabel(group), canFlee });
@@ -114,12 +128,18 @@ export interface BattleSummary {
 }
 
 // 打完写回存档：血量、精力、药品消耗、熟练度、经验银两、掉落、招降、任务进度
-export function finishBattle(s: Save, b: Battle): BattleSummary {
+export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummary {
   s.battles++;
   const rewards: Rewards = computeRewards(b, expLevelMul, (q) => questDropAllowed(s, q), (m) => monsters[m].drops);
   const all = [...b.units, ...b.reserve].filter((u) => u.side === 'ally');
   const sum: BattleSummary = { outcome: b.outcome, rows: [], drops: [], lines: [] };
 
+  // 切磋（擂台、斗将台、决斗场）：不掉血不掉药，打完原样；结果另算
+  if (b.spar) {
+    sum.lines.push(...afterArena(s, b, now));
+    for (const l of sum.lines) log(s, l);
+    return sum;
+  }
   for (const [id, n] of Object.entries(b.itemsUsed)) {
     s.bag[id] = Math.max(0, (s.bag[id] ?? 0) - n);
     if (!s.bag[id]) delete s.bag[id];
@@ -148,7 +168,8 @@ export function finishBattle(s: Save, b: Battle): BattleSummary {
 
   if (b.outcome === 'win' && !b.spar) {
     s.player.silver += rewards.silver;
-    const mul = mentorExpMul(s);
+    // 拜师加成 × 节日加成
+    const mul = mentorExpMul(s) * festivalExpMul(now);
     for (const u of all) {
       const exp = Math.round((rewards.exp[u.id] ?? 0) * (u.kind === 'player' ? mul : 1));
       if (u.kind === 'player') {
@@ -169,6 +190,8 @@ export function finishBattle(s: Save, b: Battle): BattleSummary {
     sum.lines.push(...onBattleKills(s, rewards.kills));
     const ring = onRingKills(s, rewards.kills);
     if (ring) sum.lines.push(ring);
+    const sect = onSectKills(s, rewards.kills);
+    if (sect) sum.lines.push(sect);
     const col = checkCollect(s);
     if (col && Object.keys(rewards.drops).length) sum.lines.push(col);
     sum.lines.push(...mountGain(s, balance.mount.expPerBattle));
@@ -180,6 +203,13 @@ export function finishBattle(s: Save, b: Battle): BattleSummary {
     }
   }
   if (b.tag === 'dig') sum.lines.push(...afterGuard(s, b.outcome === 'win'));
+  if (b.tag === 'treasure') sum.lines.push(...afterTreasure(s, b.outcome === 'win', now));
+  // 雇来的队友：打一场少一场
+  if ([...b.units, ...b.reserve].some((u) => u.id === 'merc')) {
+    const m = mercUsed(s);
+    if (m) sum.lines.push(m);
+  }
+  saveReplay(s, b);
 
   // 招降成功的单位：赢了才算数（逃跑或战败就跑了）
   if (b.outcome === 'win') {

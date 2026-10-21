@@ -15,6 +15,11 @@ import {
   npcLocation, playerStats, sell, setActive, skillSchool, turnInQuest, upgradeSkill,
 } from '../game/state';
 import { buyGold, buyMount, ride, shopBuy, visited } from '../game/town';
+import { arenaBattle, challengers } from '../game/arena';
+import { joinSect } from '../game/sect';
+import { endTraining, startTraining, trainingProgress } from '../game/training';
+import { generalRebirth, generalRebirthReason, rebirth } from '../game/rebirth';
+import { oreFor } from '../game/welfare';
 
 export interface AutoplayReport {
   finished: boolean;
@@ -32,6 +37,7 @@ interface Sim {
   rng: Rng;
   rep: AutoplayReport;
   now: number;
+  lastSmith: number;
 }
 
 function go(s: Save, to: string): void {
@@ -98,7 +104,7 @@ function runBattle(sim: Sim, b: Battle, captureId: string | null): Battle['outco
     }
     resolveRound(b, cmds);
   }
-  finishBattle(s, b);
+  finishBattle(s, b, sim.now);
   sim.now += 40000;
   sim.rep.battles++;
   if (b.outcome === 'win') sim.rep.wins++;
@@ -111,13 +117,36 @@ function fight(sim: Sim, groupIndex: number, captureId: string | null): Battle['
 }
 
 // ===== 养成习惯：加点、学技能、配装备、买马、带副将 =====
-const DRUGS: [number, string, string][] = [[8, 'dieda', 'huami'], [20, 'zhixue', 'huami'], [30, 'jinchuang', 'qingquan'], [40, 'huichun', 'qingquan'], [999, 'dahuan', 'yulu']];
+const DRUGS: [number, string, string][] = [[8, 'dieda', 'huami'], [20, 'zhixue', 'huami'], [30, 'jinchuang', 'qingquan'], [40, 'huichun', 'qingquan'], [70, 'dahuan', 'yulu'], [110, 'jiuzhuan', 'qiongjiang'], [999, 'xuelian', 'xianlu']];
 
+// 最近的、去过的、有医馆的城镇
 function homeTown(s: Save): string {
-  if (visited(s, 'yingyang') && ['yingchuan', 'caixian', 'panjun1', 'panjun2', 'panjun3', 'panjun4', 'panjun5'].includes(s.location)) return 'yingyang';
-  if (visited(s, 'chen') && ['qiaojun', 'nandun', 'yingshui'].includes(s.location)) return 'chen';
-  if (visited(s, 'xuchang')) return 'xuchang';
-  return 'xinshoucun';
+  let best = 'xinshoucun';
+  let dist = Infinity;
+  for (const [id, loc] of Object.entries(locations)) {
+    if (!loc.town || !loc.facilities?.includes('hospital') || (!visited(s, id) && id !== 'xinshoucun')) continue;
+    const p = findPath(s.location, id);
+    if (p && p.length < dist) {
+      dist = p.length;
+      best = id;
+    }
+  }
+  return best;
+}
+
+// 最近的、去过的、有某设施的城镇（买装备、打造用）
+function townWith(s: Save, fac: string): string | null {
+  let best: string | null = null;
+  let dist = Infinity;
+  for (const [id, loc] of Object.entries(locations)) {
+    if (!loc.facilities?.includes(fac) || !visited(s, id)) continue;
+    const p = findPath(s.location, id);
+    if (p && p.length < dist) {
+      dist = p.length;
+      best = id;
+    }
+  }
+  return best;
 }
 
 function townUpkeep(sim: Sim): void {
@@ -132,9 +161,9 @@ function townUpkeep(sim: Sim): void {
   if (wantHp > 0) buy(s, hpDrug, Math.min(wantHp, room(), Math.floor(s.player.silver / items[hpDrug].price / 3)));
   const wantMp = (caster ? 6 : 2) - bagCount(s, mpDrug);
   if (wantMp > 0) buy(s, mpDrug, Math.min(wantMp, room(), Math.floor(s.player.silver / items[mpDrug].price / 4)));
-  if (!full.includes('weapon')) return;
+  if (!full.includes('weapon') && !full.includes('smith')) return;
   // 1级装备先配齐
-  for (const slot of equips.slots) if (!s.equip[slot] && !s.gear.some((g) => g.slot === slot) && s.player.silver > equips.shopPrice[slot] * 3) buyGear(s, slot);
+  if (full.includes('weapon')) for (const slot of equips.slots) if (!s.equip[slot] && !s.gear.some((g) => g.slot === slot) && s.player.silver > equips.shopPrice[slot] * 3) buyGear(s, slot);
   // 矿石不够就合成，能打更高级的就打
   for (const slot of equips.slots) {
     const cur = Math.max(s.equip[slot]?.tier ?? 0, ...s.gear.filter((g) => g.slot === slot).map((g) => g.tier));
@@ -179,8 +208,10 @@ function upkeep(sim: Sim): void {
   const p = s.player;
   if (p.free > 0) {
     const n = p.free;
+    // 攻略的加点思路：武士体力各半；文人"3血1速"；异人一半体质、其余智力和敏捷
     const plan = p.classId === 'warrior' ? { con: Math.ceil(n / 2), str: Math.floor(n / 2), int: 0, agi: 0 }
-      : { con: Math.ceil(n / 2), str: 0, int: Math.floor(n / 4), agi: n - Math.ceil(n / 2) - Math.floor(n / 4) };
+      : p.classId === 'scholar' ? { con: Math.ceil((n * 3) / 4), str: 0, int: 0, agi: n - Math.ceil((n * 3) / 4) }
+        : { con: Math.ceil(n / 2), str: 0, int: Math.floor(n / 4), agi: n - Math.ceil(n / 2) - Math.floor(n / 4) };
     allocate(s, plan);
   }
   for (const row of skillSchool(s)) {
@@ -193,8 +224,27 @@ function upkeep(sim: Sim): void {
     if (s.generals.length >= 3 && weak) moveToInn(s, weak.uid);
     if (s.generals.length < 3) moveToTeam(s, g.uid);
   }
+  // 将令：有大将军令就招将才；副将百级以后转生
+  const elite = [...s.generals, ...s.inn].filter((g) => g.grade !== '常人').length;
+  if (bagCount(s, 'dajiangjunling') > (s.p3.reborn ? 1 : 0) && elite < 4 && s.player.level >= 30) {
+    const here = s.location;
+    go(s, 'xuchang');
+    recruitWith(s, 'dajiangjunling');
+    go(s, here);
+  }
+  for (const g of [...s.generals]) if (!generalRebirthReason(s, g.uid)) generalRebirth(s, g.uid);
+  if (s.p3.training && trainingProgress(s, sim.now)?.done) endTraining(s, sim.now);
   // 背包快满了，把用不上的东西卖掉
-  if (bagUsed(s) > bagCap(s) - 6) for (const id of ['zhusun', 'dieda', 'huami']) if (bagCount(s, id) && s.player.level > 15) sell(s, id, bagCount(s, id));
+  if (bagUsed(s) > bagCap(s) - 6) {
+    const keep = new Set(DRUGS.find(([lv]) => p.level < lv)!.slice(1) as string[]);
+    for (const [lv, hp, mp] of DRUGS) for (const id of [hp, mp]) if (lv <= p.level && !keep.has(id) && bagCount(s, id)) sell(s, id, bagCount(s, id));
+    for (const id of ['zhusun']) if (bagCount(s, id)) sell(s, id, bagCount(s, id));
+    // 用不上的低档矿石也卖掉
+    const oreKeep = ORE_CHAIN.indexOf(oreFor(p.level));
+    ORE_CHAIN.forEach((o, i) => {
+      if (i < oreKeep - 1 && bagCount(s, o)) sell(s, o, bagCount(s, o));
+    });
+  }
   // 副将：心法书给等级最高的，10级后学本职业技能，最强的出战
   const gens = [...s.generals].sort((a, c) => c.level - a.level || (c.grade > a.grade ? 1 : -1));
   const top = gens.find((g) => g.grade !== '常人') ?? gens[0];
@@ -219,6 +269,17 @@ function upkeep(sim: Sim): void {
     go(s, homeTown(s));
     townUpkeep(sim);
     go(s, back);
+  }
+  // 隔一阵子去最近的铁匠铺看看能不能打更好的装备
+  if (sim.rep.battles - sim.lastSmith >= 30) {
+    sim.lastSmith = sim.rep.battles;
+    const smith = townWith(s, 'smith');
+    if (smith) {
+      const back = s.location;
+      go(s, smith);
+      townUpkeep(sim);
+      go(s, back);
+    }
   }
 }
 
@@ -304,6 +365,40 @@ function doFlag(sim: Sim, flag: string): boolean {
       go(s, 'xuchang');
       recruitWith(s, 'jiangjunling');
       return !!s.flags.recruited;
+    case 'joinedSect':
+      go(s, npcLocation('jiaopai')!);
+      joinSect(s, s.player.classId === 'warrior' ? 'qinglong' : 'xuanwu');
+      return !!s.flags.joinedSect;
+    case 'arena': {
+      const c = challengers(s, 'arena')[challengers(s, 'arena').length - 1];
+      if (!c) return false;
+      const b = arenaBattle(s, 'arena', c.rank, sim.rng.int(0, 2 ** 31));
+      if (typeof b === 'string') return false;
+      runBattle(sim, b, null);
+      return !!s.flags.arena;
+    }
+    case 'trained': {
+      const g = s.generals.find((x) => x.uid !== s.activeGeneral) ?? s.inn[0];
+      startTraining(s, g ? g.uid : 'player', 1, sim.now);
+      return !!s.flags.trained;
+    }
+    case 'reborn': {
+      go(s, npcLocation('zuoci')!);
+      rebirth(s, s.player.classId, s.player.gender, s.player.avatar);
+      return !!s.flags.reborn;
+    }
+    case 'ring2':
+    case 'ring3': {
+      if (!s.ring.task) {
+        go(s, 'xuchang');
+        const r = nextRing(s, sim.now, flag === 'ring2' ? 2 : 3);
+        if (!s.ring.task) {
+          if (r.includes('体力')) sim.now += 30 * 60000;
+          return false;
+        }
+      }
+      return doRingTask(sim);
+    }
 
     case 'ringRound': {
       if (!s.ring.task) {
@@ -321,7 +416,7 @@ function doFlag(sim: Sim, flag: string): boolean {
 }
 
 export function autoplay(s: Save, seed = 7, maxBattles = 600, untilStep = mainQuests.length): AutoplayReport {
-  const sim: Sim = { s, rng: new Rng(seed), rep: { finished: false, battles: 0, wins: 0, losses: 0, level: 1, steps: [], generals: 0, rings: 0 }, now: Date.UTC(2026, 0, 1) };
+  const sim: Sim = { s, rng: new Rng(seed), rep: { finished: false, battles: 0, wins: 0, losses: 0, level: 1, steps: [], generals: 0, rings: 0 }, now: Date.UTC(2026, 2, 10, 2), lastSmith: 0 };
   const { rep } = sim;
   s.staminaAt = sim.now;
   let guard = 0;

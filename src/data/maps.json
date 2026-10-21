@@ -412,7 +412,7 @@
       "art": "hill",
       "exits": {
         "right": "changshe",
-        "left": "@chenliu"
+        "left": "chenliu"
       },
       "npcs": [],
       "groups": [
@@ -548,7 +548,8 @@
       "exits": {
         "up": "chen",
         "left": "nandun",
-        "right": "yingshui"
+        "right": "yingshui",
+        "down": "lujiang"
       },
       "npcs": [],
       "groups": [
@@ -807,10 +808,1306 @@
         "wabao"
       ],
       "groups": []
+    },
+    "chenliu": {
+      "name": "陈留",
+      "art": "city",
+      "exits": {
+        "right": "zhongmou",
+        "down": "chenliujiaowai",
+        "left": "dingtao",
+        "up": "xianfeng1"
+      },
+      "npcs": [
+        "chenliutaishou",
+        "caocao",
+        "jiaopai"
+      ],
+      "groups": [],
+      "town": true,
+      "facilities": [
+        "hospital",
+        "weapon",
+        "temple",
+        "smith",
+        "inn",
+        "bank",
+        "skillschool",
+        "stable",
+        "arena"
+      ]
+    },
+    "chenliujiaowai": {
+      "name": "陈留郊外",
+      "art": "farm",
+      "exits": {
+        "up": "chenliu",
+        "left": "chenliuxijiao"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "daoshi",
+          "level": [
+            45,
+            47
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "shushi",
+          "level": [
+            45,
+            48
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "chenliuxijiao": {
+      "name": "陈留西郊",
+      "art": "forest",
+      "exits": {
+        "right": "chenliujiaowai",
+        "down": "luanzanggang"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "yaoren",
+          "level": [
+            46,
+            49
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "youhun",
+          "level": [
+            48,
+            51
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "luanzanggang": {
+      "name": "乱葬岗",
+      "art": "tomb",
+      "exits": {
+        "up": "chenliuxijiao"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "jiangshi",
+          "level": [
+            50,
+            53
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "youhun",
+          "level": [
+            50,
+            52
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "xianfeng1": {
+      "name": "先锋一营",
+      "art": "camp",
+      "exits": {
+        "down": "chenliu",
+        "up": "xianfeng2"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "lishi",
+          "level": [
+            53,
+            55
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "fushou",
+          "level": [
+            53,
+            55
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "xianfeng2": {
+      "name": "先锋二营",
+      "art": "camp",
+      "exits": {
+        "down": "xianfeng1",
+        "up": "xianfeng3"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "lishi",
+          "level": [
+            54,
+            56
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "fushou",
+          "level": [
+            54,
+            57
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "xianfeng3": {
+      "name": "先锋三营",
+      "art": "camp",
+      "exits": {
+        "down": "xianfeng2",
+        "up": "xianfenglingjun",
+        "left": "suanzao"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "fushou",
+          "level": [
+            55,
+            58
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "lishi",
+          "level": [
+            56,
+            58
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "xianfenglingjun": {
+      "name": "先锋领军",
+      "art": "gate",
+      "exits": {
+        "down": "xianfeng3"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "xianfenglingjun",
+          "level": [
+            59,
+            59
+          ],
+          "count": [
+            1,
+            1
+          ],
+          "escort": {
+            "monster": "fushou",
+            "level": 57,
+            "count": 2
+          }
+        }
+      ]
+    },
+    "dingtao": {
+      "name": "定陶",
+      "art": "village",
+      "exits": {
+        "right": "chenliu",
+        "down": "puyangnanjiao"
+      },
+      "npcs": [
+        "dingtaoling"
+      ],
+      "groups": [],
+      "town": true,
+      "facilities": [
+        "hospital",
+        "inn",
+        "skillschool",
+        "smith"
+      ]
+    },
+    "puyangnanjiao": {
+      "name": "濮阳南郊",
+      "art": "manor",
+      "exits": {
+        "up": "dingtao",
+        "down": "puyang"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "epu",
+          "level": [
+            55,
+            58
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "nvzei2",
+          "level": [
+            55,
+            59
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "puyang": {
+      "name": "濮阳",
+      "art": "city",
+      "exits": {
+        "up": "puyangnanjiao",
+        "left": "puyangjiaowai",
+        "down": "dongjun",
+        "right": "juyeze"
+      },
+      "npcs": [
+        "puyangtaishou",
+        "yingbing"
+      ],
+      "groups": [],
+      "town": true,
+      "facilities": [
+        "hospital",
+        "weapon",
+        "temple",
+        "smith",
+        "inn",
+        "bank",
+        "skillschool",
+        "stable",
+        "arena"
+      ]
+    },
+    "puyangjiaowai": {
+      "name": "濮阳郊外",
+      "art": "road",
+      "exits": {
+        "right": "puyang"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "bailei",
+          "level": [
+            59,
+            62
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "xiongtu",
+          "level": [
+            60,
+            63
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "egun",
+          "level": [
+            61,
+            64
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "dongjun": {
+      "name": "东郡荒野",
+      "art": "grass",
+      "exits": {
+        "up": "puyang",
+        "down": "huangjindaying"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "huangjinbing",
+          "level": [
+            64,
+            67
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "huangjinjingbing",
+          "level": [
+            65,
+            67
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "huangjindaying": {
+      "name": "黄巾大营",
+      "art": "camp",
+      "exits": {
+        "up": "dongjun"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "huangjinjingbing",
+          "level": [
+            66,
+            69
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "huangjinqushuai",
+          "level": [
+            71,
+            71
+          ],
+          "count": [
+            1,
+            1
+          ],
+          "escort": {
+            "monster": "huangjinjingbing",
+            "level": 68,
+            "count": 2
+          }
+        }
+      ]
+    },
+    "juyeze": {
+      "name": "巨野泽",
+      "art": "marsh",
+      "exits": {
+        "left": "puyang",
+        "right": "lvlinzhai"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "duxingdadao",
+          "level": [
+            73,
+            76
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "caihuadadao",
+          "level": [
+            74,
+            77
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "lvlinzhai": {
+      "name": "绿林寨",
+      "art": "valley",
+      "exits": {
+        "left": "juyeze",
+        "down": "huangjinbaoku"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "lvlindadao",
+          "level": [
+            75,
+            78
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "jiangyangdadao",
+          "level": [
+            76,
+            79
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "huangjinbaoku": {
+      "name": "黄巾宝窟",
+      "art": "cave",
+      "exits": {
+        "up": "lvlinzhai",
+        "down": "baokushenchu"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "kuangshidadao",
+          "level": [
+            83,
+            86
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "baoshidadao",
+          "level": [
+            84,
+            87
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "baiyindadao",
+          "level": [
+            84,
+            87
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "baokushenchu": {
+      "name": "宝窟深处",
+      "art": "cave",
+      "exits": {
+        "up": "huangjinbaoku"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "huangjindadao",
+          "level": [
+            85,
+            88
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "dadaoshouling",
+          "level": [
+            89,
+            89
+          ],
+          "count": [
+            1,
+            1
+          ],
+          "escort": {
+            "monster": "huangjindadao",
+            "level": 87,
+            "count": 2
+          }
+        }
+      ]
+    },
+    "suanzao": {
+      "name": "酸枣大营",
+      "art": "camp",
+      "exits": {
+        "right": "xianfeng3",
+        "left": "sishuiguan"
+      },
+      "npcs": [
+        "yuanshao"
+      ],
+      "groups": [],
+      "town": true,
+      "facilities": [
+        "hospital",
+        "inn",
+        "skillschool",
+        "smith"
+      ]
+    },
+    "sishuiguan": {
+      "name": "汜水关",
+      "art": "gate",
+      "exits": {
+        "right": "suanzao",
+        "left": "hulaoguan"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "xiliangtieqi",
+          "level": [
+            86,
+            90
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "xiliangmoushi",
+          "level": [
+            87,
+            90
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "huaxiong",
+          "level": [
+            93,
+            93
+          ],
+          "count": [
+            1,
+            1
+          ],
+          "escort": {
+            "monster": "xiliangtieqi",
+            "level": 90,
+            "count": 2
+          }
+        }
+      ]
+    },
+    "hulaoguan": {
+      "name": "虎牢关",
+      "art": "gate",
+      "exits": {
+        "right": "sishuiguan",
+        "up": "hulaochenglou",
+        "left": "luoyangdongjiao"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "bingzhoulangqi",
+          "level": [
+            92,
+            96
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "feixiongjun",
+          "level": [
+            93,
+            97
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "hulaochenglou": {
+      "name": "虎牢关城楼",
+      "art": "gate",
+      "exits": {
+        "down": "hulaoguan"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "lvbu",
+          "level": [
+            100,
+            100
+          ],
+          "count": [
+            1,
+            1
+          ],
+          "escort": {
+            "monster": "feixiongjun",
+            "level": 97,
+            "count": 2
+          }
+        }
+      ]
+    },
+    "luoyangdongjiao": {
+      "name": "洛阳东郊",
+      "art": "ruins",
+      "exits": {
+        "right": "hulaoguan",
+        "left": "luoyang"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "luanbing",
+          "level": [
+            99,
+            103
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "luoyang": {
+      "name": "洛阳",
+      "art": "city",
+      "exits": {
+        "right": "luoyangdongjiao",
+        "up": "mangshan",
+        "down": "luoyanggong",
+        "left": "hanguguan"
+      },
+      "npcs": [
+        "wangyun",
+        "zuoci",
+        "yuelao"
+      ],
+      "groups": [],
+      "town": true,
+      "facilities": [
+        "hospital",
+        "weapon",
+        "temple",
+        "smith",
+        "inn",
+        "bank",
+        "skillschool",
+        "stable",
+        "arena"
+      ]
+    },
+    "mangshan": {
+      "name": "邙山",
+      "art": "hill",
+      "exits": {
+        "down": "luoyang",
+        "up": "mangshangumu"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "daomuzei",
+          "level": [
+            101,
+            105
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "luanbing",
+          "level": [
+            101,
+            104
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "mangshangumu": {
+      "name": "邙山古墓",
+      "art": "tomb",
+      "exits": {
+        "down": "mangshan"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "shimo",
+          "level": [
+            103,
+            107
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "daomuzei",
+          "level": [
+            104,
+            107
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "luoyanggong": {
+      "name": "洛阳宫废墟",
+      "art": "ruins",
+      "exits": {
+        "up": "luoyang"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "luanbing",
+          "level": [
+            104,
+            107
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "liru",
+          "level": [
+            108,
+            108
+          ],
+          "count": [
+            1,
+            1
+          ],
+          "escort": {
+            "monster": "luanbing",
+            "level": 106,
+            "count": 2
+          }
+        }
+      ]
+    },
+    "hanguguan": {
+      "name": "函谷关",
+      "art": "gate",
+      "exits": {
+        "right": "luoyang",
+        "left": "tongguan"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "xiliangshoujun",
+          "level": [
+            107,
+            111
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "xiliangjianshou",
+          "level": [
+            107,
+            111
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "tongguan": {
+      "name": "潼关",
+      "art": "pass",
+      "exits": {
+        "right": "hanguguan",
+        "left": "changanjiaowai"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "qiangbing",
+          "level": [
+            111,
+            115
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "qiangwushi",
+          "level": [
+            112,
+            115
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "changanjiaowai": {
+      "name": "长安郊外",
+      "art": "farm",
+      "exits": {
+        "right": "tongguan",
+        "left": "changan"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "lijuebuqu",
+          "level": [
+            116,
+            120
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "guosibuqu",
+          "level": [
+            116,
+            120
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "changan": {
+      "name": "长安",
+      "art": "city",
+      "exits": {
+        "right": "changanjiaowai",
+        "up": "weishui",
+        "down": "ziwugu"
+      },
+      "npcs": [
+        "jingzhaoyin"
+      ],
+      "groups": [],
+      "town": true,
+      "facilities": [
+        "hospital",
+        "weapon",
+        "temple",
+        "smith",
+        "inn",
+        "bank",
+        "skillschool",
+        "stable",
+        "arena"
+      ]
+    },
+    "weishui": {
+      "name": "渭水",
+      "art": "river",
+      "exits": {
+        "down": "changan",
+        "left": "meiwu"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "xiliangqibing",
+          "level": [
+            121,
+            125
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "meiwu": {
+      "name": "郿坞",
+      "art": "manor",
+      "exits": {
+        "right": "weishui"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "meiwushouwei",
+          "level": [
+            126,
+            130
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "dongzhuo",
+          "level": [
+            133,
+            133
+          ],
+          "count": [
+            1,
+            1
+          ],
+          "escort": {
+            "monster": "meiwushouwei",
+            "level": 130,
+            "count": 2
+          }
+        }
+      ]
+    },
+    "ziwugu": {
+      "name": "子午谷",
+      "art": "pass",
+      "exits": {
+        "up": "changan",
+        "down": "hanzhong"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "zhandaoshouzu",
+          "level": [
+            131,
+            135
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "shanxiao",
+          "level": [
+            132,
+            135
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "hanzhong": {
+      "name": "汉中",
+      "art": "city",
+      "exits": {
+        "up": "ziwugu",
+        "left": "dingjunshan",
+        "right": "yangpingguan",
+        "down": "micangshan"
+      },
+      "npcs": [
+        "yanpu"
+      ],
+      "groups": [],
+      "town": true,
+      "facilities": [
+        "hospital",
+        "weapon",
+        "temple",
+        "smith",
+        "inn",
+        "bank",
+        "skillschool",
+        "stable"
+      ]
+    },
+    "dingjunshan": {
+      "name": "定军山",
+      "art": "hill",
+      "exits": {
+        "right": "hanzhong"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "weijunhuwei",
+          "level": [
+            136,
+            141
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "weijungongqi",
+          "level": [
+            137,
+            141
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "yangpingguan": {
+      "name": "阳平关",
+      "art": "gate",
+      "exits": {
+        "left": "hanzhong"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "guizu",
+          "level": [
+            142,
+            147
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "jijiu",
+          "level": [
+            143,
+            147
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "micangshan": {
+      "name": "米仓山",
+      "art": "pass",
+      "exits": {
+        "up": "hanzhong",
+        "down": "tianshitan"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "bandunman",
+          "level": [
+            148,
+            152
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "wugui",
+          "level": [
+            149,
+            153
+          ],
+          "count": [
+            2,
+            4
+          ]
+        }
+      ]
+    },
+    "tianshitan": {
+      "name": "天师坛",
+      "art": "altar",
+      "exits": {
+        "up": "micangshan"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "tianshihufa",
+          "level": [
+            153,
+            157
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "tianshilishi",
+          "level": [
+            154,
+            158
+          ],
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "monster": "zhanglu",
+          "level": [
+            160,
+            160
+          ],
+          "count": [
+            1,
+            1
+          ],
+          "escort": {
+            "monster": "tianshihufa",
+            "level": 157,
+            "count": 2
+          }
+        }
+      ]
+    },
+    "lujiang": {
+      "name": "庐江",
+      "art": "village",
+      "exits": {
+        "up": "qiaojun",
+        "down": "lujiangjiaowai"
+      },
+      "npcs": [
+        "lujiangduwei"
+      ],
+      "groups": [],
+      "town": true,
+      "facilities": [
+        "hospital",
+        "inn",
+        "skillschool"
+      ]
+    },
+    "lujiangjiaowai": {
+      "name": "庐江郊外",
+      "art": "river",
+      "exits": {
+        "up": "lujiang"
+      },
+      "npcs": [],
+      "groups": [
+        {
+          "monster": "lujiangtaobing",
+          "level": [
+            42,
+            48
+          ],
+          "count": [
+            2,
+            4
+          ],
+          "label": "庐江逃兵群"
+        }
+      ]
     }
   },
-  "locked": {
-    "@chenliu": "陈留（P3 开放）"
-  },
-  "_src2": "许昌线地名与走向（许昌→郊外→西郊→长社→中牟；郊外另一路颍阳→颍川、蔡县、叛军一营到五营；还有一路陈→谯郡→南顿、颍水）【实锤】；具体方位、怪物分布和等级区间【推定】（实锤等级的怪按原等级放）"
+  "locked": {},
+  "_src2": "许昌线地名与走向（许昌→郊外→西郊→长社→中牟；郊外另一路颍阳→颍川、蔡县、叛军一营到五营；还有一路陈→谯郡→南顿、颍水）【实锤】；具体方位、怪物分布和等级区间【推定】（实锤等级的怪按原等级放）",
+  "_srcP3": "陈留 → 陈留郊外 → 陈留西郊 → 先锋一营…先锋领军；定陶 → 濮阳南郊 → 濮阳郊外；洛阳、虎牢关、庐江 这些地名【实锤】；地图怎么连、85级以后的地图【推定】"
 }

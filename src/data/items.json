@@ -1,42 +1,389 @@
 {
   "_src": "药名和医馆卖药【实锤】(老版视频)；将军令/大将军令/令牌/宝箱/体力丹/心法书/技能书/铲子/宝石珍矿的名字和用途【实锤或单源，见方案】；回复量、价格、效果数值【推定】。宝石由 gems 段自动生成",
-  "dieda":    { "name": "跌打药", "cat": "drug", "hp": 60,  "price": 10 },
-  "zhixue":   { "name": "止血药", "cat": "drug", "hp": 150, "price": 30 },
-  "jinchuang":{ "name": "金创药", "cat": "drug", "hp": 350, "price": 80 },
-  "huichun":  { "name": "回春汤", "cat": "drug", "hp": 700, "price": 180 },
-  "dahuan":   { "name": "大还丹", "cat": "drug", "hp": 1500, "price": 420 },
-  "huami":    { "name": "花蜜液", "cat": "drug", "mp": 40,  "price": 15 },
-  "qingquan": { "name": "清泉液", "cat": "drug", "mp": 120, "price": 45 },
-  "yulu":     { "name": "玉露",   "cat": "drug", "mp": 300, "price": 120 },
-  "yaocai":   { "name": "药材",   "cat": "misc", "quest": true, "price": 0, "desc": "盗贼从药铺抢走的药材" },
-  "zhangben": { "name": "账本",   "cat": "misc", "quest": true, "price": 0, "desc": "贪官私藏的黑账" },
-  "zhusun":   { "name": "竹笋",   "cat": "misc", "price": 5, "desc": "竹林里的野味，可以卖给医馆" },
-  "tiekuang": { "name": "铁矿石", "cat": "ore", "price": 20, "tier": 2, "desc": "打造2级装备用的矿石" },
-  "jingtie":  { "name": "精铁矿", "cat": "ore", "price": 80, "tier": 3, "desc": "打造3级装备用的矿石，3块铁矿石可以合成1块" },
-  "jinggang": { "name": "精钢矿", "cat": "ore", "price": 300, "tier": 4, "desc": "打造4级装备用的矿石，3块精铁矿可以合成1块" },
-  "xuantie":  { "name": "玄铁矿", "cat": "ore", "price": 1000, "tier": 5, "desc": "打造5级装备用的矿石，3块精钢矿可以合成1块" },
-  "zhenkuang":{ "name": "宝石珍矿", "cat": "ore", "price": 2000, "use": "gemore", "desc": "敲开能得到一颗2～3级宝石" },
-  "jiangjunling":   { "name": "将军令",   "cat": "misc", "price": 0, "desc": "在招贤使者处招募英才，或给副将洗资质、升星" },
-  "dajiangjunling": { "name": "大将军令", "cat": "misc", "price": 0, "desc": "在招贤使者处招募将才" },
-  "xiaoqiaoling":   { "name": "小乔令牌", "cat": "misc", "price": 0, "desc": "在招贤使者处招募小乔" },
-  "zhaoyunling":    { "name": "赵云令牌", "cat": "misc", "price": 0, "desc": "在招贤使者处招募赵云" },
-  "baoxiang":     { "name": "宝箱",     "cat": "misc", "price": 0, "use": "box", "desc": "打开能得到银两、药品、矿石、宝石等" },
-  "gaojibaoxiang":{ "name": "高级宝箱", "cat": "misc", "price": 0, "use": "bigbox", "desc": "打开能得到更好的东西，运气好能开出副将" },
-  "tilidan":  { "name": "体力丹", "cat": "misc", "price": 0, "use": "stamina", "desc": "恢复20点体力，一天最多吃20颗" },
-  "xinfa1":   { "name": "常人心法", "cat": "misc", "price": 0, "use": "xinfa", "amount": 3000, "desc": "副将读了增加3000经验" },
-  "xinfa2":   { "name": "高级心法", "cat": "misc", "price": 0, "use": "xinfa", "amount": 12000, "desc": "副将读了增加12000经验" },
-  "xinfa3":   { "name": "特级心法", "cat": "misc", "price": 0, "use": "xinfa", "amount": 40000, "desc": "副将读了增加40000经验" },
-  "jinengshu":{ "name": "技能书", "cat": "misc", "price": 0, "use": "skillbook", "amount": 3000, "desc": "给一个技能增加3000熟练度" },
-  "chanzi":   { "name": "铲子", "cat": "misc", "price": 10000, "use": "dig", "desc": "在宝洞里挖宝用，一把挖10铲" },
+  "dieda": {
+    "name": "跌打药",
+    "cat": "drug",
+    "hp": 60,
+    "price": 10
+  },
+  "zhixue": {
+    "name": "止血药",
+    "cat": "drug",
+    "hp": 150,
+    "price": 30
+  },
+  "jinchuang": {
+    "name": "金创药",
+    "cat": "drug",
+    "hp": 350,
+    "price": 80
+  },
+  "huichun": {
+    "name": "回春汤",
+    "cat": "drug",
+    "hp": 700,
+    "price": 180
+  },
+  "dahuan": {
+    "name": "大还丹",
+    "cat": "drug",
+    "hp": 1500,
+    "price": 420
+  },
+  "jiuzhuan": {
+    "name": "九转丹",
+    "cat": "drug",
+    "hp": 3500,
+    "price": 900
+  },
+  "xuelian": {
+    "name": "天山雪莲",
+    "cat": "drug",
+    "hp": 8000,
+    "price": 2200
+  },
+  "huami": {
+    "name": "花蜜液",
+    "cat": "drug",
+    "mp": 40,
+    "price": 15
+  },
+  "qingquan": {
+    "name": "清泉液",
+    "cat": "drug",
+    "mp": 120,
+    "price": 45
+  },
+  "yulu": {
+    "name": "玉露",
+    "cat": "drug",
+    "mp": 300,
+    "price": 120
+  },
+  "qiongjiang": {
+    "name": "琼浆",
+    "cat": "drug",
+    "mp": 700,
+    "price": 300
+  },
+  "xianlu": {
+    "name": "仙露",
+    "cat": "drug",
+    "mp": 1600,
+    "price": 750
+  },
+  "yaocai": {
+    "name": "药材",
+    "cat": "misc",
+    "quest": true,
+    "price": 0,
+    "desc": "盗贼从药铺抢走的药材"
+  },
+  "zhangben": {
+    "name": "账本",
+    "cat": "misc",
+    "quest": true,
+    "price": 0,
+    "desc": "贪官私藏的黑账"
+  },
+  "zhusun": {
+    "name": "竹笋",
+    "cat": "misc",
+    "price": 5,
+    "desc": "竹林里的野味，可以卖给医馆"
+  },
+  "tiekuang": {
+    "name": "铁矿石",
+    "cat": "ore",
+    "price": 20,
+    "tier": 2,
+    "desc": "打造2级装备用的矿石"
+  },
+  "jingtie": {
+    "name": "精铁矿",
+    "cat": "ore",
+    "price": 80,
+    "tier": 3,
+    "desc": "打造3级装备用的矿石，3块铁矿石可以合成1块"
+  },
+  "jinggang": {
+    "name": "精钢矿",
+    "cat": "ore",
+    "price": 300,
+    "tier": 4,
+    "desc": "打造4级装备用的矿石，3块精铁矿可以合成1块"
+  },
+  "xuantie": {
+    "name": "玄铁矿",
+    "cat": "ore",
+    "price": 1000,
+    "tier": 5,
+    "desc": "打造5级装备用的矿石，3块精钢矿可以合成1块"
+  },
+  "jiangjunling": {
+    "name": "将军令",
+    "cat": "misc",
+    "price": 0,
+    "desc": "在招贤使者处招募英才，或给副将洗资质、升星"
+  },
+  "dajiangjunling": {
+    "name": "大将军令",
+    "cat": "misc",
+    "price": 0,
+    "desc": "在招贤使者处招募将才"
+  },
+  "xiaoqiaoling": {
+    "name": "小乔令牌",
+    "cat": "misc",
+    "price": 0,
+    "desc": "在招贤使者处招募小乔"
+  },
+  "zhaoyunling": {
+    "name": "赵云令牌",
+    "cat": "misc",
+    "price": 0,
+    "desc": "在招贤使者处招募赵云"
+  },
+  "baoxiang": {
+    "name": "宝箱",
+    "cat": "misc",
+    "price": 0,
+    "use": "box",
+    "desc": "打开能得到银两、药品、矿石、宝石等"
+  },
+  "gaojibaoxiang": {
+    "name": "高级宝箱",
+    "cat": "misc",
+    "price": 0,
+    "use": "bigbox",
+    "desc": "打开能得到更好的东西，运气好能开出副将"
+  },
+  "tilidan": {
+    "name": "体力丹",
+    "cat": "misc",
+    "price": 0,
+    "use": "stamina",
+    "desc": "恢复20点体力，一天最多吃20颗"
+  },
+  "xinfa1": {
+    "name": "常人心法",
+    "cat": "misc",
+    "price": 0,
+    "use": "xinfa",
+    "amount": 3000,
+    "desc": "副将读了增加3000经验"
+  },
+  "xinfa2": {
+    "name": "高级心法",
+    "cat": "misc",
+    "price": 0,
+    "use": "xinfa",
+    "amount": 12000,
+    "desc": "副将读了增加12000经验"
+  },
+  "xinfa3": {
+    "name": "特级心法",
+    "cat": "misc",
+    "price": 0,
+    "use": "xinfa",
+    "amount": 40000,
+    "desc": "副将读了增加40000经验"
+  },
+  "jinengshu": {
+    "name": "技能书",
+    "cat": "misc",
+    "price": 0,
+    "use": "skillbook",
+    "amount": 3000,
+    "desc": "给一个技能增加3000熟练度"
+  },
+  "chanzi": {
+    "name": "铲子",
+    "cat": "misc",
+    "price": 10000,
+    "use": "dig",
+    "desc": "在宝洞里挖宝用，一把挖10铲"
+  },
   "gems": {
     "_src": "四种宝石和各自加成的属性【实锤，多个来源一致】；每级加多少【推定】",
     "kinds": {
-      "zuanshi":    { "name": "钻石",   "color": "white", "per": { "resist": { "phys": 6 },  "rates": { "crit": 1 }, "spd": 3 } },
-      "lvbaoshi":   { "name": "绿宝石", "color": "green", "per": { "resist": { "trap": 8, "wind": 8 }, "rates": { "counter": 1 } } },
-      "hongbaoshi": { "name": "红宝石", "color": "red",   "per": { "resist": { "chaos": 8, "fire": 8 }, "rates": { "fatal": 0.5 } } },
-      "lanbaoshi":  { "name": "蓝宝石", "color": "blue",  "per": { "resist": { "seal": 8, "thunder": 8 }, "con": 2 } }
+      "zuanshi": {
+        "name": "钻石",
+        "color": "white",
+        "per": {
+          "resist": {
+            "phys": 6
+          },
+          "rates": {
+            "crit": 1
+          },
+          "spd": 3
+        }
+      },
+      "lvbaoshi": {
+        "name": "绿宝石",
+        "color": "green",
+        "per": {
+          "resist": {
+            "trap": 8,
+            "wind": 8
+          },
+          "rates": {
+            "counter": 1
+          }
+        }
+      },
+      "hongbaoshi": {
+        "name": "红宝石",
+        "color": "red",
+        "per": {
+          "resist": {
+            "chaos": 8,
+            "fire": 8
+          },
+          "rates": {
+            "fatal": 0.5
+          }
+        }
+      },
+      "lanbaoshi": {
+        "name": "蓝宝石",
+        "color": "blue",
+        "per": {
+          "resist": {
+            "seal": 8,
+            "thunder": 8
+          },
+          "con": 2
+        }
+      }
     },
-    "levels": 5,
+    "levels": 8,
     "basePrice": 200
+  },
+  "fushui": {
+    "name": "符水",
+    "cat": "misc",
+    "quest": true,
+    "price": 0,
+    "desc": "妖人拿来骗人的符水"
+  },
+  "zangwu": {
+    "name": "赃物",
+    "cat": "misc",
+    "quest": true,
+    "price": 0,
+    "desc": "女贼抢走的商货"
+  },
+  "cangbaotu": {
+    "name": "藏宝图残片",
+    "cat": "misc",
+    "quest": true,
+    "price": 0,
+    "desc": "黄巾宝藏的藏宝图碎片"
+  },
+  "junlingfu": {
+    "name": "军令符",
+    "cat": "misc",
+    "quest": true,
+    "price": 0,
+    "desc": "董卓的军令符"
+  },
+  "fulu": {
+    "name": "符箓",
+    "cat": "misc",
+    "quest": true,
+    "price": 0,
+    "desc": "五斗米道祭酒的符箓"
+  },
+  "junzi": {
+    "name": "军资",
+    "cat": "misc",
+    "price": 0,
+    "desc": "庐江逃兵抢走的军资，交给庐江都尉换赏钱"
+  },
+  "hantie": {
+    "name": "寒铁矿",
+    "cat": "ore",
+    "price": 2500,
+    "tier": 6,
+    "desc": "打造6级装备用的矿石，3块玄铁矿可以合成1块"
+  },
+  "wujin": {
+    "name": "乌金矿",
+    "cat": "ore",
+    "price": 3600,
+    "tier": 7,
+    "desc": "打造7级装备用的矿石，3块寒铁矿可以合成1块"
+  },
+  "chijin": {
+    "name": "赤金矿",
+    "cat": "ore",
+    "price": 4900,
+    "tier": 8,
+    "desc": "打造8级装备用的矿石，3块乌金矿可以合成1块"
+  },
+  "zijing": {
+    "name": "紫晶矿",
+    "cat": "ore",
+    "price": 6400,
+    "tier": 9,
+    "desc": "打造9级装备用的矿石，3块赤金矿可以合成1块"
+  },
+  "yuntie": {
+    "name": "陨铁",
+    "cat": "ore",
+    "price": 8100,
+    "tier": 10,
+    "desc": "打造10级装备用的矿石，3块紫晶矿可以合成1块"
+  },
+  "xingchen": {
+    "name": "星辰砂",
+    "cat": "ore",
+    "price": 10000,
+    "tier": 11,
+    "desc": "打造11级装备用的矿石，3块陨铁可以合成1块"
+  },
+  "longgu": {
+    "name": "龙骨",
+    "cat": "ore",
+    "price": 12100,
+    "tier": 12,
+    "desc": "打造12级装备用的矿石，3块星辰砂可以合成1块"
+  },
+  "fengyu": {
+    "name": "凤羽",
+    "cat": "ore",
+    "price": 14400,
+    "tier": 13,
+    "desc": "打造13级装备用的矿石，3块龙骨可以合成1块"
+  },
+  "qilinjiao": {
+    "name": "麒麟角",
+    "cat": "ore",
+    "price": 16900,
+    "tier": 14,
+    "desc": "打造14级装备用的矿石，3块凤羽可以合成1块"
+  },
+  "shentie": {
+    "name": "神铁",
+    "cat": "ore",
+    "price": 19600,
+    "tier": 15,
+    "desc": "打造15级装备用的矿石，3块麒麟角可以合成1块"
+  },
+  "hunyuan": {
+    "name": "混元晶",
+    "cat": "ore",
+    "price": 22500,
+    "tier": 16,
+    "desc": "打造16级装备用的矿石，3块神铁可以合成1块"
+  },
+  "zhenkuang": {
+    "name": "宝石珍矿",
+    "cat": "ore",
+    "price": 2000,
+    "use": "gemore",
+    "desc": "敲开能得到一颗2～3级宝石"
   }
 }

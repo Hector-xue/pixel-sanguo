@@ -183,10 +183,34 @@ export const systems = systemsJson as unknown as {
     buyDrugs: string[]; buyCount: [number, number]; deliverItems: string[]; expRatio: number; expStep: number; silverPerLevel: number;
     drops: (Reward & { chance: number; ore?: number; gem?: number })[];
     final: { items: Record<string, number>; chance: number; bonus: Record<string, number> };
+    tiers: { name: string; minLevel: number; from: number; final: Record<string, number> }[];
+    killPerTier: number;
   };
   dig: { digs: number; guardAt: number[]; guardCount: [number, number]; loot: LootEntry[] };
   casino: { chibiMinutes: number; houseCut: number; minBet: number; maxBet: number; guessMul: number; sides: string[]; titles: { net: number; name: string }[] };
   shop: { goods: { item: string; gold: number }[] };
+  sect: {
+    minLevel: number; tasksPerDay: number; vigorCost: number; vigorPerLevel: number;
+    sects: { id: string; name: string; perk: 'atk' | 'spd' | 'mp' | 'def'; desc: string }[];
+    ranks: { rep: number; name: string }[];
+    perkPerRank: Record<string, number>;
+    aiRep: number[];
+    rep: [number, number];
+    killCount: [number, number];
+  };
+  treasure: { hours: number[]; minutes: number; perDay: number; silverPerLevel: number; guardCount: [number, number]; loot: LootEntry[] };
+  silverRing: { need: number; perDay: number; silverBase: number; silverPerLevel: number; minLevel: number };
+  lucky: { free: number; goldPerDraw: number; maxDraws: number; luck: [number, number]; prizes: (LootEntry & { gold?: [number, number] })[] };
+  stall: { slots: number; tickMinutes: number; maxHours: number; fairOf: Record<string, number>; fee: number };
+  festivals: { expMul: number; days: { id: string; name: string; dates: string[] }[]; gift: Reward };
+  marriage: {
+    giftsPerDay: number; giftSilverPerLevel: number; favorPerGift: [number, number]; charmPerGift: number; weddingSilver: number;
+    female: { id: string; name: string; look: string }[]; male: { id: string; name: string; look: string }[];
+    swornRapport: number; swornMax: number; swornMul: number;
+  };
+  merc: { battles: number; silverPerLevel: number; levelOffset: number };
+  achv: { id: string; name: string; desc: string; key: string; need: number; reward: Reward; title?: string }[];
+  wenqu: { perDay: number; expRatio: number; silverPerLevel: number; questions: { q: string; a: string[]; ok: number }[] };
 };
 // 有馆驿的城镇（馆驿传送的目的地）
 export function innTowns(): string[] {

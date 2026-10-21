@@ -8,7 +8,7 @@ import { digOnce, guardBattle, nextIsGuard, startDig, buyShovel } from '../game/
 import type { General } from '../game/state';
 import { bagCount, profCap } from '../game/state';
 import { allGenerals, generalLearn, generalSkillRows, generalUpgrade, readXinfa, recruitOptions, recruitWith } from '../game/generals';
-import { abandonRing, nextRing, ringOpen, ringStatusText, taskDone, turnInRing, RING_ROUNDS, RING_STAMINA } from '../game/ring';
+import { abandonRing, nextRing, openTiers, ringOpen, ringStatusText, taskDone, tierName, turnInRing, RING_ROUNDS, RING_STAMINA } from '../game/ring';
 import { store } from '../game/store';
 import {
   canSignIn, claimOnline, eatPill, onlineMinutes, openBox, openGemOre, readSkillBook, readSkillBookGeneral, signIn, staminaMax, staminaNow,
@@ -123,20 +123,23 @@ export function ringTalk(h: Host): void {
       { label: '接着跑', fn: () => ringTalk(h) },
       { label: '歇会儿', fn: () => {} },
     ]);
-    else say('一整环跑完了，最后这本技能书是给你的。明天体力恢复了再来。');
+    else say('这一档跑完了，最后这几本技能书是给你的。体力恢复了再来。');
     return;
   }
   if (t) return say(`${ringStatusText(s)}。做完了回来找我。`, [
     { label: '知道了', fn: () => {} },
-    { label: '放弃跑环', fn: () => confirm(h, '放弃以后要从第1环重新开始，确定吗？', () => done(h, abandonRing(s)), '放弃') },
+    { label: '放弃跑环', fn: () => confirm(h, '放弃以后要从这一档的第一环重新开始，确定吗？', () => done(h, abandonRing(s)), '放弃') },
   ]);
-  const head = s.ring.index ? `你跑到第${s.ring.index}环了，接着来？` : `一环${RING_ROUNDS}个任务，跑完有技能书。中途断了要从头跑。每接一环用${RING_STAMINA}点体力。`;
-  say(head, [
-    { label: '接任务', fn: () => {
-      const r = nextRing(s);
-      h.refresh();
-      say(r);
-    } },
+  const take = (tier: number) => () => {
+    const r = nextRing(s, Date.now(), tier);
+    h.refresh();
+    say(r);
+  };
+  if (s.ring.index) return say(`你跑到${tierName(s.ring.index)}第${s.ring.index}环了，接着来？`, [{ label: '接任务', fn: take(1) }, { label: '返回', fn: () => {} }]);
+  // 一环 20 级、二环 40 级、三环 60 级；等级够的才列出来
+  const tiers = openTiers(s);
+  say(`一档${RING_ROUNDS}个任务，跑完有技能书：一环第1–10环、二环第11–20环（40级）、三环第21–30环（60级）。中途断了要从这一档的头跑。每接一环用${RING_STAMINA}点体力。`, [
+    ...tiers.map((t) => ({ label: `接${['一环', '二环', '三环'][t - 1]}`, fn: take(t) })),
     { label: '返回', fn: () => {} },
   ]);
 }

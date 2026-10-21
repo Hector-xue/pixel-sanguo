@@ -1,5 +1,5 @@
 // 福利与道具：发奖励、宝箱、体力（体力丹）、七日签到、在线奖励、每日结算、技能书、宝石珍矿
-import { GEM_KINDS, balance, gemId, items, systems } from '../data';
+import { GEM_KINDS, balance, gemId, items, systems, equips } from '../data';
 import type { LootEntry, Reward } from '../data';
 import { Rng } from '../core/rng';
 import { decayLoyalty, giveRandomRecruit, giveRecruit } from './generals';
@@ -33,9 +33,13 @@ export function grantReward(s: Save, r: Reward): string[] {
 
 // 按人物等级给对应档的矿石；step=2 再高一档
 export function oreFor(level: number, step = 1): string {
-  const order = ['tiekuang', 'jingtie', 'jinggang', 'xuantie'];
-  const base = level < 20 ? 0 : level < 30 ? 1 : level < 40 ? 2 : 3;
-  return order[Math.min(order.length - 1, base + step - 1)];
+  // 能打的最高一档用的矿石（10 级以前也给铁矿石）
+  const order = equips.tiers.slice(1);
+  let base = 0;
+  order.forEach((t, i) => {
+    if (t.level <= Math.max(level, 10)) base = i;
+  });
+  return order[Math.min(order.length - 1, base + step - 1)].ore!;
 }
 
 export function randomGem(rng: Rng, level: number): string {

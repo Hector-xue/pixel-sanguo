@@ -17,7 +17,7 @@ const looks: [string, ReturnType<typeof heroLook>][] = [];
 for (const c of ['warrior', 'scholar', 'mystic']) for (const g of ['male', 'female']) for (let v = 0; v < 3; v++) looks.push([`${c}/${g}/${v}`, heroLook(c, g, v)]);
 const mode = location.hash.slice(1);
 if (mode === 'scenes') {
-  for (const a of (location.search.includes('new') ? ['city', 'farm', 'river', 'cave'] : ['village', 'forest', 'hill', 'bamboo', 'grass', 'manor', 'valley', 'gate', 'camp', 'road', 'city', 'farm', 'river', 'cave']) as SceneArt[]) {
+  for (const a of (location.search.includes('new') ? ['tomb', 'marsh', 'ruins', 'pass', 'altar'] : ['village', 'forest', 'hill', 'bamboo', 'grass', 'manor', 'valley', 'gate', 'camp', 'road', 'city', 'farm', 'river', 'cave', 'tomb', 'marsh', 'ruins', 'pass', 'altar']) as SceneArt[]) {
     const r = row(a);
     r.appendChild(drawScene(a, 180, 48, 0.62).toCanvas(2));
     r.appendChild(drawScene(a, 180, 120, 0.4).toCanvas(1));

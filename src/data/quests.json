@@ -1149,7 +1149,7 @@
       "giver": "xuling",
       "turnIn": "xuling",
       "type": "talk",
-      "hint": "许昌篇完成了。陈留在 P3 开放。",
+      "hint": "许昌篇完成了，回许昌令那里交差。",
       "goal": "与许昌令对话",
       "accept": [
         {
@@ -1160,13 +1160,2297 @@
       "finish": [
         {
           "who": "xuling",
-          "text": "陈留的路还没打通。等消息吧。"
+          "text": "陈留的路打通了。歇够了，就往西去吧。"
         }
       ],
       "reward": {
         "exp": 10000
       },
       "chapter": "许昌篇"
+    },
+    {
+      "id": "m36",
+      "title": "通往陈留",
+      "giver": "xuling",
+      "turnIn": "chenliutaishou",
+      "type": "talk",
+      "hint": "从中牟往左走，到陈留见陈留太守。",
+      "goal": "与陈留的陈留太守对话",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "陈留那边传来消息，西凉兵到了城北，太守在招人。你去吧。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "chenliutaishou",
+          "text": "许昌令举荐的人？来得正好。"
+        },
+        {
+          "who": "chenliutaishou",
+          "text": "城外不太平：郊外有道士装神弄鬼，西郊闹鬼，北边还屯着西凉兵。"
+        }
+      ],
+      "reward": {
+        "exp": 7000,
+        "silver": 1200
+      },
+      "chapter": "陈留篇"
+    },
+    {
+      "id": "m37",
+      "title": "装神弄鬼",
+      "giver": "chenliutaishou",
+      "turnIn": "chenliutaishou",
+      "type": "kill",
+      "hint": "去陈留郊外打败10个道士。陈留往下走。",
+      "goal": "打败道士 ×10（陈留郊外）",
+      "accept": [
+        {
+          "who": "chenliutaishou",
+          "text": "郊外那些道士自称太平道余脉，骗了不少乡民。打败十个，让百姓看清楚。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "chenliutaishou",
+          "text": "有人说他们背后还有术士撑腰。"
+        }
+      ],
+      "reward": {
+        "exp": 30400,
+        "silver": 2400,
+        "items": {
+          "xuantie": 2
+        }
+      },
+      "chapter": "陈留篇",
+      "target": {
+        "monster": "daoshi",
+        "count": 10,
+        "at": "chenliujiaowai"
+      }
+    },
+    {
+      "id": "m38",
+      "title": "入教",
+      "giver": "chenliutaishou",
+      "turnIn": "jiaopai",
+      "type": "flag",
+      "hint": "找陈留的教派使者，加入一个教派（功能 → 帮派）。",
+      "goal": "加入一个教派",
+      "accept": [
+        {
+          "who": "chenliutaishou",
+          "text": "一个人在外面闯荡，最好有个依靠。城里的教派使者在收人。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "jiaopai",
+          "text": "入了教，每天来做教派任务，声望高了教里有好处给你。"
+        }
+      ],
+      "reward": {
+        "exp": 15200,
+        "silver": 1200
+      },
+      "chapter": "陈留篇",
+      "flag": "joinedSect"
+    },
+    {
+      "id": "m39",
+      "title": "术士",
+      "giver": "jiaopai",
+      "turnIn": "chenliutaishou",
+      "type": "kill",
+      "hint": "去陈留郊外打败10个术士。",
+      "goal": "打败术士 ×10（陈留郊外）",
+      "accept": [
+        {
+          "who": "jiaopai",
+          "text": "郊外的术士会呼风唤雨，你入了教，正好替教里出这口气。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "chenliutaishou",
+          "text": "术士一倒，道士们就散了。不过西郊的事更邪门。"
+        }
+      ],
+      "reward": {
+        "exp": 31800,
+        "silver": 2500,
+        "items": {
+          "jiuzhuan": 5
+        }
+      },
+      "chapter": "陈留篇",
+      "target": {
+        "monster": "shushi",
+        "count": 10,
+        "at": "chenliujiaowai"
+      }
+    },
+    {
+      "id": "m40",
+      "title": "符水",
+      "giver": "chenliutaishou",
+      "turnIn": "chenliutaishou",
+      "type": "collect",
+      "hint": "去陈留西郊打败妖人，夺回5份符水。",
+      "goal": "夺回符水 ×5（陈留西郊）",
+      "accept": [
+        {
+          "who": "chenliutaishou",
+          "text": "西郊的妖人拿符水给人喝，喝了的人就疯了。把符水抢回来，我请大夫看看是什么。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "chenliutaishou",
+          "text": "大夫说，这符水是拿坟头土调的……乱葬岗那边出事了。"
+        }
+      ],
+      "reward": {
+        "exp": 39800,
+        "silver": 2700
+      },
+      "chapter": "陈留篇",
+      "target": {
+        "item": "fushui",
+        "count": 5,
+        "at": "chenliuxijiao",
+        "monster": "yaoren"
+      }
+    },
+    {
+      "id": "m41",
+      "title": "游魂",
+      "giver": "chenliutaishou",
+      "turnIn": "chenliutaishou",
+      "type": "kill",
+      "hint": "去陈留西郊打败10个游魂。",
+      "goal": "打败游魂 ×10（陈留西郊）",
+      "accept": [
+        {
+          "who": "chenliutaishou",
+          "text": "西郊夜里有游魂飘出来，挨着就病。你去镇一镇。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "chenliutaishou",
+          "text": "游魂都是从乱葬岗那边来的。"
+        }
+      ],
+      "reward": {
+        "exp": 36000,
+        "silver": 2900,
+        "items": {
+          "hantie": 2
+        }
+      },
+      "chapter": "陈留篇",
+      "target": {
+        "monster": "youhun",
+        "count": 10,
+        "at": "chenliuxijiao"
+      }
+    },
+    {
+      "id": "m42",
+      "title": "乱葬岗",
+      "giver": "chenliutaishou",
+      "turnIn": "chenliutaishou",
+      "type": "kill",
+      "hint": "去乱葬岗打败12个僵尸。陈留西郊往下走。",
+      "goal": "打败僵尸 ×12（乱葬岗）",
+      "accept": [
+        {
+          "who": "chenliutaishou",
+          "text": "乱葬岗的死人站起来了。妖人作的孽，总得有人收拾。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "chenliutaishou",
+          "text": "总算安静了。你歇几天，城里新开了擂台，去试试身手。"
+        }
+      ],
+      "reward": {
+        "exp": 39000,
+        "silver": 3100,
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      },
+      "chapter": "陈留篇",
+      "target": {
+        "monster": "jiangshi",
+        "count": 12,
+        "at": "luanzanggang"
+      }
+    },
+    {
+      "id": "m43",
+      "title": "擂台",
+      "giver": "chenliutaishou",
+      "turnIn": "chenliutaishou",
+      "type": "flag",
+      "hint": "在「设施 → 擂台」打一场擂台赛。",
+      "goal": "打一场擂台赛",
+      "accept": [
+        {
+          "who": "chenliutaishou",
+          "text": "擂台上都是各地来的好手，打赢了有排位，有赏钱。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "chenliutaishou",
+          "text": "打得不错。曹孟德在城里招兵，他点名要见你。"
+        }
+      ],
+      "reward": {
+        "exp": 19500,
+        "silver": 1600
+      },
+      "chapter": "陈留篇",
+      "flag": "arena"
+    },
+    {
+      "id": "m44",
+      "title": "孟德",
+      "giver": "chenliutaishou",
+      "turnIn": "caocao",
+      "type": "talk",
+      "hint": "去见陈留的曹操。",
+      "goal": "与陈留的曹操对话",
+      "accept": [
+        {
+          "who": "chenliutaishou",
+          "text": "曹操散了家财在陈留募兵，要讨董卓。他在城里。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "caocao",
+          "text": "我听说了，乱葬岗是你平的。"
+        },
+        {
+          "who": "caocao",
+          "text": "董卓的西凉先锋就扎在北边，三座营盘。帮我拔了它。"
+        }
+      ],
+      "reward": {
+        "exp": 9700,
+        "silver": 1600
+      },
+      "chapter": "陈留篇"
+    },
+    {
+      "id": "m45",
+      "title": "力士",
+      "giver": "caocao",
+      "turnIn": "caocao",
+      "type": "kill",
+      "hint": "去先锋一营打败12个力士。陈留往上走。",
+      "goal": "打败力士 ×12（先锋一营）",
+      "accept": [
+        {
+          "who": "caocao",
+          "text": "先锋一营的力士力气大，脑子慢。打败十二个。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "caocao",
+          "text": "好！西凉兵不过如此。"
+        }
+      ],
+      "reward": {
+        "exp": 43800,
+        "silver": 3500,
+        "items": {
+          "hantie": 2
+        }
+      },
+      "chapter": "陈留篇",
+      "target": {
+        "monster": "lishi",
+        "count": 12,
+        "at": "xianfeng1"
+      }
+    },
+    {
+      "id": "m46",
+      "title": "斧手",
+      "giver": "caocao",
+      "turnIn": "caocao",
+      "type": "kill",
+      "hint": "去先锋二营打败12个斧手。",
+      "goal": "打败斧手 ×12（先锋二营）",
+      "accept": [
+        {
+          "who": "caocao",
+          "text": "二营的斧手是硬骨头，抗物理不够的别去硬碰。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "caocao",
+          "text": "你的本事越来越好了。跑环使者那边二环也开了，四十级以上就能接。"
+        }
+      ],
+      "reward": {
+        "exp": 45400,
+        "silver": 3600,
+        "items": {
+          "jiuzhuan": 5,
+          "qiongjiang": 5
+        }
+      },
+      "chapter": "陈留篇",
+      "target": {
+        "monster": "fushou",
+        "count": 12,
+        "at": "xianfeng2"
+      }
+    },
+    {
+      "id": "m47",
+      "title": "二环",
+      "giver": "caocao",
+      "turnIn": "caocao",
+      "type": "flag",
+      "hint": "在许昌跑环使者那里接二环，跑完第11环。",
+      "goal": "跑完二环第11环",
+      "accept": [
+        {
+          "who": "caocao",
+          "text": "跑环能练人。二环从第十一环开始，难一些，赏得也多。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "caocao",
+          "text": "不错。准备好了，就去端了三营。"
+        }
+      ],
+      "reward": {
+        "exp": 22700,
+        "silver": 1800
+      },
+      "chapter": "陈留篇",
+      "flag": "ring2"
+    },
+    {
+      "id": "m48",
+      "title": "三营",
+      "giver": "caocao",
+      "turnIn": "caocao",
+      "type": "kill",
+      "hint": "去先锋三营打败15个斧手。",
+      "goal": "打败斧手 ×15（先锋三营）",
+      "accept": [
+        {
+          "who": "caocao",
+          "text": "三营是西凉先锋的主力。打败十五个斧手，他们的领军就坐不住了。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "caocao",
+          "text": "领军已经出营了，就在三营上面。"
+        }
+      ],
+      "reward": {
+        "exp": 48800,
+        "silver": 3900,
+        "items": {
+          "hantie": 2
+        }
+      },
+      "chapter": "陈留篇",
+      "target": {
+        "monster": "fushou",
+        "count": 15,
+        "at": "xianfeng3"
+      }
+    },
+    {
+      "id": "m49",
+      "title": "先锋领军",
+      "giver": "caocao",
+      "turnIn": "caocao",
+      "type": "kill",
+      "hint": "去先锋领军打败西凉先锋领军。先锋三营往上走。",
+      "goal": "打败西凉先锋领军（先锋领军）",
+      "accept": [
+        {
+          "who": "caocao",
+          "text": "领军身边有斧手护着，抗物理堆高点再去。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "caocao",
+          "text": "先锋一破，董卓就知道关东有人了。"
+        },
+        {
+          "who": "caocao",
+          "text": "我要去会盟诸侯。你先往东，定陶、濮阳那边也乱，你去看看。"
+        }
+      ],
+      "reward": {
+        "exp": 104500,
+        "silver": 4200,
+        "items": {
+          "gaojibaoxiang": 1,
+          "dajiangjunling": 1
+        }
+      },
+      "chapter": "陈留篇",
+      "target": {
+        "monster": "xianfenglingjun",
+        "count": 1,
+        "at": "xianfenglingjun"
+      }
+    },
+    {
+      "id": "m50",
+      "title": "东去定陶",
+      "giver": "caocao",
+      "turnIn": "dingtaoling",
+      "type": "talk",
+      "hint": "从陈留往左走，到定陶见定陶令。",
+      "goal": "与定陶的定陶令对话",
+      "accept": [
+        {
+          "who": "caocao",
+          "text": "定陶令是我的旧识，你拿我的信去。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "dingtaoling",
+          "text": "曹公的信我看了。"
+        },
+        {
+          "who": "dingtaoling",
+          "text": "南边濮阳南郊有户大族，家里的恶仆比强盗还凶。"
+        }
+      ],
+      "reward": {
+        "exp": 12500,
+        "silver": 2100
+      },
+      "chapter": "濮阳篇"
+    },
+    {
+      "id": "m51",
+      "title": "恶仆",
+      "giver": "dingtaoling",
+      "turnIn": "dingtaoling",
+      "type": "kill",
+      "hint": "去濮阳南郊打败12个恶仆。定陶往下走。",
+      "goal": "打败恶仆 ×12（濮阳南郊）",
+      "accept": [
+        {
+          "who": "dingtaoling",
+          "text": "恶仆仗着主家的势，抢粮抢人。打败十二个。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "dingtaoling",
+          "text": "那户人家还养了一群女贼，专抢过路的商队。"
+        }
+      ],
+      "reward": {
+        "exp": 47100,
+        "silver": 3800,
+        "items": {
+          "hantie": 2
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "epu",
+        "count": 12,
+        "at": "puyangnanjiao"
+      }
+    },
+    {
+      "id": "m52",
+      "title": "赃物",
+      "giver": "dingtaoling",
+      "turnIn": "dingtaoling",
+      "type": "collect",
+      "hint": "去濮阳南郊打败女贼，夺回6件赃物。",
+      "goal": "夺回赃物 ×6（濮阳南郊）",
+      "accept": [
+        {
+          "who": "dingtaoling",
+          "text": "女贼抢走的货要还给商户。夺回六件来。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "dingtaoling",
+          "text": "商户们感激得很。你去濮阳吧，太守那边更需要人。"
+        }
+      ],
+      "reward": {
+        "exp": 58500,
+        "silver": 3900,
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "item": "zangwu",
+        "count": 6,
+        "at": "puyangnanjiao",
+        "monster": "nvzei2"
+      }
+    },
+    {
+      "id": "m53",
+      "title": "濮阳",
+      "giver": "dingtaoling",
+      "turnIn": "puyangtaishou",
+      "type": "talk",
+      "hint": "从濮阳南郊往下走到濮阳，见濮阳太守。",
+      "goal": "与濮阳的濮阳太守对话",
+      "accept": [
+        {
+          "who": "dingtaoling",
+          "text": "濮阳就在南郊下面。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "你就是平了南郊的那位？"
+        },
+        {
+          "who": "puyangtaishou",
+          "text": "濮阳郊外的败类、凶徒、恶棍，三拨人搅在一起，衙门的人都不敢出城。"
+        }
+      ],
+      "reward": {
+        "exp": 12100,
+        "silver": 2000
+      },
+      "chapter": "濮阳篇"
+    },
+    {
+      "id": "m54",
+      "title": "败类",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去濮阳郊外打败12个败类。濮阳往左走。",
+      "goal": "打败败类 ×12（濮阳郊外）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "先收拾败类，他们是出主意的。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "败类一倒，凶徒们没了主心骨。"
+        }
+      ],
+      "reward": {
+        "exp": 54000,
+        "silver": 4300,
+        "items": {
+          "wujin": 2
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "bailei",
+        "count": 12,
+        "at": "puyangjiaowai"
+      }
+    },
+    {
+      "id": "m55",
+      "title": "凶徒",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去濮阳郊外打败12个凶徒。",
+      "goal": "打败凶徒 ×12（濮阳郊外）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "凶徒下手狠，舍命一击打人不留余地，多备药。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "城里新开了训练场，交银子就能挂着练，出远门前去练练。"
+        }
+      ],
+      "reward": {
+        "exp": 55800,
+        "silver": 4500,
+        "items": {
+          "jiuzhuan": 8
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "xiongtu",
+        "count": 12,
+        "at": "puyangjiaowai"
+      }
+    },
+    {
+      "id": "m56",
+      "title": "训练",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "flag",
+      "hint": "在「功能 → 训练」开始一次训练。",
+      "goal": "开始一次训练",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "训练按时辰收银子，人不在也照样涨经验。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "好。剩下的恶棍交给你了。"
+        }
+      ],
+      "reward": {
+        "exp": 27900,
+        "silver": 2200
+      },
+      "chapter": "濮阳篇",
+      "flag": "trained"
+    },
+    {
+      "id": "m57",
+      "title": "恶棍",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去濮阳郊外打败12个恶棍。",
+      "goal": "打败恶棍 ×12（濮阳郊外）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "恶棍皮糙肉厚，耐心点打。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "郊外总算能走人了。可东郡荒野那边，黄巾的旗子又竖起来了。"
+        }
+      ],
+      "reward": {
+        "exp": 57700,
+        "silver": 4600,
+        "items": {
+          "wujin": 2
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "egun",
+        "count": 12,
+        "at": "puyangjiaowai"
+      }
+    },
+    {
+      "id": "m58",
+      "title": "黄巾再起",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去东郡荒野打败15个黄巾士兵。濮阳往下走。",
+      "goal": "打败黄巾士兵 ×15（东郡荒野）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "黄巾余党在东郡荒野聚了上千人。先打散他们的士兵。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "他们退回大营了。黄巾大营里的精兵才是硬茬。"
+        }
+      ],
+      "reward": {
+        "exp": 63400,
+        "silver": 5100,
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "huangjinbing",
+        "count": 15,
+        "at": "dongjun"
+      }
+    },
+    {
+      "id": "m59",
+      "title": "黄巾精兵",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去黄巾大营打败15个黄巾精兵。东郡荒野往下走。",
+      "goal": "打败黄巾精兵 ×15（黄巾大营）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "精兵会用固若金汤，打的时候先耗掉他们。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "渠帅坐不住了。"
+        }
+      ],
+      "reward": {
+        "exp": 67400,
+        "silver": 5400,
+        "items": {
+          "wujin": 2
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "huangjinjingbing",
+        "count": 15,
+        "at": "huangjindaying"
+      }
+    },
+    {
+      "id": "m60",
+      "title": "渠帅",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去黄巾大营打败黄巾渠帅。",
+      "goal": "打败黄巾渠帅（黄巾大营）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "渠帅会呼风唤雨，身边带着精兵。多带几个副将。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "东郡平了。可黄巾的宝藏还在，听说埋在巨野泽那边。"
+        },
+        {
+          "who": "puyangtaishou",
+          "text": "跑环使者说三环也开了，六十级以上能接。"
+        }
+      ],
+      "reward": {
+        "exp": 151300,
+        "silver": 6000,
+        "items": {
+          "gaojibaoxiang": 2,
+          "jiangjunling": 1
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "huangjinqushuai",
+        "count": 1,
+        "at": "huangjindaying"
+      }
+    },
+    {
+      "id": "m61",
+      "title": "三环",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "flag",
+      "hint": "在许昌跑环使者那里接三环，跑完第21环。",
+      "goal": "跑完三环第21环",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "巨野泽里大盗多，先去跑跑三环练练手。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "好身手。巨野泽在濮阳右边。"
+        }
+      ],
+      "reward": {
+        "exp": 38900,
+        "silver": 3100
+      },
+      "chapter": "濮阳篇",
+      "flag": "ring3"
+    },
+    {
+      "id": "m62",
+      "title": "独行大盗",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去巨野泽打败12个独行大盗。濮阳往右走。",
+      "goal": "打败独行大盗 ×12（巨野泽）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "独行大盗来去如风，速度快，先手打你。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "泽里还有采花大盗，专挑落单的下手。"
+        }
+      ],
+      "reward": {
+        "exp": 82200,
+        "silver": 6600,
+        "items": {
+          "chijin": 2
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "duxingdadao",
+        "count": 12,
+        "at": "juyeze"
+      }
+    },
+    {
+      "id": "m63",
+      "title": "采花大盗",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去巨野泽打败12个采花大盗。",
+      "goal": "打败采花大盗 ×12（巨野泽）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "采花大盗会四面楚歌，中了就动不了。带上会暗渡陈仓的副将。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "大盗们都往绿林寨跑了。"
+        }
+      ],
+      "reward": {
+        "exp": 84400,
+        "silver": 6800,
+        "items": {
+          "jiuzhuan": 10
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "caihuadadao",
+        "count": 12,
+        "at": "juyeze"
+      }
+    },
+    {
+      "id": "m64",
+      "title": "藏宝图",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "collect",
+      "hint": "去绿林寨打败江洋大盗，夺回5片藏宝图残片。",
+      "goal": "夺回藏宝图残片 ×5（绿林寨）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "黄巾宝藏的藏宝图被撕成几片，在江洋大盗手里。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "图拼起来了——宝窟就在绿林寨底下！"
+        }
+      ],
+      "reward": {
+        "exp": 106800,
+        "silver": 7100
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "item": "cangbaotu",
+        "count": 5,
+        "at": "lvlinzhai",
+        "monster": "jiangyangdadao"
+      }
+    },
+    {
+      "id": "m65",
+      "title": "绿林",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去绿林寨打败15个绿林大盗。",
+      "goal": "打败绿林大盗 ×15（绿林寨）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "下宝窟之前，先把寨子里的绿林大盗清干净，免得被抄后路。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "路通了。宝窟里面的大盗……听说一个个都抱着金银。"
+        }
+      ],
+      "reward": {
+        "exp": 89000,
+        "silver": 7100,
+        "items": {
+          "chijin": 2
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "lvlindadao",
+        "count": 15,
+        "at": "lvlinzhai"
+      }
+    },
+    {
+      "id": "m66",
+      "title": "宝窟",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去黄巾宝窟打败12个矿石大盗。绿林寨往下走。",
+      "goal": "打败矿石大盗 ×12（黄巾宝窟）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "宝窟里分了好几伙：矿石大盗、宝石大盗、白银大盗，各守一摊。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "矿石你留着打装备吧。"
+        }
+      ],
+      "reward": {
+        "exp": 105900,
+        "silver": 8500,
+        "items": {
+          "zijing": 2
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "kuangshidadao",
+        "count": 12,
+        "at": "huangjinbaoku"
+      }
+    },
+    {
+      "id": "m67",
+      "title": "白银大盗",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去黄巾宝窟打败12个白银大盗。",
+      "goal": "打败白银大盗 ×12（黄巾宝窟）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "白银大盗身上银子多，打下来都是你的。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "首领就在宝窟深处。"
+        }
+      ],
+      "reward": {
+        "exp": 108400,
+        "silver": 8700,
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "baiyindadao",
+        "count": 12,
+        "at": "huangjinbaoku"
+      }
+    },
+    {
+      "id": "m68",
+      "title": "大盗首领",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "kill",
+      "hint": "去宝窟深处打败黄巾大盗首领。黄巾宝窟往下走。",
+      "goal": "打败黄巾大盗首领（宝窟深处）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "首领会力劈华山，还有黄巾大盗护着。这是濮阳最后一仗。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "黄巾宝藏充了军饷，濮阳总算太平。"
+        },
+        {
+          "who": "puyangtaishou",
+          "text": "曹公派人来，说十八路诸侯在酸枣会盟，请你过去。"
+        }
+      ],
+      "reward": {
+        "exp": 237700,
+        "silver": 9500,
+        "items": {
+          "gaojibaoxiang": 2,
+          "dajiangjunling": 1
+        }
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "dadaoshouling",
+        "count": 1,
+        "at": "baokushenchu"
+      }
+    },
+    {
+      "id": "m69",
+      "title": "会盟",
+      "giver": "puyangtaishou",
+      "turnIn": "yuanshao",
+      "type": "talk",
+      "hint": "去酸枣大营见盟主袁绍。陈留往上到先锋三营，再往左。",
+      "goal": "与酸枣大营的袁绍对话",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "酸枣在先锋三营西边。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yuanshao",
+          "text": "曹孟德举荐的人？"
+        },
+        {
+          "who": "yuanshao",
+          "text": "董卓派华雄守汜水关，已经斩了我们好几员将。"
+        }
+      ],
+      "reward": {
+        "exp": 26600,
+        "silver": 4400
+      },
+      "chapter": "洛阳篇"
+    },
+    {
+      "id": "m70",
+      "title": "汜水关",
+      "giver": "yuanshao",
+      "turnIn": "yuanshao",
+      "type": "kill",
+      "hint": "去汜水关打败15个西凉铁骑。酸枣大营往左走。",
+      "goal": "打败西凉铁骑 ×15（汜水关）",
+      "accept": [
+        {
+          "who": "yuanshao",
+          "text": "关前的西凉铁骑先清掉。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yuanshao",
+          "text": "铁骑退了，关上还有谋士出主意。"
+        }
+      ],
+      "reward": {
+        "exp": 116200,
+        "silver": 9300,
+        "items": {
+          "zijing": 2
+        }
+      },
+      "chapter": "洛阳篇",
+      "target": {
+        "monster": "xiliangtieqi",
+        "count": 15,
+        "at": "sishuiguan"
+      }
+    },
+    {
+      "id": "m71",
+      "title": "西凉谋士",
+      "giver": "yuanshao",
+      "turnIn": "yuanshao",
+      "type": "kill",
+      "hint": "去汜水关打败12个西凉谋士。",
+      "goal": "打败西凉谋士 ×12（汜水关）",
+      "accept": [
+        {
+          "who": "yuanshao",
+          "text": "谋士会趁火打劫，让你的人自相残杀。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yuanshao",
+          "text": "华雄没了帮手，就看你了。"
+        }
+      ],
+      "reward": {
+        "exp": 118800,
+        "silver": 9500,
+        "items": {
+          "jiuzhuan": 10,
+          "qiongjiang": 10
+        }
+      },
+      "chapter": "洛阳篇",
+      "target": {
+        "monster": "xiliangmoushi",
+        "count": 12,
+        "at": "sishuiguan"
+      }
+    },
+    {
+      "id": "m72",
+      "title": "斩华雄",
+      "giver": "yuanshao",
+      "turnIn": "yuanshao",
+      "type": "kill",
+      "hint": "去汜水关打败华雄。",
+      "goal": "打败华雄（汜水关）",
+      "accept": [
+        {
+          "who": "yuanshao",
+          "text": "酒还温着，等你回来喝。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yuanshao",
+          "text": "酒尚温时斩华雄！诸侯都在传你的名字。"
+        },
+        {
+          "who": "yuanshao",
+          "text": "下一关是虎牢关，守关的是吕布。"
+        }
+      ],
+      "reward": {
+        "exp": 259500,
+        "silver": 10400,
+        "items": {
+          "gaojibaoxiang": 2
+        }
+      },
+      "chapter": "洛阳篇",
+      "target": {
+        "monster": "huaxiong",
+        "count": 1,
+        "at": "sishuiguan"
+      }
+    },
+    {
+      "id": "m73",
+      "title": "并州狼骑",
+      "giver": "yuanshao",
+      "turnIn": "yuanshao",
+      "type": "kill",
+      "hint": "去虎牢关打败15个并州狼骑。汜水关往左走。",
+      "goal": "打败并州狼骑 ×15（虎牢关）",
+      "accept": [
+        {
+          "who": "yuanshao",
+          "text": "吕布的并州狼骑快得很，出手总在你前头。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yuanshao",
+          "text": "狼骑散了，飞熊军还守着关。"
+        }
+      ],
+      "reward": {
+        "exp": 132600,
+        "silver": 10600,
+        "items": {
+          "yuntie": 2
+        }
+      },
+      "chapter": "洛阳篇",
+      "target": {
+        "monster": "bingzhoulangqi",
+        "count": 15,
+        "at": "hulaoguan"
+      }
+    },
+    {
+      "id": "m74",
+      "title": "飞熊军",
+      "giver": "yuanshao",
+      "turnIn": "yuanshao",
+      "type": "kill",
+      "hint": "去虎牢关打败15个飞熊军。",
+      "goal": "打败飞熊军 ×15（虎牢关）",
+      "accept": [
+        {
+          "who": "yuanshao",
+          "text": "飞熊军是董卓的亲兵，甲厚。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yuanshao",
+          "text": "吕布亲自上城楼了。百级以下的人，别去送死。"
+        }
+      ],
+      "reward": {
+        "exp": 135400,
+        "silver": 10800,
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      },
+      "chapter": "洛阳篇",
+      "target": {
+        "monster": "feixiongjun",
+        "count": 15,
+        "at": "hulaoguan"
+      }
+    },
+    {
+      "id": "m75",
+      "title": "三英",
+      "giver": "yuanshao",
+      "turnIn": "yuanshao",
+      "type": "kill",
+      "hint": "去虎牢关城楼打败吕布。虎牢关往上走。",
+      "goal": "打败吕布（虎牢关城楼）",
+      "accept": [
+        {
+          "who": "yuanshao",
+          "text": "人中吕布，马中赤兔。你要是能胜他，天下谁还敢小看你。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yuanshao",
+          "text": "吕布退了！董卓烧了洛阳，挟天子去了长安。"
+        },
+        {
+          "who": "yuanshao",
+          "text": "洛阳城里王司徒还在，你去看看。"
+        }
+      ],
+      "reward": {
+        "exp": 300100,
+        "silver": 12000,
+        "items": {
+          "gaojibaoxiang": 2,
+          "dajiangjunling": 1
+        }
+      },
+      "chapter": "洛阳篇",
+      "target": {
+        "monster": "lvbu",
+        "count": 1,
+        "at": "hulaochenglou"
+      }
+    },
+    {
+      "id": "m76",
+      "title": "焦土",
+      "giver": "yuanshao",
+      "turnIn": "wangyun",
+      "type": "talk",
+      "hint": "过虎牢关、洛阳东郊，到洛阳见王允。",
+      "goal": "与洛阳的王允对话",
+      "accept": [
+        {
+          "who": "yuanshao",
+          "text": "洛阳在虎牢关西边。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "wangyun",
+          "text": "洛阳……只剩这些了。"
+        },
+        {
+          "who": "wangyun",
+          "text": "城里有位左慈先生，他说百级的人可以脱胎换骨。你去见见他。"
+        }
+      ],
+      "reward": {
+        "exp": 36000,
+        "silver": 6000
+      },
+      "chapter": "洛阳篇"
+    },
+    {
+      "id": "m77",
+      "title": "转职",
+      "giver": "wangyun",
+      "turnIn": "zuoci",
+      "type": "flag",
+      "hint": "找洛阳的左慈转职（重选性别、职业和头像）。不转职等级停在100级。",
+      "goal": "完成转职",
+      "accept": [
+        {
+          "who": "wangyun",
+          "text": "左慈先生就在城里。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zuoci",
+          "text": "脱胎换骨，前路就宽了。往后的等级可以一直练到一百六十。"
+        }
+      ],
+      "reward": {
+        "exp": 75000,
+        "silver": 6000
+      },
+      "chapter": "洛阳篇",
+      "flag": "reborn"
+    },
+    {
+      "id": "m78",
+      "title": "东郊乱兵",
+      "giver": "zuoci",
+      "turnIn": "wangyun",
+      "type": "kill",
+      "hint": "去洛阳东郊打败15个西凉乱兵。洛阳往右走。",
+      "goal": "打败西凉乱兵 ×15（洛阳东郊）",
+      "accept": [
+        {
+          "who": "zuoci",
+          "text": "王司徒正为城外的乱兵发愁，你去帮他。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "wangyun",
+          "text": "乱兵是董卓走时留下的，专挖皇陵。邙山那边更乱。"
+        }
+      ],
+      "reward": {
+        "exp": 153000,
+        "silver": 12200,
+        "items": {
+          "xingchen": 2
+        }
+      },
+      "chapter": "洛阳篇",
+      "target": {
+        "monster": "luanbing",
+        "count": 15,
+        "at": "luoyangdongjiao"
+      }
+    },
+    {
+      "id": "m79",
+      "title": "邙山",
+      "giver": "wangyun",
+      "turnIn": "wangyun",
+      "type": "kill",
+      "hint": "去邙山打败15个盗墓贼。洛阳往上走。",
+      "goal": "打败盗墓贼 ×15（邙山）",
+      "accept": [
+        {
+          "who": "wangyun",
+          "text": "邙山埋着历代帝王，盗墓贼成群结队。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "wangyun",
+          "text": "古墓里还有东西爬出来，叫什么尸魔。"
+        }
+      ],
+      "reward": {
+        "exp": 159200,
+        "silver": 12700,
+        "items": {
+          "xuelian": 5
+        }
+      },
+      "chapter": "洛阳篇",
+      "target": {
+        "monster": "daomuzei",
+        "count": 15,
+        "at": "mangshan"
+      }
+    },
+    {
+      "id": "m80",
+      "title": "尸魔",
+      "giver": "wangyun",
+      "turnIn": "wangyun",
+      "type": "kill",
+      "hint": "去邙山古墓打败12个尸魔。邙山往上走。",
+      "goal": "打败尸魔 ×12（邙山古墓）",
+      "accept": [
+        {
+          "who": "wangyun",
+          "text": "尸魔会下巫蛊，毒能叠好几层。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "wangyun",
+          "text": "古墓封上了。可放火烧城的李儒还藏在宫里。"
+        }
+      ],
+      "reward": {
+        "exp": 165400,
+        "silver": 13200,
+        "items": {
+          "xingchen": 2
+        }
+      },
+      "chapter": "洛阳篇",
+      "target": {
+        "monster": "shimo",
+        "count": 12,
+        "at": "mangshangumu"
+      }
+    },
+    {
+      "id": "m81",
+      "title": "李儒",
+      "giver": "wangyun",
+      "turnIn": "wangyun",
+      "type": "kill",
+      "hint": "去洛阳宫废墟打败李儒。洛阳往下走。",
+      "goal": "打败李儒（洛阳宫废墟）",
+      "accept": [
+        {
+          "who": "wangyun",
+          "text": "李儒是董卓的谋主，烧洛阳就是他出的主意。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "wangyun",
+          "text": "李儒伏诛。董卓在长安，你往西去。函谷关、潼关都有西凉兵。"
+        }
+      ],
+      "reward": {
+        "exp": 350000,
+        "silver": 14000,
+        "items": {
+          "gaojibaoxiang": 2
+        }
+      },
+      "chapter": "洛阳篇",
+      "target": {
+        "monster": "liru",
+        "count": 1,
+        "at": "luoyanggong"
+      }
+    },
+    {
+      "id": "m82",
+      "title": "函谷关",
+      "giver": "wangyun",
+      "turnIn": "wangyun",
+      "type": "kill",
+      "hint": "去函谷关打败15个西凉守军。洛阳往左走。",
+      "goal": "打败西凉守军 ×15（函谷关）",
+      "accept": [
+        {
+          "who": "wangyun",
+          "text": "函谷关是西去长安的门户。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "wangyun",
+          "text": "守军退了，关上还有箭手。"
+        }
+      ],
+      "reward": {
+        "exp": 178200,
+        "silver": 14300,
+        "items": {
+          "xingchen": 2
+        }
+      },
+      "chapter": "长安篇",
+      "target": {
+        "monster": "xiliangshoujun",
+        "count": 15,
+        "at": "hanguguan"
+      }
+    },
+    {
+      "id": "m83",
+      "title": "西凉箭手",
+      "giver": "wangyun",
+      "turnIn": "wangyun",
+      "type": "kill",
+      "hint": "去函谷关打败15个西凉箭手。",
+      "goal": "打败西凉箭手 ×15（函谷关）",
+      "accept": [
+        {
+          "who": "wangyun",
+          "text": "箭手速度快，躲避高的人才好对付。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "wangyun",
+          "text": "函谷关通了。潼关外是羌人的地方。"
+        }
+      ],
+      "reward": {
+        "exp": 181500,
+        "silver": 14500,
+        "items": {
+          "xuelian": 5,
+          "xianlu": 5
+        }
+      },
+      "chapter": "长安篇",
+      "target": {
+        "monster": "xiliangjianshou",
+        "count": 15,
+        "at": "hanguguan"
+      }
+    },
+    {
+      "id": "m84",
+      "title": "羌兵",
+      "giver": "wangyun",
+      "turnIn": "wangyun",
+      "type": "kill",
+      "hint": "去潼关打败15个羌兵。函谷关往左走。",
+      "goal": "打败羌兵 ×15（潼关）",
+      "accept": [
+        {
+          "who": "wangyun",
+          "text": "董卓收了不少羌兵，守在潼关。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "wangyun",
+          "text": "羌人的巫师还在关上作法。"
+        }
+      ],
+      "reward": {
+        "exp": 191600,
+        "silver": 15300,
+        "items": {
+          "longgu": 2
+        }
+      },
+      "chapter": "长安篇",
+      "target": {
+        "monster": "qiangbing",
+        "count": 15,
+        "at": "tongguan"
+      }
+    },
+    {
+      "id": "m85",
+      "title": "羌族巫师",
+      "giver": "wangyun",
+      "turnIn": "jingzhaoyin",
+      "type": "kill",
+      "hint": "去潼关打败12个羌族巫师，然后去长安见京兆尹。",
+      "goal": "打败羌族巫师 ×12（潼关）",
+      "accept": [
+        {
+          "who": "wangyun",
+          "text": "过了潼关就是长安。京兆尹是我的人，你去找他。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "jingzhaoyin",
+          "text": "王司徒的信我收到了。"
+        },
+        {
+          "who": "jingzhaoyin",
+          "text": "城外全是李傕、郭汜的部曲。"
+        }
+      ],
+      "reward": {
+        "exp": 195000,
+        "silver": 15600,
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      },
+      "chapter": "长安篇",
+      "target": {
+        "monster": "qiangwushi",
+        "count": 12,
+        "at": "tongguan"
+      }
+    },
+    {
+      "id": "m86",
+      "title": "李傕",
+      "giver": "jingzhaoyin",
+      "turnIn": "jingzhaoyin",
+      "type": "kill",
+      "hint": "去长安郊外打败15个李傕部曲。长安往右走。",
+      "goal": "打败李傕部曲 ×15（长安郊外）",
+      "accept": [
+        {
+          "who": "jingzhaoyin",
+          "text": "李傕的兵抢了半个长安。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "jingzhaoyin",
+          "text": "郭汜那边也得收拾。"
+        }
+      ],
+      "reward": {
+        "exp": 208900,
+        "silver": 16700,
+        "items": {
+          "longgu": 2
+        }
+      },
+      "chapter": "长安篇",
+      "target": {
+        "monster": "lijuebuqu",
+        "count": 15,
+        "at": "changanjiaowai"
+      }
+    },
+    {
+      "id": "m87",
+      "title": "郭汜",
+      "giver": "jingzhaoyin",
+      "turnIn": "jingzhaoyin",
+      "type": "kill",
+      "hint": "去长安郊外打败15个郭汜部曲。",
+      "goal": "打败郭汜部曲 ×15（长安郊外）",
+      "accept": [
+        {
+          "who": "jingzhaoyin",
+          "text": "郭汜的人会画地为牢，被围住就只能挨打。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "jingzhaoyin",
+          "text": "渭水边上还有西凉骑兵，他们手里有董卓的军令符。"
+        }
+      ],
+      "reward": {
+        "exp": 208900,
+        "silver": 16700,
+        "items": {
+          "xuelian": 8
+        }
+      },
+      "chapter": "长安篇",
+      "target": {
+        "monster": "guosibuqu",
+        "count": 15,
+        "at": "changanjiaowai"
+      }
+    },
+    {
+      "id": "m88",
+      "title": "军令符",
+      "giver": "jingzhaoyin",
+      "turnIn": "jingzhaoyin",
+      "type": "collect",
+      "hint": "去渭水打败西凉骑兵，夺回6块军令符。长安往上走。",
+      "goal": "夺回军令符 ×6（渭水）",
+      "accept": [
+        {
+          "who": "jingzhaoyin",
+          "text": "有了军令符，就能调开郿坞的守卫。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "jingzhaoyin",
+          "text": "军令符齐了。"
+        }
+      ],
+      "reward": {
+        "exp": 268000,
+        "silver": 17900,
+        "items": {
+          "fengyu": 2
+        }
+      },
+      "chapter": "长安篇",
+      "target": {
+        "item": "junlingfu",
+        "count": 6,
+        "at": "weishui",
+        "monster": "xiliangqibing"
+      }
+    },
+    {
+      "id": "m89",
+      "title": "渭水",
+      "giver": "jingzhaoyin",
+      "turnIn": "jingzhaoyin",
+      "type": "kill",
+      "hint": "去渭水打败15个西凉骑兵。",
+      "goal": "打败西凉骑兵 ×15（渭水）",
+      "accept": [
+        {
+          "who": "jingzhaoyin",
+          "text": "骑兵不除，郿坞随时有援兵。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "jingzhaoyin",
+          "text": "董卓就在郿坞，渭水往左。"
+        }
+      ],
+      "reward": {
+        "exp": 227000,
+        "silver": 18200,
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      },
+      "chapter": "长安篇",
+      "target": {
+        "monster": "xiliangqibing",
+        "count": 15,
+        "at": "weishui"
+      }
+    },
+    {
+      "id": "m90",
+      "title": "郿坞",
+      "giver": "jingzhaoyin",
+      "turnIn": "jingzhaoyin",
+      "type": "kill",
+      "hint": "去郿坞打败15个郿坞守卫。",
+      "goal": "打败郿坞守卫 ×15（郿坞）",
+      "accept": [
+        {
+          "who": "jingzhaoyin",
+          "text": "郿坞城墙和长安一样高，里面囤的粮够吃三十年。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "jingzhaoyin",
+          "text": "守卫垮了，董卓无路可走了。"
+        }
+      ],
+      "reward": {
+        "exp": 245800,
+        "silver": 19700,
+        "items": {
+          "fengyu": 2
+        }
+      },
+      "chapter": "长安篇",
+      "target": {
+        "monster": "meiwushouwei",
+        "count": 15,
+        "at": "meiwu"
+      }
+    },
+    {
+      "id": "m91",
+      "title": "董卓",
+      "giver": "jingzhaoyin",
+      "turnIn": "jingzhaoyin",
+      "type": "kill",
+      "hint": "去郿坞打败董卓。",
+      "goal": "打败董卓（郿坞）",
+      "accept": [
+        {
+          "who": "jingzhaoyin",
+          "text": "这一仗，天下人都看着。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "jingzhaoyin",
+          "text": "国贼伏诛！"
+        },
+        {
+          "who": "jingzhaoyin",
+          "text": "长安的事完了。汉中的阎圃派人来求援，说五斗米道作乱。子午谷往下就是汉中。"
+        }
+      ],
+      "reward": {
+        "exp": 530700,
+        "silver": 21200,
+        "items": {
+          "gaojibaoxiang": 3,
+          "dajiangjunling": 1
+        }
+      },
+      "chapter": "长安篇",
+      "target": {
+        "monster": "dongzhuo",
+        "count": 1,
+        "at": "meiwu"
+      }
+    },
+    {
+      "id": "m92",
+      "title": "子午谷",
+      "giver": "jingzhaoyin",
+      "turnIn": "yanpu",
+      "type": "kill",
+      "hint": "去子午谷打败15个栈道守卒，然后到汉中见阎圃。长安往下走。",
+      "goal": "打败栈道守卒 ×15（子午谷）",
+      "accept": [
+        {
+          "who": "jingzhaoyin",
+          "text": "子午谷的栈道被五斗米道的人把守着。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "你从子午谷过来的？那条路可不好走。"
+        },
+        {
+          "who": "yanpu",
+          "text": "谷里还有山魈，夜里会学人说话。"
+        }
+      ],
+      "reward": {
+        "exp": 265400,
+        "silver": 21200,
+        "items": {
+          "qilinjiao": 2
+        }
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "monster": "zhandaoshouzu",
+        "count": 15,
+        "at": "ziwugu"
+      }
+    },
+    {
+      "id": "m93",
+      "title": "山魈",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "kill",
+      "hint": "去子午谷打败12个山魈。汉中往上走。",
+      "goal": "打败山魈 ×12（子午谷）",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "山魈会呼风唤雨，商队都不敢走子午谷。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "谷道通了。定军山上又来了一伙魏军。"
+        }
+      ],
+      "reward": {
+        "exp": 269400,
+        "silver": 21500,
+        "items": {
+          "xuelian": 10,
+          "xianlu": 8
+        }
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "monster": "shanxiao",
+        "count": 12,
+        "at": "ziwugu"
+      }
+    },
+    {
+      "id": "m94",
+      "title": "魏军虎卫",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "kill",
+      "hint": "去定军山打败15个魏军虎卫。汉中往左走。",
+      "goal": "打败魏军虎卫 ×15（定军山）",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "虎卫是曹家的精锐。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "弓骑还在山上放冷箭。"
+        }
+      ],
+      "reward": {
+        "exp": 289800,
+        "silver": 23200,
+        "items": {
+          "qilinjiao": 2
+        }
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "monster": "weijunhuwei",
+        "count": 15,
+        "at": "dingjunshan"
+      }
+    },
+    {
+      "id": "m95",
+      "title": "魏军弓骑",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "kill",
+      "hint": "去定军山打败15个魏军弓骑。",
+      "goal": "打败魏军弓骑 ×15（定军山）",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "弓骑来去快，躲避高。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "定军山清了。阳平关里是五斗米道的鬼卒。"
+        }
+      ],
+      "reward": {
+        "exp": 289800,
+        "silver": 23200,
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "monster": "weijungongqi",
+        "count": 15,
+        "at": "dingjunshan"
+      }
+    },
+    {
+      "id": "m96",
+      "title": "鬼卒",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "kill",
+      "hint": "去阳平关打败15个五斗米鬼卒。汉中往右走。",
+      "goal": "打败五斗米鬼卒 ×15（阳平关）",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "入道的人头一年叫鬼卒。张天师手下有上万。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "祭酒身上带着符箓，拿来我认认。"
+        }
+      ],
+      "reward": {
+        "exp": 315400,
+        "silver": 25200,
+        "items": {
+          "shentie": 2
+        }
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "monster": "guizu",
+        "count": 15,
+        "at": "yangpingguan"
+      }
+    },
+    {
+      "id": "m97",
+      "title": "符箓",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "collect",
+      "hint": "去阳平关打败五斗米祭酒，夺回6张符箓。",
+      "goal": "夺回符箓 ×6（阳平关）",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "祭酒的符箓是天师亲手画的，能看出天师坛在哪。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "天师坛在米仓山底下。山里的板楯蛮是张鲁的盟友。"
+        }
+      ],
+      "reward": {
+        "exp": 378500,
+        "silver": 25200,
+        "items": {
+          "xuelian": 10
+        }
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "item": "fulu",
+        "count": 6,
+        "at": "yangpingguan",
+        "monster": "jijiu"
+      }
+    },
+    {
+      "id": "m98",
+      "title": "板楯蛮",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "kill",
+      "hint": "去米仓山打败15个板楯蛮。汉中往下走。",
+      "goal": "打败板楯蛮 ×15（米仓山）",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "板楯蛮打仗不要命，刀砍上去都不躲。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "山里还有巫鬼，是蛮人供的邪神。"
+        }
+      ],
+      "reward": {
+        "exp": 337500,
+        "silver": 27000,
+        "items": {
+          "hunyuan": 2
+        }
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "monster": "bandunman",
+        "count": 15,
+        "at": "micangshan"
+      }
+    },
+    {
+      "id": "m99",
+      "title": "巫鬼",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "kill",
+      "hint": "去米仓山打败15个巫鬼。",
+      "goal": "打败巫鬼 ×15（米仓山）",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "巫鬼的妖火能烧一片，抗妖火的宝石带上。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "天师坛就在山底。护法和力士守着。"
+        }
+      ],
+      "reward": {
+        "exp": 342000,
+        "silver": 27400,
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "monster": "wugui",
+        "count": 15,
+        "at": "micangshan"
+      }
+    },
+    {
+      "id": "m100",
+      "title": "天师护法",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "kill",
+      "hint": "去天师坛打败15个天师护法。米仓山往下走。",
+      "goal": "打败天师护法 ×15（天师坛）",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "护法会四面楚歌，一个人去会被围死。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "还剩力士。"
+        }
+      ],
+      "reward": {
+        "exp": 360400,
+        "silver": 28800,
+        "items": {
+          "hunyuan": 2
+        }
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "monster": "tianshihufa",
+        "count": 15,
+        "at": "tianshitan"
+      }
+    },
+    {
+      "id": "m101",
+      "title": "天师力士",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "kill",
+      "hint": "去天师坛打败15个天师力士。",
+      "goal": "打败天师力士 ×15（天师坛）",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "力士是张天师的贴身护卫。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "张鲁要亲自出手了。"
+        }
+      ],
+      "reward": {
+        "exp": 365100,
+        "silver": 29200,
+        "items": {
+          "xuelian": 10,
+          "xianlu": 10
+        }
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "monster": "tianshilishi",
+        "count": 15,
+        "at": "tianshitan"
+      }
+    },
+    {
+      "id": "m102",
+      "title": "天师",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "kill",
+      "hint": "去天师坛打败张鲁。",
+      "goal": "打败张鲁（天师坛）",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "张天师在汉中二十多年，五斗米道的法术都在他身上。这是最后一仗。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "张天师认输了，愿意散了道众。"
+        },
+        {
+          "who": "yanpu",
+          "text": "从新手村一路走到汉中，你已经是天下有名的人物。"
+        }
+      ],
+      "reward": {
+        "exp": 768100,
+        "silver": 30700,
+        "items": {
+          "gaojibaoxiang": 3,
+          "dajiangjunling": 2
+        }
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "monster": "zhanglu",
+        "count": 1,
+        "at": "tianshitan"
+      }
+    },
+    {
+      "id": "m103",
+      "title": "天下",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "talk",
+      "hint": "主线全部完成。",
+      "goal": "与阎圃对话",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "往后的天下，就看你自己了。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "擂台、斗将台、排行榜、跑环……想去哪就去哪吧。"
+        }
+      ],
+      "reward": {
+        "exp": 92200,
+        "silver": 15400
+      },
+      "chapter": "汉中篇"
     }
   ],
   "bounty": {

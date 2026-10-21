@@ -13,6 +13,20 @@ export function ringOpen(s: Save): boolean {
   return s.player.level >= R.minLevel;
 }
 
+// 一环/二环/三环：第 1–10、11–20、21–30 环
+export function ringTier(index: number): number {
+  return Math.max(1, Math.min(R.tiers.length, Math.ceil(index / R.rounds)));
+}
+
+export function tierName(index: number): string {
+  return R.tiers[ringTier(index) - 1].name;
+}
+
+// 能接哪几档（等级够的）
+export function openTiers(s: Save): number[] {
+  return R.tiers.map((t, i) => (s.player.level >= t.minLevel ? i + 1 : 0)).filter(Boolean);
+}
+
 // 当前等级能打的怪：分布在去过的野外，等级区间和自己差不多
 function huntable(s: Save, capture: boolean): { monster: string; at: string }[] {
   const lv = s.player.level;
@@ -45,7 +59,8 @@ export function makeTask(s: Save, rng: Rng): RingTask {
   switch (type) {
     case 'kill': {
       const t = rng.pick(huntable(s, false));
-      return { type, monster: t.monster, at: t.at, count: rng.int(R.killCount[0], R.killCount[1]), have: 0 };
+      const extra = (ringTier(s.ring.index || 1) - 1) * R.killPerTier;
+      return { type, monster: t.monster, at: t.at, count: rng.int(R.killCount[0], R.killCount[1]) + extra, have: 0 };
     }
     case 'capture': {
       const t = rng.pick(huntable(s, true));
@@ -96,19 +111,21 @@ export function ringDestination(s: Save): string | null {
 export function ringStatusText(s: Save): string {
   const t = s.ring.task;
   if (!s.ring.index || !t) return ringOpen(s) ? '没有在跑环。去许昌找跑环使者接。' : `${R.minLevel}级开放跑环。`;
-  return `第${s.ring.index}/${R.rounds}环：${taskText(t)}${taskDone(s, t) ? '。已完成，回去找跑环使者' : ''}`;
+  return `${tierName(s.ring.index)}第${s.ring.index}环：${taskText(t)}${taskDone(s, t) ? '。已完成，回去找跑环使者' : ''}`;
 }
 
-// 接下一环（第一次接从第1环开始）。每接一环扣体力
-export function nextRing(s: Save, now = Date.now()): string {
+// 接下一环（没在跑时从 tier 那一档的第一环开始）。每接一环扣体力
+export function nextRing(s: Save, now = Date.now(), tier = 1): string {
   if (!ringOpen(s)) return `${R.minLevel}级以后再来`;
   if (s.ring.task) return '你手上还有没做完的环';
+  const T = R.tiers[tier - 1];
+  if (!s.ring.index && (!T || s.player.level < T.minLevel)) return `${T?.name ?? ''}要${T?.minLevel}级`;
   if (staminaNow(s, now) < R.stamina) return `体力不够（要${R.stamina}点，现在${s.stamina}点）。体力会慢慢恢复，也可以吃体力丹`;
   spendStamina(s, R.stamina, now);
-  if (!s.ring.index) s.ring.index = 1;
+  if (!s.ring.index) s.ring.index = T.from;
   s.ring.task = makeTask(s, rollRng(s));
   if (s.ring.task.type === 'goto' && s.ring.task.at === s.location) s.ring.task.arrived = true;
-  return `第${s.ring.index}环：${taskText(s.ring.task)}`;
+  return `${tierName(s.ring.index)}第${s.ring.index}环：${taskText(s.ring.task)}`;
 }
 
 export function turnInRing(s: Save): { ok: boolean; lines: string[] } {
@@ -133,15 +150,24 @@ export function turnInRing(s: Save): { ok: boolean; lines: string[] } {
   }
   s.ring.task = null;
   bump(s, 'rings');
-  if (n >= R.rounds) {
-    const bonus: Record<string, number> = { ...R.final.items };
-    if (rng.chance(R.final.chance)) Object.assign(bonus, R.final.bonus);
-    lines.push(`一整环跑完了！`, ...grantReward(s, { items: bonus }));
+  // 二环、三环的引导：跑完那一档的第一环就算
+  for (const [flag, at] of [['ring2', 11], ['ring3', 21]] as const) {
+    if (n >= at && ringTier(n) === ringTier(at) && !s.flags[flag]) {
+      s.flags[flag] = true;
+      onFlag(s, flag);
+    }
+  }
+  if (n % R.rounds === 0) {
+    const T = R.tiers[ringTier(n) - 1];
+    const bonus: Record<string, number> = { ...T.final };
+    if (rng.chance(R.final.chance)) for (const [k, v] of Object.entries(R.final.bonus)) bonus[k] = (bonus[k] ?? 0) + v;
+    lines.push(`${T.name}跑完了！`, ...grantReward(s, { items: bonus }));
     s.ring.index = 0;
     bump(s, 'ringRounds');
+    bump(s, `ringRounds${ringTier(n)}`);
     s.flags.ringRound = true;
     onFlag(s, 'ringRound');
-    log(s, '跑完一整环');
+    log(s, `跑完${T.name}`);
   } else {
     s.ring.index = n + 1;
   }
@@ -151,7 +177,7 @@ export function turnInRing(s: Save): { ok: boolean; lines: string[] } {
 
 export function abandonRing(s: Save): string {
   s.ring = { index: 0, task: null };
-  return '跑环中断了，下次要从第1环开始';
+  return '跑环中断了，下次要从这一档的第一环开始';
 }
 
 export function onRingKills(s: Save, kills: Record<string, number>): string | null {

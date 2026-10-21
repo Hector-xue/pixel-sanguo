@@ -168,3 +168,35 @@ export function enterCave(s: Save): string {
   bump(s, 'caves');
   return bagCount(s, 'chanzi') ? '进了宝洞，找宝洞老人挖宝' : '进了宝洞。挖宝要铲子，宝洞老人那里有卖';
 }
+
+// ===== 宝库：随身仓库（功能菜单里打开，不用回城），花金砖扩容 =====
+export function vaultUsed(s: Save): number {
+  return Object.values(s.p3.vault).reduce((a, b) => a + b, 0);
+}
+
+export function vaultStore(s: Save, id: string, n: number): string {
+  if (items[id]?.quest) return '任务物品不能放宝库';
+  n = Math.min(n, bagCount(s, id), s.p3.vaultCap - vaultUsed(s));
+  if (n <= 0) return '宝库满了';
+  removeItem(s, id, n);
+  s.p3.vault[id] = (s.p3.vault[id] ?? 0) + n;
+  return `放进宝库${n}个${items[id].name}`;
+}
+
+export function vaultTake(s: Save, id: string, n: number): string {
+  n = Math.min(n, s.p3.vault[id] ?? 0, bagCap(s) - bagUsed(s));
+  if (n <= 0) return '负重不够';
+  s.p3.vault[id] -= n;
+  if (!s.p3.vault[id]) delete s.p3.vault[id];
+  addItem(s, id, n);
+  return `从宝库取出${n}个${items[id].name}`;
+}
+
+export function expandVault(s: Save): string {
+  const V = balance.vault;
+  if (s.p3.vaultCap >= V.maxCap) return '宝库已经最大了';
+  if (s.player.gold < V.goldPerStep) return `要${V.goldPerStep}金砖`;
+  s.player.gold -= V.goldPerStep;
+  s.p3.vaultCap += V.step;
+  return `宝库扩到${s.p3.vaultCap}格`;
+}

@@ -112,7 +112,8 @@ export function forge(s: Save, slot: Slot, tier: number): string {
 }
 
 // ===== 矿石合成 =====
-export const ORE_CHAIN = ['tiekuang', 'jingtie', 'jinggang', 'xuantie'];
+// 矿石链：按装备档的顺序排，3 块低一档合 1 块高一档
+export const ORE_CHAIN = equips.tiers.slice(1).map((t) => t.ore!);
 
 export function oreCombineCost(to: string): { from: string; n: number; silver: number } | null {
   const i = ORE_CHAIN.indexOf(to);
