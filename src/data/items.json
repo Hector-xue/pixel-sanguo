@@ -1,0 +1,12 @@
+{
+  "_src": "药名和医馆卖药【实锤】(老版视频)；回复量和价格【推定】",
+  "dieda":    { "name": "跌打药", "cat": "drug", "hp": 60,  "price": 10 },
+  "zhixue":   { "name": "止血药", "cat": "drug", "hp": 150, "price": 30 },
+  "jinchuang":{ "name": "金创药", "cat": "drug", "hp": 350, "price": 80 },
+  "huichun":  { "name": "回春汤", "cat": "drug", "hp": 700, "price": 180 },
+  "huami":    { "name": "花蜜液", "cat": "drug", "mp": 40,  "price": 15 },
+  "qingquan": { "name": "清泉液", "cat": "drug", "mp": 120, "price": 45 },
+  "yaocai":   { "name": "药材",   "cat": "misc", "quest": true, "price": 0, "desc": "盗贼从药铺抢走的药材" },
+  "zhusun":   { "name": "竹笋",   "cat": "misc", "price": 5, "desc": "竹林里的野味，可以卖给医馆" },
+  "tiekuang": { "name": "铁矿石", "cat": "ore", "price": 20, "desc": "打造装备用的矿石（铁匠铺 P2 开放）" }
+}

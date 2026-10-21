@@ -1,0 +1,63 @@
+{
+  "_src": "技能名、效果描述【实锤】(高手游职业技能详解+视频)；具体系数、耗蓝、学习等级【推定】",
+  "lipi": {
+    "name": "力劈华山", "class": "warrior", "kind": "cleave", "target": "enemy", "resist": "mystic",
+    "desc": "单体，大幅削减对方当前的气血和精力",
+    "mp": [12, 4], "pct": [0.2, 0.03], "atkMul": 0.5, "learnLevel": 1
+  },
+  "paishan": {
+    "name": "排山倒海", "class": "warrior", "kind": "cleave", "target": "enemy", "resist": "mystic",
+    "desc": "单体，大幅削减对方当前的气血和精力（与力劈华山效果相同）",
+    "mp": [12, 4], "pct": [0.2, 0.03], "atkMul": 0.5, "learnLevel": 1
+  },
+  "sheming": {
+    "name": "舍命一击", "class": "warrior", "kind": "sacrifice", "target": "enemy", "resist": "phys",
+    "desc": "以自身气血换取伤害，无视防御；熟练度越高威力越大、自损越多",
+    "mp": [8, 3], "mul": [1.8, 0.2], "selfPct": [0.08, 0.02], "profMul": 0.4, "learnLevel": 3
+  },
+  "gujin": {
+    "name": "固若金汤", "class": "warrior", "kind": "guard", "target": "allies",
+    "desc": "数回合内提升自己和队友的抗物理、抗法术",
+    "mp": [15, 5], "amount": [20, 6], "turns": 3, "learnLevel": 5
+  },
+  "chenhuo": {
+    "name": "趁火打劫", "short": "乱", "class": "scholar", "kind": "control", "status": "chaos", "target": "enemy", "resist": "chaos",
+    "desc": "中招者随机攻击场上目标，不能用道具",
+    "mp": [12, 4], "chance": [0.6, 0.05], "targets": [1, 1, 2, 2, 3], "turns": 2, "learnLevel": 1
+  },
+  "simian": {
+    "name": "四面楚歌", "short": "封", "class": "scholar", "kind": "control", "status": "seal", "target": "enemy", "resist": "seal",
+    "desc": "中招者无法行动，其余规则同'乱'",
+    "mp": [12, 4], "chance": [0.6, 0.05], "targets": [1, 1, 2, 2, 3], "turns": 2, "learnLevel": 1
+  },
+  "huadi": {
+    "name": "画地为牢", "short": "围", "class": "scholar", "kind": "control", "status": "trap", "target": "enemy", "resist": "trap",
+    "desc": "数回合内不能放技能也不能普攻，但能用道具；挨打就会醒",
+    "mp": [10, 4], "chance": [0.7, 0.05], "targets": [1, 2, 2, 3, 3], "turns": 3, "learnLevel": 3
+  },
+  "andu": {
+    "name": "暗渡陈仓", "class": "scholar", "kind": "cleanse", "target": "allies",
+    "desc": "队友有概率从中计状态中恢复",
+    "mp": [10, 3], "chance": [0.5, 0.1], "learnLevel": 5
+  },
+  "wulei": {
+    "name": "五雷轰顶", "class": "mystic", "kind": "nuke", "target": "enemy", "resist": "thunder",
+    "desc": "单体雷击，伤害极高",
+    "mp": [12, 4], "base": [20, 8], "mul": [1.6, 0.15], "learnLevel": 1
+  },
+  "wugu": {
+    "name": "巫蛊极毒", "class": "mystic", "kind": "poison", "target": "enemy", "resist": "poison",
+    "desc": "持续掉血可叠加；之后每回合伤害是第一回合的一半，回合开始时先结算",
+    "mp": [12, 4], "base": [16, 7], "mul": [1.2, 0.12], "turns": 3, "learnLevel": 1
+  },
+  "hufeng": {
+    "name": "呼风唤雨", "class": "mystic", "kind": "aoe", "target": "enemies", "resist": "wind",
+    "desc": "群体攻击，必中",
+    "mp": [18, 6], "base": [14, 6], "mul": [0.9, 0.08], "learnLevel": 3
+  },
+  "yaohuo": {
+    "name": "妖火燎原", "class": "mystic", "kind": "aoe", "target": "enemies", "resist": "fire",
+    "desc": "群体攻击，必中",
+    "mp": [18, 6], "base": [14, 6], "mul": [0.9, 0.08], "learnLevel": 5
+  }
+}

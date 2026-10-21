@@ -1,0 +1,710 @@
+// 存档与游戏规则（纯逻辑，可测）。界面只调这里的函数，不直接改存档字段。
+import { balance, bountyOptions, classSkills, classes, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation } from '../data';
+import type { Dir, QuestDef } from '../data';
+import { deriveStats, expToNext, monsterAttrs, playerAttrsAt } from '../core/formulas';
+import { Rng } from '../core/rng';
+import type { Attrs, ClassId, Gender, SkillState, Stats } from '../core/types';
+import { ATTR_KEYS } from '../core/types';
+
+export type Channel = 'sys' | 'qu' | 'pai' | 'shang' | 'shi';
+
+export interface Msg {
+  t: number;
+  ch: Channel;
+  who?: string;
+  text: string;
+}
+
+export interface General {
+  uid: string;
+  monsterId: string;
+  name: string;
+  classId: ClassId;
+  gender: Gender;
+  look: string;
+  grade: '常人' | '英才' | '将才';
+  level: number;
+  exp: number;
+  apt: { growth: number } & Attrs;
+  attrs: Attrs;
+  hp: number;
+  mp: number;
+  loyalty: number;
+  rapport: number;
+  star: number;
+  skills: SkillState[];
+}
+
+export type QuestState = 'available' | 'active' | 'ready' | 'done';
+
+export interface Save {
+  v: 1;
+  server: string;
+  createdAt: number;
+  seed: number;
+  player: {
+    name: string;
+    gender: Gender;
+    classId: ClassId;
+    avatar: number;
+    level: number;
+    exp: number;
+    free: number;
+    added: Attrs;
+    hp: number;
+    mp: number;
+    silver: number;
+    gold: number;
+    boundSilver: number;
+    skills: SkillState[];
+  };
+  generals: General[];
+  inn: General[];
+  activeGeneral: string | null;
+  nextUid: number;
+  bag: Record<string, number>;
+  location: string;
+  main: { step: number; state: QuestState; count: number };
+  bounty: { id: string; count: number } | null;
+  flags: Record<string, boolean>;
+  kills: Record<string, number>;
+  quiz: { day: string; answered: number[] };
+  messages: Msg[];
+  battles: number;
+}
+
+export interface NewGameOpts {
+  server: string;
+  name: string;
+  gender: Gender;
+  classId: ClassId;
+  avatar: number;
+  seed?: number;
+}
+
+const zeroAttrs = (): Attrs => ({ con: 0, str: 0, int: 0, agi: 0 });
+
+export function newSave(o: NewGameOpts): Save {
+  const s: Save = {
+    v: 1,
+    server: o.server,
+    createdAt: Date.now(),
+    seed: o.seed ?? 1,
+    player: {
+      name: o.name,
+      gender: o.gender,
+      classId: o.classId,
+      avatar: o.avatar,
+      level: 1,
+      exp: 0,
+      free: balance.freePointsAtStart,
+      added: zeroAttrs(),
+      hp: 0,
+      mp: 0,
+      silver: 0,
+      gold: 0,
+      boundSilver: 0,
+      skills: [],
+    },
+    generals: [],
+    inn: [],
+    activeGeneral: null,
+    nextUid: 1,
+    bag: {},
+    location: startLocation,
+    main: { step: 0, state: 'available', count: 0 },
+    bounty: null,
+    flags: {},
+    kills: {},
+    quiz: { day: '', answered: [] },
+    messages: [],
+    battles: 0,
+  };
+  const st = playerStats(s);
+  s.player.hp = st.maxHp;
+  s.player.mp = st.maxMp;
+  return s;
+}
+
+export function log(s: Save, text: string, ch: Channel = 'sys', who?: string): void {
+  s.messages.push({ t: Date.now(), ch, who, text });
+  if (s.messages.length > 200) s.messages.splice(0, s.messages.length - 200);
+}
+
+// ===== 属性 =====
+
+export function playerAttrs(s: Save): Attrs {
+  return playerAttrsAt(s.player.classId, s.player.level, s.player.added);
+}
+
+export function playerStats(s: Save): Stats {
+  return deriveStats(playerAttrs(s), s.player.level, s.player.classId);
+}
+
+export function generalStats(g: General): Stats {
+  return deriveStats(g.attrs, g.level, g.classId);
+}
+
+export function className(id: ClassId): string {
+  return classes[id].name;
+}
+
+// 加点：add 里每项是要加的点数
+export function allocate(s: Save, add: Attrs): boolean {
+  const total = ATTR_KEYS.reduce((n, k) => n + Math.max(0, Math.floor(add[k])), 0);
+  if (total <= 0 || total > s.player.free) return false;
+  for (const k of ATTR_KEYS) s.player.added[k] += Math.max(0, Math.floor(add[k]));
+  s.player.free -= total;
+  s.flags.allocated = true;
+  onFlag(s, 'allocated');
+  return true;
+}
+
+// ===== 经验与升级 =====
+
+export function grantPlayerExp(s: Save, amount: number): string[] {
+  const out: string[] = [];
+  const p = s.player;
+  if (amount <= 0) return out;
+  p.exp += amount;
+  while (p.level < balance.levelCap && p.exp >= expToNext(p.level)) {
+    p.exp -= expToNext(p.level);
+    p.level++;
+    p.free += balance.freePointsPerLevel;
+    const st = playerStats(s);
+    p.hp = st.maxHp;
+    p.mp = st.maxMp;
+    out.push(`恭喜！${p.name}升到了${p.level}级，获得${balance.freePointsPerLevel}个属性点`);
+  }
+  return out;
+}
+
+export function grantGeneralExp(g: General, amount: number): string[] {
+  const out: string[] = [];
+  if (amount <= 0) return out;
+  g.exp += amount;
+  while (g.level < balance.levelCap && g.exp >= expToNext(g.level)) {
+    g.exp -= expToNext(g.level);
+    g.level++;
+    // 副将升级按资质自动分配属性（每级 自动点+自由点，乘成长）
+    const per = (balance.autoAttrPerLevel * 4 + balance.freePointsPerLevel) / 4;
+    for (const k of ATTR_KEYS) g.attrs[k] += per * g.apt[k] * g.apt.growth;
+    const st = generalStats(g);
+    g.hp = st.maxHp;
+    g.mp = st.maxMp;
+    out.push(`副将${g.name}升到了${g.level}级`);
+  }
+  return out;
+}
+
+// ===== 背包 =====
+
+export function bagUsed(s: Save): number {
+  return Object.entries(s.bag).reduce((n, [id, c]) => n + (items[id]?.quest ? 0 : c), 0);
+}
+
+export function bagCap(s: Save): number {
+  return playerStats(s).carry;
+}
+
+export function bagCount(s: Save, id: string): number {
+  return s.bag[id] ?? 0;
+}
+
+// 放进背包，满了放不下的部分返回丢失数量（任务物品不占负重）
+export function addItem(s: Save, id: string, n: number): number {
+  const def = items[id];
+  if (!def || n <= 0) return 0;
+  const room = def.quest ? n : Math.max(0, bagCap(s) - bagUsed(s));
+  const put = Math.min(n, room);
+  if (put > 0) s.bag[id] = (s.bag[id] ?? 0) + put;
+  return n - put;
+}
+
+export function removeItem(s: Save, id: string, n: number): boolean {
+  if (bagCount(s, id) < n) return false;
+  s.bag[id] -= n;
+  if (s.bag[id] <= 0) delete s.bag[id];
+  return true;
+}
+
+export type Target = 'player' | string;
+
+export function targetHpMp(s: Save, t: Target): { hp: number; mp: number; maxHp: number; maxMp: number; name: string } | null {
+  if (t === 'player') {
+    const st = playerStats(s);
+    return { hp: s.player.hp, mp: s.player.mp, maxHp: st.maxHp, maxMp: st.maxMp, name: s.player.name };
+  }
+  const g = findGeneral(s, t);
+  if (!g) return null;
+  const st = generalStats(g);
+  return { hp: g.hp, mp: g.mp, maxHp: st.maxHp, maxMp: st.maxMp, name: g.name };
+}
+
+function setHpMp(s: Save, t: Target, hp: number, mp: number): void {
+  if (t === 'player') {
+    s.player.hp = hp;
+    s.player.mp = mp;
+    return;
+  }
+  const g = findGeneral(s, t);
+  if (g) {
+    g.hp = hp;
+    g.mp = mp;
+  }
+}
+
+export function useItem(s: Save, id: string, t: Target): string {
+  const def = items[id];
+  const cur = targetHpMp(s, t);
+  if (!def || !cur || def.cat !== 'drug') return '这个物品不能使用';
+  if (!removeItem(s, id, 1)) return '物品不足';
+  const hp = Math.min(def.hp ?? 0, cur.maxHp - cur.hp);
+  const mp = Math.min(def.mp ?? 0, cur.maxMp - cur.mp);
+  setHpMp(s, t, cur.hp + hp, cur.mp + mp);
+  const parts = [hp ? `气血+${hp}` : '', mp ? `精力+${mp}` : ''].filter(Boolean).join('，');
+  return `${cur.name}使用了${def.name}${parts ? '，' + parts : '，但没有效果'}`;
+}
+
+// 快速恢复：用背包里的药把主角和随行副将补满，先用小药
+export function quickRecover(s: Save): string {
+  const targets: Target[] = ['player', ...s.generals.map((g) => g.uid)];
+  const drugs = Object.keys(s.bag).filter((id) => items[id]?.cat === 'drug');
+  let used = 0;
+  for (const kind of ['hp', 'mp'] as const) {
+    const list = drugs.filter((id) => (items[id][kind] ?? 0) > 0).sort((a, b) => (items[a][kind] ?? 0) - (items[b][kind] ?? 0));
+    for (const t of targets) {
+      for (const id of list) {
+        while (bagCount(s, id) > 0) {
+          const cur = targetHpMp(s, t)!;
+          const missing = kind === 'hp' ? cur.maxHp - cur.hp : cur.maxMp - cur.mp;
+          if (missing <= 0) break;
+          useItem(s, id, t);
+          used++;
+        }
+      }
+    }
+  }
+  return used ? `快速恢复用掉了${used}个药品` : '不需要恢复，或者没有合适的药';
+}
+
+// ===== 医馆 =====
+
+export function healCost(s: Save): number {
+  if (s.player.level < balance.hospital.freeBelowLevel) return 0;
+  let missing = 0;
+  for (const t of ['player', ...s.generals.map((g) => g.uid)]) {
+    const c = targetHpMp(s, t)!;
+    missing += c.maxHp - c.hp + (c.maxMp - c.mp);
+  }
+  return Math.ceil(missing * balance.hospital.costPerPoint);
+}
+
+export function heal(s: Save): string {
+  const cost = healCost(s);
+  if (s.player.silver < cost) return `银两不足，治疗需要${cost}两`;
+  s.player.silver -= cost;
+  for (const t of ['player', ...s.generals.map((g) => g.uid)]) {
+    const c = targetHpMp(s, t)!;
+    setHpMp(s, t, c.maxHp, c.maxMp);
+  }
+  return cost ? `治疗完毕，花费${cost}两` : '治疗完毕（10级以前免费）';
+}
+
+export function buy(s: Save, id: string, n: number): string {
+  const def = items[id];
+  if (!def || n <= 0) return '没有这个商品';
+  const cost = def.price * n;
+  if (s.player.silver < cost) return '银两不足';
+  if (bagUsed(s) + n > bagCap(s)) return '负重已满，放不下了';
+  s.player.silver -= cost;
+  addItem(s, id, n);
+  return `买了${n}个${def.name}，花费${cost}两`;
+}
+
+export function sellPrice(id: string): number {
+  return Math.floor((items[id]?.price ?? 0) * balance.hospital.sellRatio);
+}
+
+export function sell(s: Save, id: string, n: number): string {
+  const def = items[id];
+  if (!def || def.quest) return '这个东西不能卖';
+  if (!removeItem(s, id, n)) return '数量不足';
+  const gain = sellPrice(id) * n;
+  s.player.silver += gain;
+  return `卖出${n}个${def.name}，得到${gain}两`;
+}
+
+// ===== 技能学校 =====
+
+export interface SkillRow {
+  id: string;
+  name: string;
+  desc: string;
+  state: SkillState | null;
+  action: 'learn' | 'upgrade' | null;
+  reason: string;
+}
+
+export function profCap(level: number): number {
+  return level * balance.skill.profPerLevel;
+}
+
+export function skillSchool(s: Save): SkillRow[] {
+  const p = s.player;
+  return classSkills(p.classId, p.gender).map((id) => {
+    const def = skills[id];
+    const st = p.skills.find((x) => x.id === id) ?? null;
+    if (!st) {
+      const ok = p.level >= def.learnLevel;
+      return { id, name: def.name, desc: def.desc, state: null, action: ok ? 'learn' : null, reason: ok ? '' : `${def.learnLevel}级可学` };
+    }
+    if (st.level >= balance.skill.maxLevel) return { id, name: def.name, desc: def.desc, state: st, action: null, reason: '已满级' };
+    const needLv = st.level * balance.skill.roleLevelPerSkillLevel;
+    const needProf = profCap(st.level);
+    let reason = '';
+    if (st.prof < needProf) reason = `熟练度${st.prof}/${needProf}`;
+    else if (p.level < needLv) reason = `人物${needLv}级可升`;
+    return { id, name: def.name, desc: def.desc, state: st, action: reason ? null : 'upgrade', reason };
+  });
+}
+
+export function learnSkill(s: Save, id: string): string {
+  const row = skillSchool(s).find((r) => r.id === id);
+  if (!row || row.action !== 'learn') return row?.reason || '不能学习';
+  s.player.skills.push({ id, level: 1, prof: 0 });
+  s.flags.learned = true;
+  onFlag(s, 'learned');
+  return `学会了${row.name}`;
+}
+
+export function upgradeSkill(s: Save, id: string): string {
+  const row = skillSchool(s).find((r) => r.id === id);
+  if (!row || row.action !== 'upgrade' || !row.state) return row?.reason || '不能升级';
+  row.state.level++;
+  return `${row.name}升到了${row.state.level}级（熟练度不清零）`;
+}
+
+export function addProf(st: SkillState, n: number): void {
+  st.prof = Math.min(profCap(st.level), st.prof + n);
+}
+
+// ===== 副将 =====
+
+export function findGeneral(s: Save, uid: string): General | undefined {
+  return s.generals.find((g) => g.uid === uid) ?? s.inn.find((g) => g.uid === uid);
+}
+
+export function makeGeneral(s: Save, monsterId: string, level: number, rng: Rng): General {
+  const m = monsters[monsterId];
+  const A = balance.generalAptitude['常人'];
+  const roll = (r: number[]) => Math.round(rng.range(r[0], r[1]) * 100) / 100;
+  const g: General = {
+    uid: `g${s.nextUid++}`,
+    monsterId,
+    name: m.name,
+    classId: m.class,
+    gender: m.gender,
+    look: m.look,
+    grade: '常人',
+    level,
+    exp: 0,
+    apt: { growth: roll(A.growth), con: roll(A.attr), str: roll(A.attr), int: roll(A.attr), agi: roll(A.attr) },
+    attrs: monsterAttrs(monsterId, level),
+    hp: 0,
+    mp: 0,
+    loyalty: 100,
+    rapport: 0,
+    star: 0,
+    skills: [],
+  };
+  const st = generalStats(g);
+  g.hp = st.maxHp;
+  g.mp = st.maxMp;
+  return g;
+}
+
+// 招降成功：随行没满就跟着走，满了放进馆驿
+export function addGeneral(s: Save, g: General): string {
+  if (s.generals.length < balance.followerMax) {
+    s.generals.push(g);
+    if (!s.activeGeneral) s.activeGeneral = g.uid;
+    return `${g.name}成为了你的副将`;
+  }
+  s.inn.push(g);
+  return `${g.name}成为了你的副将。随行副将已满，自动放进馆驿`;
+}
+
+export function setActive(s: Save, uid: string | null): void {
+  if (uid === null || s.generals.some((g) => g.uid === uid)) s.activeGeneral = uid;
+}
+
+export function moveToInn(s: Save, uid: string): string {
+  const g = s.generals.find((x) => x.uid === uid);
+  if (!g) return '';
+  s.generals = s.generals.filter((x) => x !== g);
+  s.inn.push(g);
+  if (s.activeGeneral === uid) s.activeGeneral = s.generals[0]?.uid ?? null;
+  return `${g.name}去馆驿休息了`;
+}
+
+export function moveToTeam(s: Save, uid: string): string {
+  const g = s.inn.find((x) => x.uid === uid);
+  if (!g) return '';
+  if (s.generals.length >= balance.followerMax) return `随行副将最多${balance.followerMax}个`;
+  s.inn = s.inn.filter((x) => x !== g);
+  s.generals.push(g);
+  if (!s.activeGeneral) s.activeGeneral = g.uid;
+  return `${g.name}开始随行`;
+}
+
+export function releaseGeneral(s: Save, uid: string): string {
+  const g = findGeneral(s, uid);
+  if (!g) return '';
+  s.generals = s.generals.filter((x) => x !== g);
+  s.inn = s.inn.filter((x) => x !== g);
+  if (s.activeGeneral === uid) s.activeGeneral = s.generals[0]?.uid ?? null;
+  return `${g.name}离开了队伍`;
+}
+
+// ===== 地图 =====
+
+export const DIRS: Dir[] = ['up', 'left', 'right', 'down'];
+
+export function exitsOf(locId: string): { dir: Dir; to: string; name: string; locked: boolean }[] {
+  const loc = locations[locId];
+  return DIRS.filter((d) => loc.exits[d]).map((d) => {
+    const to = loc.exits[d]!;
+    const locked = to.startsWith('@');
+    return { dir: d, to, name: locked ? lockedExits[to] : locations[to].name, locked };
+  });
+}
+
+// 广度优先找路（任务"开启寻路"）
+export function findPath(from: string, to: string): string[] | null {
+  if (from === to) return [from];
+  const prev = new Map<string, string>([[from, '']]);
+  const queue = [from];
+  while (queue.length) {
+    const cur = queue.shift()!;
+    for (const e of exitsOf(cur)) {
+      if (e.locked || prev.has(e.to)) continue;
+      prev.set(e.to, cur);
+      if (e.to === to) {
+        const path = [to];
+        let p = cur;
+        while (p) {
+          path.unshift(p);
+          p = prev.get(p)!;
+        }
+        return path;
+      }
+      queue.push(e.to);
+    }
+  }
+  return null;
+}
+
+export function moveTo(s: Save, to: string): boolean {
+  const ok = exitsOf(s.location).some((e) => e.to === to && !e.locked) || (to === startLocation && s.location !== to);
+  if (ok) s.location = to;
+  return ok;
+}
+
+export function npcLocation(npcId: string): string | null {
+  for (const [id, loc] of Object.entries(locations)) if (loc.npcs.includes(npcId)) return id;
+  return null;
+}
+
+// ===== 主线任务 =====
+
+export function currentQuest(s: Save): QuestDef | null {
+  return mainQuests[s.main.step] ?? null;
+}
+
+// NPC 名字后的标记：! 有任务可接，? 可以交任务
+export function npcMark(s: Save, npcId: string): '!' | '?' | null {
+  const q = currentQuest(s);
+  if (!q || s.main.state === 'done') return null;
+  if (s.main.state === 'available' && q.giver === npcId) return '!';
+  if (s.main.state === 'ready' && q.turnIn === npcId) return '?';
+  if (s.main.state === 'active' && q.type === 'talk' && q.turnIn === npcId) return '?';
+  return null;
+}
+
+export function acceptQuest(s: Save): void {
+  const q = currentQuest(s);
+  if (!q || s.main.state !== 'available') return;
+  s.main.state = 'active';
+  s.main.count = 0;
+  if (q.type === 'flag' && q.flag && s.flags[q.flag]) s.main.state = 'ready';
+  if (q.type === 'collect') checkCollect(s);
+  log(s, `接受任务：${q.title}`);
+}
+
+export interface QuestReward {
+  exp: number;
+  silver: number;
+  items: Record<string, number>;
+  lines: string[];
+}
+
+export function turnInQuest(s: Save): QuestReward | null {
+  const q = currentQuest(s);
+  if (!q) return null;
+  const ready = s.main.state === 'ready' || (s.main.state === 'active' && q.type === 'talk');
+  if (!ready) return null;
+  if (q.type === 'collect' && q.target?.item) removeItem(s, q.target.item, bagCount(s, q.target.item));
+  const r = q.reward;
+  const out: QuestReward = { exp: r.exp ?? 0, silver: r.silver ?? 0, items: r.items ?? {}, lines: [] };
+  s.player.silver += out.silver;
+  out.lines.push(...grantPlayerExp(s, out.exp));
+  for (const [id, n] of Object.entries(out.items)) {
+    const lost = addItem(s, id, n);
+    if (lost) out.lines.push(`负重已满，${lost}个${items[id].name}没拿到`);
+  }
+  log(s, `完成任务：${q.title}，获得经验${out.exp}${out.silver ? `、银两${out.silver}` : ''}`);
+  for (const l of out.lines) log(s, l);
+  s.main.step++;
+  s.main.count = 0;
+  s.main.state = mainQuests[s.main.step] ? 'available' : 'done';
+  return out;
+}
+
+export function questNeed(q: QuestDef): number {
+  return q.target?.count ?? 1;
+}
+
+export function questProgressText(s: Save): string {
+  const q = currentQuest(s);
+  if (!q) return '新手任务全部完成';
+  if (s.main.state === 'available') return `去找${npcName(q.giver)}接任务`;
+  if (s.main.state === 'ready') return `已完成，回去找${npcName(q.turnIn)}`;
+  if (q.type === 'kill' || q.type === 'capture' || q.type === 'collect') return `${q.goal}：${s.main.count}/${questNeed(q)}`;
+  return q.goal;
+}
+
+export function npcName(id: string): string {
+  return npcs[id]?.name ?? id;
+}
+
+// 任务现在该去哪（寻路目的地）
+export function questDestination(s: Save): string | null {
+  const q = currentQuest(s);
+  if (!q || s.main.state === 'done') return null;
+  if (s.main.state === 'available') return npcLocation(q.giver);
+  if (s.main.state === 'ready' || q.type === 'talk' || q.type === 'flag') return npcLocation(q.turnIn);
+  return q.target?.at ?? null;
+}
+
+function setCount(s: Save, q: QuestDef, n: number): string | null {
+  const need = questNeed(q);
+  s.main.count = Math.min(need, n);
+  if (s.main.count >= need) {
+    s.main.state = 'ready';
+    return `任务【${q.title}】已完成，回去找${npcName(q.turnIn)}`;
+  }
+  return null;
+}
+
+// 战后更新任务进度，返回要显示的进度句子
+export function onBattleKills(s: Save, kills: Record<string, number>): string[] {
+  const out: string[] = [];
+  for (const [m, n] of Object.entries(kills)) s.kills[m] = (s.kills[m] ?? 0) + n;
+  const q = currentQuest(s);
+  if (q && s.main.state === 'active' && q.type === 'kill' && q.target?.monster && kills[q.target.monster]) {
+    const name = monsters[q.target.monster].name;
+    const done = setCount(s, q, s.main.count + kills[q.target.monster]);
+    out.push(done ?? `已经打败${s.main.count}个${name}，还差${questNeed(q) - s.main.count}个`);
+  }
+  if (s.bounty) {
+    const opt = bountyOptions.find((b) => b.id === s.bounty!.id);
+    if (opt && kills[opt.monster]) {
+      s.bounty.count = Math.min(opt.count, s.bounty.count + kills[opt.monster]);
+      const name = monsters[opt.monster].name;
+      out.push(s.bounty.count >= opt.count ? `悬赏令完成，回去找捕快领${opt.silver}两` : `悬赏令：${name}${s.bounty.count}/${opt.count}`);
+    }
+  }
+  return out;
+}
+
+export function onCapture(s: Save, monsterId: string): string | null {
+  const q = currentQuest(s);
+  if (q && s.main.state === 'active' && q.type === 'capture' && q.target?.monster === monsterId) {
+    return setCount(s, q, s.main.count + 1) ?? `已经招降${s.main.count}个${monsters[monsterId].name}`;
+  }
+  return null;
+}
+
+export function onFlag(s: Save, flag: string): void {
+  const q = currentQuest(s);
+  if (q && s.main.state === 'active' && q.type === 'flag' && q.flag === flag) {
+    s.main.state = 'ready';
+    log(s, `任务【${q.title}】已完成，回去找${npcName(q.turnIn)}`);
+  }
+}
+
+export function checkCollect(s: Save): string | null {
+  const q = currentQuest(s);
+  if (!q || q.type !== 'collect' || !q.target?.item || (s.main.state !== 'active' && s.main.state !== 'ready')) return null;
+  const have = bagCount(s, q.target.item);
+  const need = questNeed(q);
+  s.main.count = Math.min(have, need);
+  s.main.state = have >= need ? 'ready' : 'active';
+  return s.main.state === 'ready' ? `任务【${q.title}】已完成，回去找${npcName(q.turnIn)}` : `已经夺回${s.main.count}份${items[q.target.item].name}，还差${need - s.main.count}份`;
+}
+
+// 掉落里标了 questOnly 的物品，只有做那个任务时才掉
+export function questDropAllowed(s: Save, questOnly?: string): boolean {
+  if (!questOnly) return true;
+  const q = currentQuest(s);
+  return !!q && q.id === questOnly && (s.main.state === 'active' || s.main.state === 'ready');
+}
+
+// ===== 悬赏令 =====
+
+export function acceptBounty(s: Save, id: string): string {
+  if (s.bounty) return '你手上已经有一张悬赏令了';
+  const opt = bountyOptions.find((b) => b.id === id);
+  if (!opt) return '';
+  s.bounty = { id, count: 0 };
+  return `接下悬赏令：打败${opt.count}个${monsters[opt.monster].name}，赏银${opt.silver}两`;
+}
+
+export function turnInBounty(s: Save): string {
+  const opt = s.bounty && bountyOptions.find((b) => b.id === s.bounty!.id);
+  if (!s.bounty || !opt) return '你还没有接悬赏令';
+  if (s.bounty.count < opt.count) return `还差${opt.count - s.bounty.count}个${monsters[opt.monster].name}`;
+  s.player.silver += opt.silver;
+  s.bounty = null;
+  log(s, `领取悬赏${opt.silver}两`);
+  return `辛苦了！这是${opt.silver}两赏银`;
+}
+
+export function abandonBounty(s: Save): string {
+  s.bounty = null;
+  return '悬赏令已放弃';
+}
+
+// ===== 存档 =====
+
+export const SAVE_KEY = 'pxsg.save.v1';
+
+export function serialize(s: Save): string {
+  return JSON.stringify(s);
+}
+
+export function deserialize(text: string): Save {
+  const s = JSON.parse(text) as Save;
+  if (s?.v !== 1 || !s.player || !locations[s.location]) throw new Error('存档格式不对');
+  s.flags ??= {};
+  s.kills ??= {};
+  s.inn ??= [];
+  s.quiz ??= { day: '', answered: [] };
+  return s;
+}
+
+export function moneyText(n: number): string {
+  if (n >= 10000) return `${Math.floor(n / 1000) / 10}万`;
+  return String(n);
+}

@@ -1,0 +1,174 @@
+{
+  "_src": "结构参照原版新手流程（开场到新手村→村长、赵云带新手任务→招降→出村），台词全部原创。奖励数值【推定】",
+  "opening": [
+    { "who": "", "text": "建安元年，天下大乱。你在一阵马蹄声里醒来，身下是干草，头顶是陌生的屋梁。" },
+    { "who": "", "text": "推门出去，是一座不大的村子。几个孩子追着鸡跑，远处有人在磨刀。" },
+    { "who": "daohang", "text": "醒了？你昏在村口好几天了。这里是新手村，乱世里难得的太平地方。" },
+    { "who": "daohang", "text": "村长一直惦记你。先去见见他吧——在「人物」里找到村长，点「对话」。" }
+  ],
+  "main": [
+    {
+      "id": "m0", "title": "初到新手村", "giver": "daohang", "turnIn": "cunzhang", "type": "talk",
+      "hint": "去见村长。", "goal": "与新手村的村长对话",
+      "accept": [{ "who": "daohang", "text": "村长就在村子里，你去找他。" }],
+      "finish": [
+        { "who": "cunzhang", "text": "好，好，能下地走路就好。你叫{name}？是个{class}的样子。" },
+        { "who": "cunzhang", "text": "这几瓶跌打药你拿着，外头用得上。" }
+      ],
+      "reward": { "exp": 50, "silver": 100, "items": { "dieda": 3 } }
+    },
+    {
+      "id": "m1", "title": "村北贼踪", "giver": "cunzhang", "turnIn": "cunzhang", "type": "kill",
+      "target": { "monster": "xiaotou", "count": 3, "at": "cunbei" },
+      "hint": "去村北山林打败3个小偷。", "goal": "打败小偷 ×3（村北山林）",
+      "accept": [
+        { "who": "cunzhang", "text": "最近村北山林里钻出一伙小偷，专偷晒在外头的粮食。" },
+        { "who": "cunzhang", "text": "你替村里去教训教训他们，打败三个就够了。" }
+      ],
+      "finish": [{ "who": "cunzhang", "text": "身手不错！村里人都看见了。这些银两是大家凑的。" }],
+      "reward": { "exp": 150, "silver": 150 }
+    },
+    {
+      "id": "m2", "title": "拜见赵云", "giver": "cunzhang", "turnIn": "zhaoyun", "type": "talk",
+      "hint": "去见赵云。", "goal": "与新手村的赵云对话",
+      "accept": [{ "who": "cunzhang", "text": "村里住着一位白袍将军，叫赵云。你若想在乱世立足，就去跟他学几手。" }],
+      "finish": [
+        { "who": "zhaoyun", "text": "村长让你来的？我看你筋骨还行，只是不会用力。" },
+        { "who": "zhaoyun", "text": "练武先练根基。" }
+      ],
+      "reward": { "exp": 100, "silver": 50 }
+    },
+    {
+      "id": "m3", "title": "根基", "giver": "zhaoyun", "turnIn": "zhaoyun", "type": "flag", "flag": "allocated",
+      "hint": "打开「功能 → 状态」，把属性点分配掉。", "goal": "分配一次属性点",
+      "accept": [
+        { "who": "zhaoyun", "text": "每升一级，你会得到几个属性点。体质长气血，力量长攻击，智力长精力，敏捷长速度。" },
+        { "who": "zhaoyun", "text": "去「功能 → 状态」里把点数分了，再回来见我。" }
+      ],
+      "finish": [{ "who": "zhaoyun", "text": "嗯，有点样子了。" }],
+      "reward": { "exp": 100, "items": { "huami": 3 } }
+    },
+    {
+      "id": "m4", "title": "学一门本事", "giver": "zhaoyun", "turnIn": "zhaoyun", "type": "flag", "flag": "learned",
+      "hint": "去「设施 → 技能学校」学一个技能。", "goal": "在技能学校学会一个技能",
+      "accept": [
+        { "who": "zhaoyun", "text": "光会挥拳不行。村里有技能学校，按你的职业教本事，不收钱。" },
+        { "who": "zhaoyun", "text": "放技能要耗精力，精力见底了就喝花蜜液。" }
+      ],
+      "finish": [{ "who": "zhaoyun", "text": "技能用得越多越熟练。熟练度够了，回技能学校升级。" }],
+      "reward": { "exp": 150, "items": { "huami": 3 } }
+    },
+    {
+      "id": "m5", "title": "收服草寇", "giver": "zhaoyun", "turnIn": "zhaoyun", "type": "capture",
+      "target": { "monster": "caokou", "count": 1, "at": "cunnan" },
+      "hint": "去村南草原招降1个草寇。", "goal": "招降草寇 ×1（村南草原）",
+      "accept": [
+        { "who": "zhaoyun", "text": "一个人打天下太累。村南草原的草寇多是活不下去的农户，可以收为己用。" },
+        { "who": "zhaoyun", "text": "先把他打到残血，再用「招降」。血越少越容易成。" }
+      ],
+      "finish": [
+        { "who": "zhaoyun", "text": "收下了？副将跟着你打仗也会长经验。" },
+        { "who": "zhaoyun", "text": "在「功能 → 副将」里可以让他出战或休息。战斗里用「招将」能换人。" }
+      ],
+      "reward": { "exp": 300, "items": { "dieda": 5 } }
+    },
+    {
+      "id": "m6", "title": "荒山清剿", "giver": "zhaoyun", "turnIn": "cunzhang", "type": "kill",
+      "target": { "monster": "caokou", "count": 5, "at": "cunxi" },
+      "hint": "去村西荒山打败5个草寇，然后回报村长。", "goal": "打败草寇 ×5（村西荒山）",
+      "accept": [{ "who": "zhaoyun", "text": "村西荒山还有一窝草寇不肯下山。带上你的副将，去打败五个，回头跟村长说一声。" }],
+      "finish": [{ "who": "cunzhang", "text": "荒山清净了，西边几户人家终于敢上山砍柴。" }],
+      "reward": { "exp": 500, "silver": 300 }
+    },
+    {
+      "id": "m7", "title": "竹林药材", "giver": "cunzhang", "turnIn": "cunzhang", "type": "collect",
+      "target": { "item": "yaocai", "count": 3, "at": "cundong", "monster": "daozei" },
+      "hint": "去村东竹林打盗贼，夺回3份药材。", "goal": "夺回药材 ×3（村东竹林的盗贼身上）",
+      "accept": [
+        { "who": "cunzhang", "text": "医馆前几天被盗贼抢了一车药材，人往村东竹林跑了。" },
+        { "who": "cunzhang", "text": "盗贼会画地为牢，被围住了先喝药等它醒，挨一下打也会醒。" }
+      ],
+      "finish": [{ "who": "cunzhang", "text": "药材都在！医馆的大夫要高兴坏了。拿着，这是他托我谢你的。" }],
+      "reward": { "exp": 800, "silver": 400, "items": { "jinchuang": 2 } }
+    },
+    {
+      "id": "m8", "title": "翠竹山庄", "giver": "cunzhang", "turnIn": "zhuangzhu", "type": "talk",
+      "hint": "经村北山林往北，去翠竹山庄见庄主。", "goal": "与翠竹山庄的庄主对话",
+      "accept": [{ "who": "cunzhang", "text": "村北山林再往北是翠竹山庄，庄主托人捎信，说山里出了大事。你去看看。" }],
+      "finish": [
+        { "who": "zhuangzhu", "text": "你就是新手村那位{class}？来得正好。" },
+        { "who": "zhuangzhu", "text": "北边山谷里聚了一群逃兵，再往里是山贼的老巢。" }
+      ],
+      "reward": { "exp": 300, "silver": 100 }
+    },
+    {
+      "id": "m9", "title": "山谷逃兵", "giver": "zhuangzhu", "turnIn": "zhuangzhu", "type": "kill",
+      "target": { "monster": "taobing", "count": 6, "at": "cuizhushangu" },
+      "hint": "去翠竹山谷打败6个逃兵。", "goal": "打败逃兵 ×6（翠竹山谷）",
+      "accept": [{ "who": "zhuangzhu", "text": "逃兵穿着官军的甲，下手比草寇狠。打败六个，让他们不敢再进山庄。" }],
+      "finish": [{ "who": "zhuangzhu", "text": "山谷总算安静了。可他们是被山贼赶出来的，祸根还在。" }],
+      "reward": { "exp": 1500, "silver": 600 }
+    },
+    {
+      "id": "m10", "title": "叩关", "giver": "zhuangzhu", "turnIn": "zhuangzhu", "type": "kill",
+      "target": { "monster": "shanzei", "count": 8, "at": "shanzeidamen" },
+      "hint": "从翠竹山谷往东，到山贼大门打败8个山贼。", "goal": "打败山贼 ×8（山贼大门）",
+      "accept": [
+        { "who": "zhuangzhu", "text": "山谷东边就是山贼大门。门口的喽啰不少，还有个军师会使趁火打劫。" },
+        { "who": "zhuangzhu", "text": "中了「乱」的人会乱打一气，连自己人都打。小心。" }
+      ],
+      "finish": [{ "who": "zhuangzhu", "text": "大门打开了！寨子里只剩头目和亲兵。" }],
+      "reward": { "exp": 2500, "silver": 800 }
+    },
+    {
+      "id": "m11", "title": "擒贼擒王", "giver": "zhuangzhu", "turnIn": "zhaoyun", "type": "kill",
+      "target": { "monster": "shanzeitoumu", "count": 1, "at": "shanzeiyingzhai" },
+      "hint": "进山贼营寨打败山贼头目，然后回新手村见赵云。", "goal": "打败山贼头目（山贼营寨）",
+      "accept": [
+        { "who": "zhuangzhu", "text": "头目力气极大，会力劈华山，一刀能削掉你一截血。" },
+        { "who": "zhuangzhu", "text": "多备金创药。得手以后，回新手村告诉赵将军。" }
+      ],
+      "finish": [
+        { "who": "zhaoyun", "text": "山贼头目被你打败了？好！" },
+        { "who": "zhaoyun", "text": "这片地方已经容不下你了。往南过村南草原，是去下邳、许昌的大路。" }
+      ],
+      "reward": { "exp": 4000, "silver": 1500, "items": { "huichun": 3 } }
+    },
+    {
+      "id": "m12", "title": "前路", "giver": "zhaoyun", "turnIn": "shouguan", "type": "talk",
+      "hint": "经村南草原往南，到下邳之路见守关士兵。", "goal": "与下邳之路的守关士兵对话",
+      "accept": [{ "who": "zhaoyun", "text": "去吧。乱世里，总有人要站出来。" }],
+      "finish": [
+        { "who": "shouguan", "text": "从新手村来的？听说山贼头目栽在你手里了。" },
+        { "who": "shouguan", "text": "许昌城门还没开（P2 开放）。到时候我第一个放你过去。" }
+      ],
+      "reward": { "exp": 500, "silver": 500 }
+    }
+  ],
+  "bounty": {
+    "_src": "【实锤】老版视频：杀50小偷赏500两、50草寇赏800两、50盗贼赏1000两",
+    "options": [
+      { "id": "b_xiaotou", "monster": "xiaotou", "count": 50, "silver": 500 },
+      { "id": "b_caokou",  "monster": "caokou",  "count": 50, "silver": 800 },
+      { "id": "b_daozei",  "monster": "daozei",  "count": 50, "silver": 1000 }
+    ]
+  },
+  "quiz": {
+    "_src": "老版剧情里有NPC出三国知识二选一题【实锤】；题目原创",
+    "reward": 50,
+    "questions": [
+      { "q": "桃园结义的三个人是刘备、关羽和谁？", "a": ["张飞", "赵云"], "ok": 0 },
+      { "q": "赤壁之战中，曹操败给了哪两家联军？", "a": ["袁绍和袁术", "孙权和刘备"], "ok": 1 },
+      { "q": "「三顾茅庐」请出的是谁？", "a": ["诸葛亮", "庞统"], "ok": 0 },
+      { "q": "长坂坡单骑救阿斗的是谁？", "a": ["张飞", "赵云"], "ok": 1 },
+      { "q": "「过五关斩六将」的是谁？", "a": ["关羽", "吕布"], "ok": 0 },
+      { "q": "曹操「挟天子以令诸侯」，挟的是哪位皇帝？", "a": ["汉献帝", "汉灵帝"], "ok": 0 },
+      { "q": "「既生瑜，何生亮」中的「瑜」是谁？", "a": ["周瑜", "鲁肃"], "ok": 0 },
+      { "q": "吕布的坐骑叫什么？", "a": ["的卢", "赤兔"], "ok": 1 },
+      { "q": "「七擒七纵」中被擒的是谁？", "a": ["孟获", "祝融"], "ok": 0 },
+      { "q": "官渡之战中被曹操击败的是谁？", "a": ["袁绍", "刘表"], "ok": 0 },
+      { "q": "「司马昭之心，路人皆知」，司马昭的父亲是谁？", "a": ["司马懿", "司马师"], "ok": 0 },
+      { "q": "刘备的结义兄弟中，谁被称为「美髯公」？", "a": ["张飞", "关羽"], "ok": 1 }
+    ]
+  }
+}

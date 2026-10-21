@@ -1,0 +1,21 @@
+{
+  "_src": "职业名、技能分配、武士自带20抗物理是【实锤】；初始属性是【推定】",
+  "warrior": {
+    "name": "武士",
+    "baseAttrs": { "con": 5, "str": 6, "int": 2, "agi": 5 },
+    "resist": { "phys": 20 },
+    "skills": { "male": "lipi", "female": "paishan", "common": ["sheming", "gujin"] }
+  },
+  "scholar": {
+    "name": "文人",
+    "baseAttrs": { "con": 5, "str": 3, "int": 6, "agi": 4 },
+    "resist": {},
+    "skills": { "male": "chenhuo", "female": "simian", "common": ["huadi", "andu"] }
+  },
+  "mystic": {
+    "name": "异人",
+    "baseAttrs": { "con": 4, "str": 4, "int": 6, "agi": 4 },
+    "resist": {},
+    "skills": { "male": "wulei", "female": "wugu", "common": ["hufeng", "yaohuo"] }
+  }
+}
