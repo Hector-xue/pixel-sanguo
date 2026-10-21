@@ -184,6 +184,44 @@ export const LOOKS: Record<string, Look> = {
   m_yingbing: { outfit: [C.brown, C.darkBrown], trim: C.gold, belt: C.red, boots: C.ink, hair: [C.ink, C.ink], style: 'band', accent: C.red, weapon: 'saber', armor: true, beard: C.ink, pants: C.darkBrown },
   m_wenqu: { outfit: [C.lightBlue, C.blue], trim: C.yellow, belt: C.yellow, boots: C.ink, hair: [C.lightGray, C.gray], style: 'topknot', weapon: 'scroll', hat: C.navy, beard: C.lightGray, longBeard: true },
   m_zuoci: { outfit: [C.white, C.lightGray], trim: C.sky, belt: C.sky, boots: C.gray, hair: [C.lightGray, C.gray], style: 'topknot', weapon: 'staff', orb: C.sky, beard: C.white, longBeard: true },
+  // ===== P4 国战：魏蓝、蜀绿、吴红、群雄（董卓余部）褐黄 =====
+  gz_weibu: { outfit: [C.blue, C.navy], trim: C.lightGray, belt: C.ink, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.blue, weapon: 'spear', armor: true, pants: C.navy },
+  gz_weimou: { outfit: [C.navy, C.ink], trim: C.lightBlue, belt: C.lightBlue, boots: C.ink, hair: [C.ink, C.ink], style: 'topknot', weapon: 'fan', hat: C.navy, beard: C.ink },
+  gz_weifang: { outfit: [C.lightBlue, C.blue], trim: C.white, belt: C.navy, boots: C.ink, hair: [C.darkGray, C.ink], style: 'hood', weapon: 'staff', orb: C.sky },
+  gz_shubu: { outfit: [C.green, C.darkGreen], trim: C.tan, belt: C.brown, boots: C.brown, hair: [C.ink, C.ink], style: 'helmet', accent: C.green, weapon: 'spear', armor: true, pants: C.darkGreen },
+  gz_shumou: { outfit: [C.darkGreen, C.ink], trim: C.paper, belt: C.gold, boots: C.ink, hair: [C.ink, C.ink], style: 'topknot', weapon: 'fan', hat: C.darkGreen, beard: C.darkBrown },
+  gz_shufang: { outfit: [C.grass, C.green], trim: C.white, belt: C.darkGreen, boots: C.brown, hair: [C.darkBrown, C.ink], style: 'hood', weapon: 'staff', orb: C.lime },
+  gz_wubu: { outfit: [C.red, C.darkRed], trim: C.gold, belt: C.ink, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.red, weapon: 'saber', armor: true, pants: C.darkRed },
+  gz_wumou: { outfit: [C.darkRed, C.ink], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.ink, C.ink], style: 'topknot', weapon: 'fan', hat: C.darkRed, beard: C.ink },
+  gz_wufang: { outfit: [C.orange, C.red], trim: C.yellow, belt: C.darkRed, boots: C.ink, hair: [C.darkBrown, C.ink], style: 'hood', weapon: 'staff', orb: C.orange },
+  // 魏将
+  gz_xiahoudun: { outfit: [C.navy, C.ink], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.blue, weapon: 'saber', armor: true, broad: true, beard: C.ink, mask: C.ink, cape: C.navy },
+  gz_caoren: { outfit: [C.blue, C.navy], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.gold, weapon: 'spear', armor: true, broad: true, beard: C.ink },
+  gz_zhangliao: { outfit: [C.lightBlue, C.blue], trim: C.white, belt: C.navy, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.sky, weapon: 'spear', armor: true, metal: C.white, cape: C.blue },
+  gz_xuchu: { outfit: [C.navy, C.darkGray], trim: C.tan, belt: C.ink, boots: C.ink, hair: [C.ink, C.ink], style: 'short', weapon: 'axe', broad: true, beard: C.ink, pants: C.ink },
+  gz_guojia: { outfit: [C.lightGray, C.blue], trim: C.navy, belt: C.navy, boots: C.ink, hair: [C.ink, C.ink], style: 'topknot', weapon: 'fan', hat: C.navy },
+  gz_simayi: { outfit: [C.ink, C.navy], trim: C.lightBlue, belt: C.lightBlue, boots: C.ink, hair: [C.darkGray, C.ink], style: 'topknot', weapon: 'fan', hat: C.ink, beard: C.darkGray, longBeard: true },
+  // 蜀将
+  gz_guanyu: { outfit: [C.green, C.darkGreen], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.ink, C.ink], style: 'topknot', weapon: 'saber', hat: C.darkGreen, beard: C.ink, longBeard: true, armor: true, cape: C.green },
+  gz_zhangfei: { outfit: [C.ink, C.darkGray], trim: C.green, belt: C.green, boots: C.ink, hair: [C.ink, C.ink], style: 'band', accent: C.green, weapon: 'spear', armor: true, broad: true, beard: C.ink },
+  gz_machao: { outfit: [C.white, C.lightGray], trim: C.green, belt: C.darkGreen, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.lime, weapon: 'spear', armor: true, metal: C.white, cape: C.green },
+  gz_huangzhong: { outfit: [C.gold, C.green], trim: C.darkGreen, belt: C.darkGreen, boots: C.ink, hair: [C.lightGray, C.gray], style: 'helmet', accent: C.gold, weapon: 'saber', armor: true, beard: C.white, longBeard: true },
+  gz_zhugeliang: { outfit: [C.white, C.lightGray], trim: C.green, belt: C.darkGreen, boots: C.ink, hair: [C.ink, C.ink], style: 'topknot', weapon: 'fan', hat: C.darkGreen, beard: C.ink },
+  gz_pangtong: { outfit: [C.darkGreen, C.ink], trim: C.tan, belt: C.tan, boots: C.ink, hair: [C.darkBrown, C.ink], style: 'topknot', weapon: 'staff', orb: C.lime, hat: C.ink, beard: C.darkBrown },
+  // 吴将
+  gz_zhouyu: { outfit: [C.red, C.darkRed], trim: C.white, belt: C.gold, boots: C.ink, hair: [C.ink, C.ink], style: 'topknot', weapon: 'fan', hat: C.darkRed },
+  gz_lvmeng: { outfit: [C.darkRed, C.ink], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.red, weapon: 'saber', armor: true, beard: C.ink },
+  gz_ganning: { outfit: [C.orange, C.darkRed], trim: C.yellow, belt: C.ink, boots: C.ink, hair: [C.ink, C.ink], style: 'band', accent: C.yellow, weapon: 'saber', pants: C.darkRed, beard: C.darkBrown },
+  gz_taishici: { outfit: [C.red, C.ink], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.gold, weapon: 'spear', armor: true, cape: C.red, beard: C.ink },
+  gz_huanggai: { outfit: [C.darkRed, C.brown], trim: C.tan, belt: C.ink, boots: C.ink, hair: [C.lightGray, C.gray], style: 'helmet', accent: C.darkRed, weapon: 'club', armor: true, broad: true, beard: C.white },
+  gz_luxun: { outfit: [C.pink, C.red], trim: C.white, belt: C.darkRed, boots: C.ink, hair: [C.ink, C.ink], style: 'topknot', weapon: 'staff', orb: C.orange, hat: C.red },
+  // 群雄（董卓余部）
+  gz_xurong: { outfit: [C.darkGray, C.ink], trim: C.gold, belt: C.brown, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.darkRed, weapon: 'spear', armor: true, broad: true, beard: C.ink },
+  gz_lijue: { outfit: [C.brown, C.darkBrown], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.orange, weapon: 'saber', armor: true, beard: C.ink, cape: C.darkRed },
+  gz_guosi: { outfit: [C.darkPurple, C.ink], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.purple, weapon: 'axe', armor: true, beard: C.ink },
+  gz_zhangji: { outfit: [C.tan, C.brown], trim: C.darkRed, belt: C.darkRed, boots: C.ink, hair: [C.darkGray, C.ink], style: 'helmet', accent: C.tan, weapon: 'spear', armor: true, beard: C.darkGray },
+  gz_zhangxiu: { outfit: [C.lightGray, C.gray], trim: C.darkRed, belt: C.darkRed, boots: C.ink, hair: [C.ink, C.ink], style: 'helmet', accent: C.red, weapon: 'spear', armor: true, metal: C.lightGray },
+  gz_jiaxu: { outfit: [C.ink, C.darkGray], trim: C.gold, belt: C.gold, boots: C.ink, hair: [C.darkGray, C.ink], style: 'topknot', weapon: 'fan', hat: C.ink, beard: C.darkGray, longBeard: true },
 };
 
 // 副将学了别的职业的技能：保留脸、发型、胡子，换成那个职业的衣服和兵器

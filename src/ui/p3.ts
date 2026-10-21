@@ -35,21 +35,21 @@ import { power } from './role';
 import { Button, Modal, ScrollArea, confirm, frame, sfx, text, toast } from './widgets';
 
 // ===== 小工具 =====
-function tabs(h: Host, m: Modal, parent: Phaser.GameObjects.Container, names: string[], cur: number, pick: (i: number) => void, y = m.cy): void {
+export function tabs(h: Host, m: Modal, parent: Phaser.GameObjects.Container, names: string[], cur: number, pick: (i: number) => void, y = m.cy): void {
   const bw = Math.floor(m.cw / names.length);
   names.forEach((n, i) => parent.add(new Button(h, m.cx + i * bw, y, bw - 2, 22, n, () => pick(i), { style: i === cur ? 'dark' : 'tan' })));
 }
 
-interface Rows {
+export interface Rows {
   area: ScrollArea;
   y: number;
 }
 
-function rows(h: Host, m: Modal, parent: Phaser.GameObjects.Container, top: number, bottom = 12): Rows {
+export function rows(h: Host, m: Modal, parent: Phaser.GameObjects.Container, top: number, bottom = 12): Rows {
   return { area: new ScrollArea(h, m.cx, top, m.cw, m.py + m.ph - bottom - top, parent), y: 0 };
 }
 
-function row(h: Host, r: Rows, icon: string | null, title: string, sub: string, btn: string | null, fn: () => void, o: { disabled?: boolean; color?: number; style?: 'red' | 'tan' | 'blue'; scale?: number } = {}): void {
+export function row(h: Host, r: Rows, icon: string | null, title: string, sub: string, btn: string | null, fn: () => void, o: { disabled?: boolean; color?: number; style?: 'red' | 'tan' | 'blue'; scale?: number } = {}): void {
   const c = r.area.content;
   const w = r.area.w;
   const g = h.add.graphics();
@@ -63,13 +63,13 @@ function row(h: Host, r: Rows, icon: string | null, title: string, sub: string, 
   r.y += 40;
 }
 
-function fight(h: Host, b: Battle | string): void {
+export function fight(h: Host, b: Battle | string): void {
   if (typeof b === 'string') return void toast(h, b);
   store.flush();
   h.scene.start('Battle', { battle: b });
 }
 
-const heroAvatar = (h: Host, cls: ClassId, gender: Gender, variant: number) => avatarTex(h, heroLookKey(cls, gender), variant);
+export const heroAvatar = (h: Host, cls: ClassId, gender: Gender, variant: number) => avatarTex(h, heroLookKey(cls, gender), variant);
 
 // ===== 擂台 / 斗将台 / 决斗场 =====
 let arenaTab = 0;

@@ -11,6 +11,8 @@ import { acceptQuest, deserialize, log, newSave } from '../game/state';
 import { store } from '../game/store';
 import { showDialog } from '../ui/dialog';
 import { overlayInput } from '../ui/input';
+import { cloudPanel } from '../ui/cloud';
+import { isApp } from '../game/cloud';
 import { Button, H, W, confirm, frame, goldFrame, hit, text, toast } from '../ui/widgets';
 import { UI } from '../art/chrome';
 
@@ -46,7 +48,7 @@ export class TitleScene extends Phaser.Scene {
     p.add(g);
     p.add(text(this, W / 2, 88, '像素三国', { align: 'center', color: UI.yellow, stroke: 0x6a2000, scale: 3 }));
     p.add(text(this, W / 2, 140, '回合制 · 三国像素单机', { align: 'center', color: C.brown }));
-    p.add(text(this, W / 2, 158, '单机版 P3 · 群雄', { align: 'center', color: C.gray }));
+    p.add(text(this, W / 2, 158, '单机版 P4 · 天下', { align: 'center', color: C.gray }));
     let y = 360;
     if (store.has()) {
       const s = store.save;
@@ -59,6 +61,10 @@ export class TitleScene extends Phaser.Scene {
       else this.showServers(0);
     }));
     p.add(new Button(this, 90, y + 44, 180, 32, '导入存档', () => this.importSave()));
+    p.add(new Button(this, 90, y + 88, 180, 32, '云存档', () => cloudPanel(this, false, () => this.showHome())));
+    if (!isApp() && /Android/i.test(navigator.userAgent)) {
+      p.add(new Button(this, 90, y + 132, 180, 28, '下载安卓版', () => window.open('./download/pixel-sanguo.apk', '_blank'), { style: 'blue' }));
+    }
     p.add(text(this, W / 2, H - 24, '画面、剧情为原创；字体 Fusion Pixel（OFL）', { align: 'center', color: C.lightPaper, stroke: C.ink }));
   }
 

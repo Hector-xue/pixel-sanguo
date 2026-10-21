@@ -1,6 +1,6 @@
 // 存档与游戏规则（纯逻辑，可测）。界面只调这里的函数，不直接改存档字段。
 import { balance, bountyOptions, classSkills, classes, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation, systems } from '../data';
-import type { Dir, QuestDef } from '../data';
+import type { Dir, NationId, QuestDef } from '../data';
 import { deriveStats, expToNext, monsterAttrs, playerAttrsAt } from '../core/formulas';
 import { addBonus, applyBonus, emptyBonus, gearsBonus, mountBonus } from '../core/gear';
 import { Rng } from '../core/rng';
@@ -124,6 +124,8 @@ export interface Save {
   dayN?: number;
   // ===== P3 =====
   p3: P3State;
+  // ===== P4 =====
+  p4: P4State;
 }
 
 export interface ReplayRecord {
@@ -198,6 +200,70 @@ export function p3Defaults(): P3State {
     skins: [0],
     personality: '',
   };
+}
+
+// ===== P4：国战、军团争霸、跨区大战 =====
+export interface GzCity {
+  owner: NationId;
+  troops: number;
+}
+
+export interface GzEvent {
+  seq: number;
+  turn: number;
+  text: string;
+  // 城池易主才算大事（会进公告）
+  big: boolean;
+}
+
+export interface GzWorld {
+  season: number;
+  turn: number;
+  cities: Record<string, GzCity>;
+  events: GzEvent[];
+  seq: number;
+}
+
+export interface P4State {
+  nation: NationId | null;
+  joinedAt: number;
+  // 可花的战功、累计战功（定官职）、本赛季战功
+  merit: number;
+  meritTotal: number;
+  seasonMerit: number;
+  orders: { day: string; used: number };
+  salaryDay: string;
+  world: GzWorld | null;
+  seen: number;
+  seasonClaim: { season: number; nation: NationId; rank: number; merit: number } | null;
+  league: { week: number; sect: string | null; fought: number[]; wins: number[]; claim: { week: number; sect: string; rank: number } | null };
+  kuaqu: { week: number; day: string; foughtIds: number[]; points: number; wins: number; claim: { week: number; rank: number; points: number } | null };
+}
+
+export function p4Defaults(): P4State {
+  return {
+    nation: null,
+    joinedAt: 0,
+    merit: 0,
+    meritTotal: 0,
+    seasonMerit: 0,
+    orders: { day: '', used: 0 },
+    salaryDay: '',
+    world: null,
+    seen: 0,
+    seasonClaim: null,
+    league: { week: 0, sect: null, fought: [0, 0, 0, 0, 0, 0, 0], wins: [0, 0, 0, 0, 0, 0, 0], claim: null },
+    kuaqu: { week: 0, day: '', foughtIds: [], points: 0, wins: 0, claim: null },
+  };
+}
+
+// 官职：按累计战功
+export function gzRank(total: number): number {
+  let r = 0;
+  systems.guozhan.ranks.forEach((x, i) => {
+    if (total >= x.merit) r = i;
+  });
+  return r;
 }
 
 // 主角贴图的变体：头像 + 3 × 造型
@@ -287,6 +353,7 @@ export function newSave(o: NewGameOpts): Save {
     battles: 0,
     ...p2Defaults(),
     p3: p3Defaults(),
+    p4: p4Defaults(),
   };
   const st = playerStats(s);
   s.player.hp = st.maxHp;
@@ -337,6 +404,14 @@ export function p3Bonus(s: Save) {
   }
   b.mul += p3.reborn * balance.rebirth.statMul;
   if (p3.marriage.spouse) b.hp += s.player.level * balance.marriage.hpPerLevel;
+  // 国战官职
+  if (s.p4?.nation) {
+    const k = gzRank(s.p4.meritTotal) * s.player.level;
+    const rb = systems.guozhan.rankBonus;
+    b.hp += Math.round(k * rb.hp);
+    b.atk += Math.round(k * rb.atk);
+    b.def += Math.round(k * rb.def);
+  }
   return b;
 }
 
@@ -971,6 +1046,7 @@ export function deserialize(text: string): Save {
   const d = p2Defaults();
   for (const [k, v] of Object.entries(d)) if ((s as unknown as Record<string, unknown>)[k] === undefined) (s as unknown as Record<string, unknown>)[k] = v;
   s.p3 = { ...p3Defaults(), ...(s.p3 ?? {}) };
+  s.p4 = { ...p4Defaults(), ...(s.p4 ?? {}) };
   // 主线加长了：之前停在「全部完成」的存档接着往下走
   if (s.main.state === 'done' && mainQuests[s.main.step]) s.main.state = 'available';
   // P1 的副将存的是当前属性，换算成"起点属性 + 成长"后数值不变

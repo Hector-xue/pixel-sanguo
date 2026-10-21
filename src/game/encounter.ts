@@ -13,6 +13,8 @@ import {
 } from './state';
 import { afterGuard } from './dig';
 import { afterArena } from './arena';
+import { afterContest } from './contest';
+import { afterGz, gzBuff } from './guozhan';
 import { onSectKills } from './sect';
 import { afterTreasure, festivalExpMul } from './events';
 import { mercUnit, mercUsed } from './social';
@@ -136,7 +138,8 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
 
   // 切磋（擂台、斗将台、决斗场）：不掉血不掉药，打完原样；结果另算
   if (b.spar) {
-    sum.lines.push(...afterArena(s, b, now));
+    const kind = (b.tag ?? '').split(':')[0];
+    sum.lines.push(...(kind === 'league' || kind === 'kuaqu' ? afterContest(s, b, now) : afterArena(s, b, now)));
     for (const l of sum.lines) log(s, l);
     return sum;
   }
@@ -167,9 +170,12 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
   }
 
   if (b.outcome === 'win' && !b.spar) {
+    // 本国占着洛阳、虎牢关：经验、银两加成
+    const buff = gzBuff(s);
+    rewards.silver = Math.round(rewards.silver * (1 + buff.silver));
     s.player.silver += rewards.silver;
-    // 拜师加成 × 节日加成
-    const mul = mentorExpMul(s) * festivalExpMul(now);
+    // 拜师加成 × 节日加成 × 国战加成
+    const mul = mentorExpMul(s) * festivalExpMul(now) * (1 + buff.exp);
     for (const u of all) {
       const exp = Math.round((rewards.exp[u.id] ?? 0) * (u.kind === 'player' ? mul : 1));
       if (u.kind === 'player') {
@@ -204,6 +210,8 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
   }
   if (b.tag === 'dig') sum.lines.push(...afterGuard(s, b.outcome === 'win'));
   if (b.tag === 'treasure') sum.lines.push(...afterTreasure(s, b.outcome === 'win', now));
+  const gz = b.tag?.startsWith('gz:');
+  if (gz) sum.lines.push(...afterGz(s, b, now));
   // 雇来的队友：打一场少一场
   if ([...b.units, ...b.reserve].some((u) => u.id === 'merc')) {
     const m = mercUsed(s);
@@ -226,12 +234,17 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
 
   if (b.outcome === 'lose') {
     const st = playerStats(s);
+    // 国战打输了只是败退回营：回满血，不扣经验、不回新手村
     s.player.hp = st.maxHp;
     s.player.mp = st.maxMp;
     for (const g of s.generals) {
       const gs = generalStats(g);
       g.hp = gs.maxHp;
       g.mp = gs.maxMp;
+    }
+    if (gz) {
+      for (const l of sum.lines) log(s, l);
+      return sum;
     }
     s.location = startLocation;
     if (s.player.level >= balance.defeatPenaltyFromLevel) {

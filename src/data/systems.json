@@ -1047,6 +1047,105 @@
         "gold": 300
       },
       "title": "天下名士"
+    },
+    {
+      "id": "gzJoin",
+      "name": "投身国战",
+      "desc": "加入一国参加国战",
+      "key": "gzJoined",
+      "need": 1,
+      "reward": {
+        "silver": 20000
+      },
+      "p4": true
+    },
+    {
+      "id": "gzCapture",
+      "name": "攻城拔寨",
+      "desc": "亲手攻下一座城",
+      "key": "gzCaptures",
+      "need": 1,
+      "reward": {
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      },
+      "title": "攻城拔寨",
+      "p4": true
+    },
+    {
+      "id": "gzCapture10",
+      "name": "所向披靡",
+      "desc": "亲手攻下十座城",
+      "key": "gzCaptures",
+      "need": 10,
+      "reward": {
+        "gold": 50
+      },
+      "title": "所向披靡",
+      "p4": true
+    },
+    {
+      "id": "gzGeneral",
+      "name": "拜将封侯",
+      "desc": "官职升到将军",
+      "key": "gzRank",
+      "need": 8,
+      "reward": {
+        "items": {
+          "dajiangjunling": 1
+        }
+      },
+      "title": "将军",
+      "p4": true
+    },
+    {
+      "id": "gzMarshal",
+      "name": "大将军",
+      "desc": "官职升到大将军",
+      "key": "gzRank",
+      "need": 9,
+      "reward": {
+        "gold": 100
+      },
+      "title": "大将军",
+      "p4": true
+    },
+    {
+      "id": "gzSeason",
+      "name": "开国元勋",
+      "desc": "所在国拿下一个赛季的第一",
+      "key": "gzSeasonWins",
+      "need": 1,
+      "reward": {
+        "gold": 50
+      },
+      "title": "开国元勋",
+      "p4": true
+    },
+    {
+      "id": "leagueChamp",
+      "name": "争霸盟主",
+      "desc": "本教派拿下一周军团争霸第一",
+      "key": "leagueChamps",
+      "need": 1,
+      "reward": {
+        "gold": 30
+      },
+      "title": "争霸盟主",
+      "p4": true
+    },
+    {
+      "id": "kuaquChamp",
+      "name": "跨区之王",
+      "desc": "本区拿下跨区大战第一",
+      "key": "kuaquChamps",
+      "need": 1,
+      "reward": {
+        "gold": 30
+      },
+      "title": "跨区之王",
+      "p4": true
     }
   ],
   "wenqu": {
@@ -1616,5 +1715,585 @@
         "ok": 1
       }
     ]
+  },
+  "guozhan": {
+    "_src": "【实锤】原版有国战（抢洛阳、虎牢关）和军团争霸；【推定】单机版做成魏蜀吴 + 董卓余部的 AI 沙盘：每小时一回合、一周一赛季，城池、兵力、战功、官职、奖励全部自己设计",
+    "minLevel": 60,
+    "ordersPerDay": 8,
+    "turnMinutes": 60,
+    "seasonDays": 7,
+    "nations": [
+      {
+        "id": "wei",
+        "name": "魏",
+        "full": "魏国",
+        "ruler": "曹操",
+        "color": 3828432,
+        "joinable": true
+      },
+      {
+        "id": "shu",
+        "name": "蜀",
+        "full": "蜀国",
+        "ruler": "刘备",
+        "color": 4168250,
+        "joinable": true
+      },
+      {
+        "id": "wu",
+        "name": "吴",
+        "full": "吴国",
+        "ruler": "孙权",
+        "color": 13646378,
+        "joinable": true
+      },
+      {
+        "id": "qun",
+        "name": "群",
+        "full": "董卓余部",
+        "ruler": "李傕",
+        "color": 10520656,
+        "joinable": false
+      }
+    ],
+    "kinds": {
+      "capital": {
+        "name": "都城",
+        "max": 6000,
+        "def": 2.0,
+        "yield": 150
+      },
+      "key": {
+        "name": "重镇",
+        "max": 5000,
+        "def": 1.4,
+        "yield": 90
+      },
+      "pass": {
+        "name": "关隘",
+        "max": 4500,
+        "def": 1.8,
+        "yield": 70
+      },
+      "normal": {
+        "name": "城池",
+        "max": 3000,
+        "def": 1.15,
+        "yield": 60
+      }
+    },
+    "cities": [
+      {
+        "id": "xuchang",
+        "name": "许昌",
+        "x": 62,
+        "y": 44,
+        "kind": "capital",
+        "owner": "wei"
+      },
+      {
+        "id": "chenliu",
+        "name": "陈留",
+        "x": 68,
+        "y": 27,
+        "kind": "normal",
+        "owner": "wei"
+      },
+      {
+        "id": "puyang",
+        "name": "濮阳",
+        "x": 80,
+        "y": 13,
+        "kind": "normal",
+        "owner": "wei"
+      },
+      {
+        "id": "qiaojun",
+        "name": "谯郡",
+        "x": 84,
+        "y": 42,
+        "kind": "normal",
+        "owner": "wei"
+      },
+      {
+        "id": "chengdu",
+        "name": "成都",
+        "x": 8,
+        "y": 82,
+        "kind": "capital",
+        "owner": "shu"
+      },
+      {
+        "id": "hanzhong",
+        "name": "汉中",
+        "x": 12,
+        "y": 52,
+        "kind": "normal",
+        "owner": "shu"
+      },
+      {
+        "id": "shangyong",
+        "name": "上庸",
+        "x": 27,
+        "y": 56,
+        "kind": "normal",
+        "owner": "shu"
+      },
+      {
+        "id": "xiangyang",
+        "name": "襄阳",
+        "x": 38,
+        "y": 72,
+        "kind": "normal",
+        "owner": "shu"
+      },
+      {
+        "id": "jianye",
+        "name": "建业",
+        "x": 90,
+        "y": 76,
+        "kind": "capital",
+        "owner": "wu"
+      },
+      {
+        "id": "lujiang",
+        "name": "庐江",
+        "x": 70,
+        "y": 78,
+        "kind": "normal",
+        "owner": "wu"
+      },
+      {
+        "id": "shouchun",
+        "name": "寿春",
+        "x": 80,
+        "y": 60,
+        "kind": "normal",
+        "owner": "wu"
+      },
+      {
+        "id": "chaisang",
+        "name": "柴桑",
+        "x": 54,
+        "y": 88,
+        "kind": "normal",
+        "owner": "wu"
+      },
+      {
+        "id": "luoyang",
+        "name": "洛阳",
+        "x": 40,
+        "y": 28,
+        "kind": "key",
+        "owner": "qun"
+      },
+      {
+        "id": "hulaoguan",
+        "name": "虎牢关",
+        "x": 54,
+        "y": 22,
+        "kind": "pass",
+        "owner": "qun"
+      },
+      {
+        "id": "changan",
+        "name": "长安",
+        "x": 14,
+        "y": 26,
+        "kind": "key",
+        "owner": "qun"
+      },
+      {
+        "id": "wancheng",
+        "name": "宛城",
+        "x": 40,
+        "y": 50,
+        "kind": "normal",
+        "owner": "qun"
+      },
+      {
+        "id": "yingchuan",
+        "name": "颍川",
+        "x": 52,
+        "y": 40,
+        "kind": "normal",
+        "owner": "qun"
+      }
+    ],
+    "links": [
+      [
+        "changan",
+        "luoyang"
+      ],
+      [
+        "changan",
+        "hanzhong"
+      ],
+      [
+        "luoyang",
+        "hulaoguan"
+      ],
+      [
+        "hulaoguan",
+        "chenliu"
+      ],
+      [
+        "chenliu",
+        "puyang"
+      ],
+      [
+        "chenliu",
+        "xuchang"
+      ],
+      [
+        "luoyang",
+        "yingchuan"
+      ],
+      [
+        "yingchuan",
+        "xuchang"
+      ],
+      [
+        "xuchang",
+        "qiaojun"
+      ],
+      [
+        "puyang",
+        "qiaojun"
+      ],
+      [
+        "yingchuan",
+        "wancheng"
+      ],
+      [
+        "luoyang",
+        "wancheng"
+      ],
+      [
+        "wancheng",
+        "shangyong"
+      ],
+      [
+        "shangyong",
+        "hanzhong"
+      ],
+      [
+        "hanzhong",
+        "chengdu"
+      ],
+      [
+        "wancheng",
+        "xiangyang"
+      ],
+      [
+        "shangyong",
+        "xiangyang"
+      ],
+      [
+        "xiangyang",
+        "chaisang"
+      ],
+      [
+        "qiaojun",
+        "shouchun"
+      ],
+      [
+        "shouchun",
+        "lujiang"
+      ],
+      [
+        "lujiang",
+        "jianye"
+      ],
+      [
+        "lujiang",
+        "chaisang"
+      ],
+      [
+        "shouchun",
+        "jianye"
+      ],
+      [
+        "xuchang",
+        "shouchun"
+      ],
+      [
+        "chengdu",
+        "xiangyang"
+      ]
+    ],
+    "soldiers": {
+      "wei": [
+        "gz_weibu",
+        "gz_weimou",
+        "gz_weifang"
+      ],
+      "shu": [
+        "gz_shubu",
+        "gz_shumou",
+        "gz_shufang"
+      ],
+      "wu": [
+        "gz_wubu",
+        "gz_wumou",
+        "gz_wufang"
+      ],
+      "qun": [
+        "gz_qunbu",
+        "gz_qunmou",
+        "gz_qunfang"
+      ]
+    },
+    "guards": {
+      "wei": [
+        "gz_xiahoudun",
+        "gz_caoren",
+        "gz_zhangliao",
+        "gz_xuchu",
+        "gz_guojia",
+        "gz_simayi"
+      ],
+      "shu": [
+        "gz_guanyu",
+        "gz_zhangfei",
+        "gz_machao",
+        "gz_huangzhong",
+        "gz_zhugeliang",
+        "gz_pangtong"
+      ],
+      "wu": [
+        "gz_zhouyu",
+        "gz_lvmeng",
+        "gz_ganning",
+        "gz_taishici",
+        "gz_huanggai",
+        "gz_luxun"
+      ],
+      "qun": [
+        "gz_xurong",
+        "gz_lijue",
+        "gz_guosi",
+        "gz_zhangji",
+        "gz_zhangxiu",
+        "gz_jiaxu"
+      ]
+    },
+    "ai": {
+      "attackChance": 0.6,
+      "sendPct": 0.6,
+      "minRatio": 0.85,
+      "startPct": 0.7,
+      "qunStartPct": 0.45,
+      "qunYieldMul": 0.35,
+      "reinforcePct": 0.25,
+      "bigNationDamp": 0.08,
+      "luck": [
+        0.8,
+        1.2
+      ]
+    },
+    "player": {
+      "hitPct": 0.055,
+      "hitPerLevel": 2,
+      "defendPct": 0.06,
+      "captureTroopsPct": 0.35,
+      "meritAtk": 12,
+      "meritDef": 8,
+      "meritBoss": 80,
+      "guardControlResist": 120,
+      "guardLevel": 3,
+      "guardEscorts": 3,
+      "mirrorChance": 0.35,
+      "joinCooldownDays": 7
+    },
+    "ranks": [
+      {
+        "name": "士卒",
+        "merit": 0
+      },
+      {
+        "name": "伍长",
+        "merit": 50
+      },
+      {
+        "name": "什长",
+        "merit": 150
+      },
+      {
+        "name": "百夫长",
+        "merit": 400
+      },
+      {
+        "name": "校尉",
+        "merit": 900
+      },
+      {
+        "name": "都尉",
+        "merit": 1800
+      },
+      {
+        "name": "中郎将",
+        "merit": 3500
+      },
+      {
+        "name": "偏将军",
+        "merit": 6000
+      },
+      {
+        "name": "将军",
+        "merit": 10000
+      },
+      {
+        "name": "大将军",
+        "merit": 16000
+      }
+    ],
+    "rankBonus": {
+      "hp": 0.8,
+      "atk": 0.08,
+      "def": 0.08
+    },
+    "salaryPerRankLevel": 20,
+    "buffs": {
+      "luoyang": {
+        "exp": 0.1,
+        "text": "经验+10%"
+      },
+      "hulaoguan": {
+        "silver": 0.1,
+        "text": "战斗银两+10%"
+      }
+    },
+    "seasonMinMerit": 50,
+    "seasonRewards": [
+      {
+        "silverPerLevel": 600,
+        "items": {
+          "gaojibaoxiang": 2,
+          "dajiangjunling": 1
+        },
+        "gold": 30
+      },
+      {
+        "silverPerLevel": 350,
+        "items": {
+          "gaojibaoxiang": 1,
+          "jiangjunling": 1
+        }
+      },
+      {
+        "silverPerLevel": 200,
+        "items": {
+          "baoxiang": 2
+        }
+      }
+    ],
+    "shop": [
+      {
+        "id": "jiangjunling",
+        "cost": 300
+      },
+      {
+        "id": "dajiangjunling",
+        "cost": 1200
+      },
+      {
+        "id": "gaojibaoxiang",
+        "cost": 200
+      },
+      {
+        "id": "jinengshu",
+        "cost": 800
+      },
+      {
+        "id": "xinfa3",
+        "cost": 500
+      },
+      {
+        "id": "tilidan",
+        "cost": 60
+      },
+      {
+        "id": "@ore",
+        "cost": 40
+      },
+      {
+        "id": "@gem",
+        "cost": 150
+      }
+    ]
+  },
+  "league": {
+    "_src": "【实锤】原版有军团争霸、教派战；【推定】单机版是四个教派一周循环赛，每天一轮，你替本教派打三阵",
+    "fightsPerDay": 3,
+    "winPoints": 3,
+    "baseP": 0.3,
+    "perWin": 0.22,
+    "stageLevel": [
+      -3,
+      0,
+      3
+    ],
+    "rewards": [
+      {
+        "silverPerLevel": 400,
+        "items": {
+          "gaojibaoxiang": 1
+        },
+        "rep": 300
+      },
+      {
+        "silverPerLevel": 200,
+        "rep": 150
+      },
+      {
+        "silverPerLevel": 120,
+        "rep": 80
+      },
+      {
+        "silverPerLevel": 80,
+        "rep": 40
+      }
+    ],
+    "title": "争霸盟主"
+  },
+  "kuaqu": {
+    "_src": "【实锤】原版有跨区大战（只查到名字）；【推定】单机版是周六周日两天，和两个 AI 区比积分",
+    "minLevel": 80,
+    "fightsPerDay": 5,
+    "servers": [
+      "二区·烽火连城",
+      "五区·逐鹿中原"
+    ],
+    "base": 900,
+    "spread": 0.15,
+    "playerWeight": 2,
+    "winPoints": 10,
+    "levelDiffPoints": 2,
+    "oppLevel": [
+      3,
+      9
+    ],
+    "rewards": [
+      {
+        "silverPerLevel": 500,
+        "items": {
+          "gaojibaoxiang": 2
+        }
+      },
+      {
+        "silverPerLevel": 250,
+        "items": {
+          "gaojibaoxiang": 1
+        }
+      },
+      {
+        "silverPerLevel": 120,
+        "items": {
+          "baoxiang": 1
+        }
+      }
+    ],
+    "title": "跨区之王"
   }
 }

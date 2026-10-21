@@ -24,6 +24,7 @@ import {
 import { generalRebirth, generalRebirthReason } from '../game/rebirth';
 import type { Target } from '../game/state';
 import { store } from '../game/store';
+import { cloudPanel } from './cloud';
 import type { ChatBox } from './chat';
 import { fillText, showDialog } from './dialog';
 import { digTalk, generalSkillPanel, pickGeneral, recruitPanel, ringTalk, useMisc } from './fun';
@@ -616,7 +617,7 @@ export function helpPanel(h: Host): void {
     '【娱乐场】赤壁：押魏、蜀、吴其中一方，押中的按比例分全部奖池，押的人越少赔率越高。猜猜看：三个锦囊选一个，猜中2.5倍，可以接着猜。',
     '【福利】「功能 → 邮件」里有七日签到（第7天送大乔）和在线奖励。',
     '【馆驿】寄存物品不占负重；还能传送到去过的城镇。钱庄存钱有利息，还能换金砖去商城买东西。',
-    '【存档】自动保存在这个浏览器里。换手机、清缓存前，在「功能 → 退出」里导出存档。',
+    '【存档】自动保存在这个浏览器里。换手机、清缓存前，在「功能 → 退出」里导出存档，或者登录云存档上传；新设备在标题页点「云存档」下载。',
     '【二环三环】40级开二环（第11–20环）、60级开三环（第21–30环），在跑环使者那里选。',
     '【化境】技能5级熟练度满30000、人物90级以后，去技能学校升一次就入化境，威力再涨一截。',
     '【转职】100级以后去洛阳找左慈，重选性别、职业、头像，属性点退回重加；不转职等级停在100。副将100级也能转生（花大将军令）。',
@@ -632,6 +633,11 @@ export function helpPanel(h: Host): void {
     '【组队】「功能 → 组队」或濮阳的佣兵头领那里雇AI队友，跟你一起打20场。',
     '【录像】「功能 → 公告」里能回放最近8场战斗。',
     '【成就称号】角色面板里看成就、换称号；排行榜在「功能 → 排行」。',
+    '【国战】60级以后「功能 → 国战」投奔魏、蜀、吴其中一国。AI 每小时走一回合，自己补兵、打邻城；一周一个赛季，按城数排名发奖。你每天有8道军令：出征打和本国接壤的敌城削守军，驻守前线补兵；守军打光后守将出城，单挑赢了这座城就归本国（守将战不用军令，趁对方没补上兵赶紧打）。本国占着洛阳经验+10%，占着虎牢关银两+10%。',
+    '【战功官职】出征、驻守、斩将都给战功：累计战功升官职（士卒到大将军），官职越高加的属性越多、每天俸禄越多；可用战功在「国战 → 战功」里换将军令、宝石、矿石。',
+    '【军团争霸】入了教派就能打：四个教派一周循环赛，每天一轮，你替本教派打三阵，赢的阵越多本教派越可能赢这一轮。周一按积分领上周奖励。',
+    '【跨区大战】80级以后，周六、周日在「国战 → 跨区」和别区高手过招，赢了给本区加分，周一按三个区的名次领奖。',
+    '【安卓版】安卓手机在标题页点「下载安卓版」装 App，可以离线玩；存档和网页版是分开的，用云存档互相同步。',
   ];
   const area = new ScrollArea(h, m.cx, m.cy, m.cw, m.ph - 40, m.inner);
   let y = 0;
@@ -644,7 +650,7 @@ export function helpPanel(h: Host): void {
 
 // ===== 退出（存档管理） =====
 export function exitPanel(h: Host): void {
-  const m = new Modal(h, '退出', { h: 300, w: 280 });
+  const m = new Modal(h, '退出', { h: 340, w: 280 });
   let y = m.cy + 4;
   const add = (label: string, fn: () => void, style: 'red' | 'tan' = 'tan') => {
     m.inner.add(new Button(h, m.cx, y, m.cw, 30, label, fn, { style }));
@@ -661,6 +667,10 @@ export function exitPanel(h: Host): void {
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     toast(h, '存档文件已下载');
   });
+  add('云存档（换设备接着玩）', () => {
+    m.close();
+    cloudPanel(h, true, () => h.scene.restart());
+  }, 'red');
   add(isMuted() ? '打开音效' : '关闭音效', () => {
     setMuted(!isMuted());
     m.close();
@@ -674,7 +684,7 @@ export function exitPanel(h: Host): void {
     store.clear();
     h.scene.start('Title');
   }, '删除'), 'red');
-  m.inner.add(text(h, m.cx, y, '游戏会自动保存在这个浏览器里。', { wrap: m.cw, color: C.gray }));
+  m.inner.add(text(h, m.cx, y, '游戏会自动保存在这个浏览器里；登录云存档后也能存到服务器上。', { wrap: m.cw, color: C.gray }));
 }
 
 // ===== 此地玩家 =====

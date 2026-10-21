@@ -2848,5 +2848,1313 @@
     ],
     "expMul": 1.3
   },
-  "_srcP3": "P3：道士45、术士/妖人45、僵尸/游魂50、力士/斧手55、恶仆/女贼55、败类/凶徒/恶棍60、黄巾士兵/精兵65、独行/采花/绿林/江洋大盗75、矿石/宝石/白银/黄巾大盗85 的名字和等级【实锤，攻略原文】；具体摆在哪张图、属性、技能、掉落【推定】；85级以后（华雄、吕布、李儒、董卓、张鲁一线）全部自己设计【推定】"
+  "_srcP3": "P3：道士45、术士/妖人45、僵尸/游魂50、力士/斧手55、恶仆/女贼55、败类/凶徒/恶棍60、黄巾士兵/精兵65、独行/采花/绿林/江洋大盗75、矿石/宝石/白银/黄巾大盗85 的名字和等级【实锤，攻略原文】；具体摆在哪张图、属性、技能、掉落【推定】；85级以后（华雄、吕布、李儒、董卓、张鲁一线）全部自己设计【推定】",
+  "_srcP4": "P4 国战：魏蜀吴各国兵种、守将（三国名将）全部【推定】；原版只查到国战抢洛阳、虎牢关",
+  "gz_weibu": {
+    "name": "魏军步卒",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_weibu",
+    "weights": {
+      "con": 1.7,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 0.8
+    },
+    "skills": [
+      {
+        "id": "gujin",
+        "level": 4,
+        "rate": 0.12
+      },
+      {
+        "id": "lipi",
+        "level": 4,
+        "rate": 0.18
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_weimou": {
+    "name": "魏军谋士",
+    "class": "scholar",
+    "gender": "male",
+    "look": "gz_weimou",
+    "weights": {
+      "con": 1.1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.0
+    },
+    "skills": [
+      {
+        "id": "huadi",
+        "level": 4,
+        "rate": 0.22
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_weifang": {
+    "name": "魏军方士",
+    "class": "mystic",
+    "gender": "male",
+    "look": "gz_weifang",
+    "weights": {
+      "con": 1.0,
+      "str": 0.6,
+      "int": 1.6,
+      "agi": 1.1
+    },
+    "skills": [
+      {
+        "id": "wulei",
+        "level": 4,
+        "rate": 0.22
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_shubu": {
+    "name": "蜀军步卒",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_shubu",
+    "weights": {
+      "con": 1.3,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 4,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_shumou": {
+    "name": "蜀军谋士",
+    "class": "scholar",
+    "gender": "male",
+    "look": "gz_shumou",
+    "weights": {
+      "con": 1.1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.0
+    },
+    "skills": [
+      {
+        "id": "chenhuo",
+        "level": 4,
+        "rate": 0.22
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_shufang": {
+    "name": "蜀军方士",
+    "class": "mystic",
+    "gender": "male",
+    "look": "gz_shufang",
+    "weights": {
+      "con": 1.0,
+      "str": 0.6,
+      "int": 1.6,
+      "agi": 1.1
+    },
+    "skills": [
+      {
+        "id": "hufeng",
+        "level": 4,
+        "rate": 0.22
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_wubu": {
+    "name": "吴军步卒",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_wubu",
+    "weights": {
+      "con": 1.0,
+      "str": 1.2,
+      "int": 0.5,
+      "agi": 1.6
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 4,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_wumou": {
+    "name": "吴军谋士",
+    "class": "scholar",
+    "gender": "male",
+    "look": "gz_wumou",
+    "weights": {
+      "con": 1.1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.0
+    },
+    "skills": [
+      {
+        "id": "simian",
+        "level": 4,
+        "rate": 0.22
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_wufang": {
+    "name": "吴军方士",
+    "class": "mystic",
+    "gender": "male",
+    "look": "gz_wufang",
+    "weights": {
+      "con": 1.0,
+      "str": 0.6,
+      "int": 1.6,
+      "agi": 1.1
+    },
+    "skills": [
+      {
+        "id": "yaohuo",
+        "level": 4,
+        "rate": 0.22
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_qunbu": {
+    "name": "董卓余部",
+    "class": "warrior",
+    "gender": "male",
+    "look": "m_xlshoujun",
+    "weights": {
+      "con": 1.7,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 0.8
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 4,
+        "rate": 0.18
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_qunmou": {
+    "name": "余部谋士",
+    "class": "scholar",
+    "gender": "male",
+    "look": "m_xlmoushi",
+    "weights": {
+      "con": 1.1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.0
+    },
+    "skills": [
+      {
+        "id": "huadi",
+        "level": 4,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_qunfang": {
+    "name": "余部方士",
+    "class": "mystic",
+    "gender": "male",
+    "look": "m_shushi",
+    "weights": {
+      "con": 1.0,
+      "str": 0.6,
+      "int": 1.6,
+      "agi": 1.1
+    },
+    "skills": [
+      {
+        "id": "wugu",
+        "level": 4,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "dahuan",
+        "chance": 0.04
+      },
+      {
+        "item": "yulu",
+        "chance": 0.04
+      }
+    ],
+    "expMul": 1.8,
+    "silverMul": 1.2,
+    "capturable": false,
+    "gz": true
+  },
+  "gz_xiahoudun": {
+    "name": "夏侯惇",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_xiahoudun",
+    "weights": {
+      "con": 1.7,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 0.8
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.3
+      },
+      {
+        "id": "gujin",
+        "level": 5,
+        "rate": 0.12
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_caoren": {
+    "name": "曹仁",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_caoren",
+    "weights": {
+      "con": 1.7,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 0.8
+    },
+    "skills": [
+      {
+        "id": "gujin",
+        "level": 5,
+        "rate": 0.2
+      },
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.25
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_zhangliao": {
+    "name": "张辽",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_zhangliao",
+    "weights": {
+      "con": 1.0,
+      "str": 1.2,
+      "int": 0.5,
+      "agi": 1.6
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 5,
+        "rate": 0.25
+      },
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_xuchu": {
+    "name": "许褚",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_xuchu",
+    "weights": {
+      "con": 1.7,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 0.8
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.35
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_guojia": {
+    "name": "郭嘉",
+    "class": "scholar",
+    "gender": "male",
+    "look": "gz_guojia",
+    "weights": {
+      "con": 1.1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.0
+    },
+    "skills": [
+      {
+        "id": "simian",
+        "level": 5,
+        "rate": 0.3
+      },
+      {
+        "id": "chenhuo",
+        "level": 5,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_simayi": {
+    "name": "司马懿",
+    "class": "scholar",
+    "gender": "male",
+    "look": "gz_simayi",
+    "weights": {
+      "con": 1.1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.0
+    },
+    "skills": [
+      {
+        "id": "huadi",
+        "level": 5,
+        "rate": 0.3
+      },
+      {
+        "id": "simian",
+        "level": 5,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_guanyu": {
+    "name": "关羽",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_guanyu",
+    "weights": {
+      "con": 1.3,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.35
+      },
+      {
+        "id": "sheming",
+        "level": 5,
+        "rate": 0.15
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_zhangfei": {
+    "name": "张飞",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_zhangfei",
+    "weights": {
+      "con": 1.7,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 0.8
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.3
+      },
+      {
+        "id": "gujin",
+        "level": 5,
+        "rate": 0.12
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_machao": {
+    "name": "马超",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_machao",
+    "weights": {
+      "con": 1.0,
+      "str": 1.2,
+      "int": 0.5,
+      "agi": 1.6
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 5,
+        "rate": 0.3
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_huangzhong": {
+    "name": "黄忠",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_huangzhong",
+    "weights": {
+      "con": 1.3,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 5,
+        "rate": 0.25
+      },
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_zhugeliang": {
+    "name": "诸葛亮",
+    "class": "scholar",
+    "gender": "male",
+    "look": "gz_zhugeliang",
+    "weights": {
+      "con": 1.1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.0
+    },
+    "skills": [
+      {
+        "id": "simian",
+        "level": 5,
+        "rate": 0.3
+      },
+      {
+        "id": "huadi",
+        "level": 5,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_pangtong": {
+    "name": "庞统",
+    "class": "mystic",
+    "gender": "male",
+    "look": "gz_pangtong",
+    "weights": {
+      "con": 1.0,
+      "str": 0.6,
+      "int": 1.6,
+      "agi": 1.1
+    },
+    "skills": [
+      {
+        "id": "yaohuo",
+        "level": 5,
+        "rate": 0.3
+      },
+      {
+        "id": "hufeng",
+        "level": 5,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_zhouyu": {
+    "name": "周瑜",
+    "class": "scholar",
+    "gender": "male",
+    "look": "gz_zhouyu",
+    "weights": {
+      "con": 1.1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.0
+    },
+    "skills": [
+      {
+        "id": "chenhuo",
+        "level": 5,
+        "rate": 0.3
+      },
+      {
+        "id": "simian",
+        "level": 5,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_lvmeng": {
+    "name": "吕蒙",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_lvmeng",
+    "weights": {
+      "con": 1.3,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.3
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_ganning": {
+    "name": "甘宁",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_ganning",
+    "weights": {
+      "con": 1.0,
+      "str": 1.2,
+      "int": 0.5,
+      "agi": 1.6
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 5,
+        "rate": 0.3
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_taishici": {
+    "name": "太史慈",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_taishici",
+    "weights": {
+      "con": 1.3,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.25
+      },
+      {
+        "id": "sheming",
+        "level": 5,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_huanggai": {
+    "name": "黄盖",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_huanggai",
+    "weights": {
+      "con": 1.7,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 0.8
+    },
+    "skills": [
+      {
+        "id": "gujin",
+        "level": 5,
+        "rate": 0.2
+      },
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.25
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_luxun": {
+    "name": "陆逊",
+    "class": "mystic",
+    "gender": "male",
+    "look": "gz_luxun",
+    "weights": {
+      "con": 1.0,
+      "str": 0.6,
+      "int": 1.6,
+      "agi": 1.1
+    },
+    "skills": [
+      {
+        "id": "yaohuo",
+        "level": 5,
+        "rate": 0.3
+      },
+      {
+        "id": "wulei",
+        "level": 5,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_xurong": {
+    "name": "徐荣",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_xurong",
+    "weights": {
+      "con": 1.7,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 0.8
+    },
+    "skills": [
+      {
+        "id": "gujin",
+        "level": 5,
+        "rate": 0.2
+      },
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.25
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_lijue": {
+    "name": "李傕",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_lijue",
+    "weights": {
+      "con": 1.3,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.3
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_guosi": {
+    "name": "郭汜",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_guosi",
+    "weights": {
+      "con": 1.3,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 1
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 5,
+        "rate": 0.25
+      },
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_zhangji": {
+    "name": "张济",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_zhangji",
+    "weights": {
+      "con": 1.7,
+      "str": 1.4,
+      "int": 0.5,
+      "agi": 0.8
+    },
+    "skills": [
+      {
+        "id": "gujin",
+        "level": 5,
+        "rate": 0.15
+      },
+      {
+        "id": "lipi",
+        "level": 5,
+        "rate": 0.25
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_zhangxiu": {
+    "name": "张绣",
+    "class": "warrior",
+    "gender": "male",
+    "look": "gz_zhangxiu",
+    "weights": {
+      "con": 1.0,
+      "str": 1.2,
+      "int": 0.5,
+      "agi": 1.6
+    },
+    "skills": [
+      {
+        "id": "sheming",
+        "level": 5,
+        "rate": 0.3
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  },
+  "gz_jiaxu": {
+    "name": "贾诩",
+    "class": "scholar",
+    "gender": "male",
+    "look": "gz_jiaxu",
+    "weights": {
+      "con": 1.1,
+      "str": 0.6,
+      "int": 1.5,
+      "agi": 1.0
+    },
+    "skills": [
+      {
+        "id": "simian",
+        "level": 5,
+        "rate": 0.3
+      },
+      {
+        "id": "huadi",
+        "level": 5,
+        "rate": 0.2
+      }
+    ],
+    "drops": [
+      {
+        "item": "gaojibaoxiang",
+        "chance": 0.4
+      }
+    ],
+    "expMul": 10,
+    "silverMul": 8,
+    "hpMul": 2.6,
+    "atkMul": 1.0,
+    "historic": true,
+    "boss": true,
+    "capturable": false,
+    "noFlee": true,
+    "gz": true
+  }
 }

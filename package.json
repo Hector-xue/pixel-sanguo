@@ -11,9 +11,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@capacitor/core": "6.2.1",
     "phaser": "3.90.0"
   },
   "devDependencies": {
+    "@capacitor/android": "6.2.1",
+    "@capacitor/cli": "6.2.1",
     "typescript": "5.8.3",
     "vite": "6.3.5",
     "vitest": "3.2.4"

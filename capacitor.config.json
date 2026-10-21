@@ -1,0 +1,9 @@
+{
+  "appId": "com.ivyea.sanguo",
+  "appName": "像素三国",
+  "webDir": "dist",
+  "backgroundColor": "#202428",
+  "android": {
+    "allowMixedContent": false
+  }
+}

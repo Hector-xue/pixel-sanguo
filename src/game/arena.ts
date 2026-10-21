@@ -8,7 +8,7 @@ import { generalUnit, playerUnit } from './encounter';
 import { mirrorUnit, rivalGeneralUnit, rivalLevel, rivals } from './rivals';
 import type { Rival } from './rivals';
 import type { Save } from './state';
-import { bump, dayKey, findGeneral, log, onFlag } from './state';
+import { bump, dayKey, findGeneral, onFlag } from './state';
 
 const A = balance.arena;
 export type Ladder = 'arena' | 'duel';
@@ -163,7 +163,6 @@ export function afterArena(s: Save, b: Battle, now = Date.now()): string[] {
       lines.push(`决斗落败，被抢走${lost}两银子`);
     } else lines.push('逃离了决斗场');
   }
-  for (const l of lines) log(s, l);
   return lines;
 }
 

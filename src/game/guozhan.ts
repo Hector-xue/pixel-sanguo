@@ -1,0 +1,492 @@
+// 国战沙盘：魏、蜀、吴三国加董卓余部（群雄）争 17 座城。AI 势力按真实时间每小时走一回合（补兵、调兵、打邻城），
+// 离线这段时间的回合上线时一次补算（同一个种子同一个钟点，算出来的结果都一样）。一周一个赛季，周一开局，按城数排名。
+// 主角 60 级入一国：每天 8 道军令出征敌城（削守军）或驻守己城（补兵）；守军打光了守将出城单挑，赢了这座城归本国。
+import { monsters, systems } from '../data';
+import type { CityKind, NationId } from '../data';
+import { createBattle } from '../core/battle';
+import { monsterExp, monsterSilver } from '../core/formulas';
+import type { BUnit, Battle } from '../core/battle';
+import { Rng } from '../core/rng';
+import { generalUnit, monsterUnit, playerUnit } from './encounter';
+import { mirrorUnit, rivals } from './rivals';
+import type { Rival } from './rivals';
+import type { GzCity, GzWorld, Save } from './state';
+import { bump, dayKey, dayNum, gzRank, log, rollRng } from './state';
+import { grantReward, oreFor, randomGem } from './welfare';
+
+const G = systems.guozhan;
+const DAY = 86400000;
+export const PLAYABLE: NationId[] = ['wei', 'shu', 'wu'];
+const TURNS = (G.seasonDays * 24 * 60) / G.turnMinutes;
+
+export function hashStr(str: string): number {
+  let h = 2166136261;
+  for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return h >>> 0;
+}
+
+// ===== 时间：周一 0 点开赛季（本地时间） =====
+export function weekIndex(now = Date.now()): number {
+  // 1970-01-01 是星期四，+3 让每周从星期一算起
+  return Math.floor((dayNum(now) + 3) / 7);
+}
+
+// 0 = 星期一 … 6 = 星期日
+export function weekday(now = Date.now()): number {
+  return (dayNum(now) + 3) % 7;
+}
+
+function localMs(now: number): number {
+  return now - new Date(now).getTimezoneOffset() * 60000;
+}
+
+export function turnOf(now = Date.now()): number {
+  const start = (weekIndex(now) * 7 - 3) * DAY;
+  return Math.max(0, Math.min(TURNS, Math.floor((localMs(now) - start) / (G.turnMinutes * 60000))));
+}
+
+export const seasonTurns = TURNS;
+
+// ===== 查询 =====
+export const nationDef = (id: NationId) => G.nations.find((n) => n.id === id)!;
+export const cityDef = (id: string) => G.cities.find((c) => c.id === id)!;
+export const kindOf = (id: string) => G.kinds[cityDef(id).kind as CityKind];
+
+export function neighbors(id: string): string[] {
+  const out: string[] = [];
+  for (const [a, b] of G.links) {
+    if (a === id) out.push(b);
+    else if (b === id) out.push(a);
+  }
+  return out;
+}
+
+export function citiesOf(w: GzWorld, n: NationId): string[] {
+  return G.cities.filter((c) => w.cities[c.id].owner === n).map((c) => c.id);
+}
+
+function frontier(w: GzWorld, id: string): boolean {
+  const o = w.cities[id].owner;
+  return neighbors(id).some((x) => w.cities[x].owner !== o);
+}
+
+// ===== 开局与推进 =====
+function newWorld(season: number): GzWorld {
+  const cities: Record<string, GzCity> = {};
+  for (const c of G.cities) cities[c.id] = { owner: c.owner, troops: Math.round(G.kinds[c.kind].max * (c.owner === 'qun' ? G.ai.qunStartPct : G.ai.startPct)) };
+  return { season, turn: 0, cities, events: [], seq: 0 };
+}
+
+function event(w: GzWorld, text: string, big: boolean): void {
+  w.seq++;
+  w.events.push({ seq: w.seq, turn: w.turn, text, big });
+  if (w.events.length > 60) w.events.splice(0, w.events.length - 60);
+}
+
+const natName = (n: NationId) => (n === 'qun' ? '董卓余部' : `${nationDef(n).name}军`);
+
+// AI 走一回合：补兵 → 后方往前线调兵 → 各国看情况打邻城（都城 AI 只能围、打不下来，三国不会被 AI 灭掉）
+function aiTurn(s: Save, w: GzWorld): void {
+  const A = G.ai;
+  const rng = new Rng(hashStr(`${s.seed}-gz-${w.season}-${w.turn}`));
+  const counts: Record<string, number> = {};
+  for (const c of G.cities) counts[w.cities[c.id].owner] = (counts[w.cities[c.id].owner] ?? 0) + 1;
+  for (const c of G.cities) {
+    const st = w.cities[c.id];
+    const k = G.kinds[c.kind];
+    // 地盘越大补兵越慢（免得一家独大一路滚雪球），董卓余部只守不攻、补得也慢
+    const damp = st.owner === 'qun' ? A.qunYieldMul : Math.max(0.5, 1 - A.bigNationDamp * Math.max(0, counts[st.owner] - 4));
+    st.troops = Math.min(k.max, st.troops + Math.round(k.yield * damp));
+  }
+  for (const n of rng.shuffle([...PLAYABLE])) {
+    const mine = citiesOf(w, n);
+    if (!mine.length) continue;
+    const front = mine.filter((id) => frontier(w, id));
+    // 后方的城把一部分兵调到最缺兵的前线
+    if (front.length) {
+      const weakest = front.reduce((a, b) => (w.cities[a].troops / kindOf(a).max <= w.cities[b].troops / kindOf(b).max ? a : b));
+      for (const id of mine) {
+        if (front.includes(id)) continue;
+        const move = Math.round(w.cities[id].troops * A.reinforcePct);
+        const room = kindOf(weakest).max - w.cities[weakest].troops;
+        const m = Math.min(move, room);
+        if (m <= 0) continue;
+        w.cities[id].troops -= m;
+        w.cities[weakest].troops += m;
+      }
+    }
+    if (!rng.chance(A.attackChance)) continue;
+    let best: { from: string; to: string; ratio: number } | null = null;
+    for (const from of front) {
+      for (const to of neighbors(from)) {
+        const t = w.cities[to];
+        if (t.owner === n) continue;
+        const ratio = (w.cities[from].troops * A.sendPct) / Math.max(1, t.troops * kindOf(to).def) * rng.range(0.9, 1.1);
+        if (!best || ratio > best.ratio) best = { from, to, ratio };
+      }
+    }
+    if (!best || best.ratio < A.minRatio) continue;
+    const src = w.cities[best.from];
+    const tgt = w.cities[best.to];
+    const send = Math.round(src.troops * A.sendPct);
+    src.troops -= send;
+    const att = send * rng.range(A.luck[0], A.luck[1]);
+    const def = Math.max(1, tgt.troops) * kindOf(best.to).def * rng.range(A.luck[0], A.luck[1]);
+    const name = cityDef(best.to).name;
+    if (att > def && cityDef(best.to).kind === 'capital') {
+      // 都城 AI 打不下来，只能围城杀伤（要靠玩家斩守将才能夺都城）
+      tgt.troops = Math.max(100, Math.round(tgt.troops * 0.4));
+      event(w, `${natName(n)}围攻${name}，${natName(tgt.owner)}死守不退`, false);
+    } else if (att > def) {
+      const was = tgt.owner;
+      tgt.owner = n;
+      tgt.troops = Math.max(100, Math.round(send * (1 - def / att)));
+      event(w, `${natName(n)}从${cityDef(best.from).name}出兵，攻占了${natName(was).replace('军', '')}的${name}`, true);
+    } else {
+      tgt.troops = Math.max(50, Math.round(tgt.troops - (att / kindOf(best.to).def) * 0.6));
+      event(w, `${natName(n)}进攻${name}，被${natName(tgt.owner)}击退`, false);
+    }
+  }
+}
+
+// 把世界推进到 now：跨了赛季先把旧赛季打完、结算，再开新局
+export function syncWorld(s: Save, now = Date.now()): GzWorld {
+  const season = weekIndex(now);
+  let w = s.p4.world;
+  if (w && w.season !== season) {
+    while (w.turn < TURNS) {
+      aiTurn(s, w);
+      w.turn++;
+    }
+    settleSeason(s, w);
+    w = null;
+  }
+  if (!w) {
+    w = newWorld(season);
+    s.p4.world = w;
+    s.p4.seen = 0;
+  }
+  const target = turnOf(now);
+  while (w.turn < target) {
+    aiTurn(s, w);
+    w.turn++;
+  }
+  return w;
+}
+
+// 新出的大事进公告（最多 3 条，免得刷屏）
+export function announce(s: Save, now = Date.now()): void {
+  if (!s.p4.nation || s.player.level < G.minLevel) return;
+  const w = syncWorld(s, now);
+  const fresh = w.events.filter((e) => e.seq > s.p4.seen && e.big);
+  for (const e of fresh.slice(-3)) log(s, `【国战】${e.text}`);
+  s.p4.seen = w.seq;
+}
+
+// 排名：城多的在前，一样多比总兵力
+export function nationRanks(w: GzWorld): { id: NationId; cities: number; troops: number }[] {
+  return PLAYABLE.map((id) => {
+    const cs = citiesOf(w, id);
+    return { id, cities: cs.length, troops: cs.reduce((a, c) => a + w.cities[c].troops, 0) };
+  }).sort((a, b) => b.cities - a.cities || b.troops - a.troops);
+}
+
+function settleSeason(s: Save, w: GzWorld): void {
+  const n = s.p4.nation;
+  if (n && s.p4.seasonMerit >= G.seasonMinMerit) {
+    const rank = nationRanks(w).findIndex((x) => x.id === n) + 1;
+    s.p4.seasonClaim = { season: w.season, nation: n, rank, merit: s.p4.seasonMerit };
+  }
+  s.p4.seasonMerit = 0;
+}
+
+export function claimSeason(s: Save): string[] {
+  const c = s.p4.seasonClaim;
+  if (!c) return ['没有能领的赛季奖励'];
+  const r = G.seasonRewards[c.rank - 1];
+  s.p4.seasonClaim = null;
+  const lines = [`上赛季${nationDef(c.nation).full}排第${c.rank}`];
+  lines.push(...grantReward(s, { ...r, silver: r.silverPerLevel * s.player.level }));
+  if (c.rank === 1) bump(s, 'gzSeasonWins');
+  for (const l of lines) log(s, l);
+  return lines;
+}
+
+// ===== 入国 =====
+export function joinReason(s: Save, now = Date.now()): string {
+  if (s.player.level < G.minLevel) return `${G.minLevel}级才能参加国战`;
+  if (s.p4.nation && now - s.p4.joinedAt < G.player.joinCooldownDays * DAY) {
+    const left = Math.ceil((G.player.joinCooldownDays * DAY - (now - s.p4.joinedAt)) / DAY);
+    return `入国${G.player.joinCooldownDays}天以内不能改投别国（还要${left}天）`;
+  }
+  return '';
+}
+
+export function joinNation(s: Save, id: NationId, now = Date.now()): string {
+  if (!PLAYABLE.includes(id) || s.p4.nation === id) return '';
+  const why = joinReason(s, now);
+  if (why) return why;
+  const before = s.p4.nation;
+  if (before) {
+    // 改投别国：本赛季战功清零，可花的战功折半
+    s.p4.seasonMerit = 0;
+    s.p4.merit = Math.floor(s.p4.merit / 2);
+  }
+  s.p4.nation = id;
+  s.p4.joinedAt = now;
+  syncWorld(s, now);
+  s.p4.seen = s.p4.world!.seq;
+  bump(s, 'gzJoined');
+  const d = nationDef(id);
+  log(s, `${before ? `离开${nationDef(before).full}，` : ''}投奔了${d.full}（${d.ruler}）`);
+  return before ? `改投${d.full}，本赛季战功清零，战功折半` : `投奔了${d.full}，听${d.ruler}调遣`;
+}
+
+// ===== 军令、官职、俸禄 =====
+export function ordersLeft(s: Save, now = Date.now()): number {
+  const d = dayKey(now);
+  if (s.p4.orders.day !== d) s.p4.orders = { day: d, used: 0 };
+  return Math.max(0, G.ordersPerDay - s.p4.orders.used);
+}
+
+export function rankName(s: Save): string {
+  return G.ranks[gzRank(s.p4.meritTotal)].name;
+}
+
+export function nextRank(s: Save): { name: string; merit: number } | null {
+  return G.ranks[gzRank(s.p4.meritTotal) + 1] ?? null;
+}
+
+function addMerit(s: Save, n: number): string[] {
+  const before = gzRank(s.p4.meritTotal);
+  s.p4.merit += n;
+  s.p4.meritTotal += n;
+  s.p4.seasonMerit += n;
+  const after = gzRank(s.p4.meritTotal);
+  s.life.gzRank = Math.max(s.life.gzRank ?? 0, after);
+  return after > before ? [`战功够了，升为${G.ranks[after].name}！`] : [];
+}
+
+export function salary(s: Save): number {
+  return gzRank(s.p4.meritTotal) * s.player.level * G.salaryPerRankLevel;
+}
+
+export function claimSalary(s: Save, now = Date.now()): string {
+  if (!s.p4.nation) return '还没投奔哪一国';
+  const d = dayKey(now);
+  if (s.p4.salaryDay === d) return '今天的俸禄已经领过了';
+  const n = salary(s);
+  if (!n) return '士卒没有俸禄，攒战功升了伍长再来';
+  s.p4.salaryDay = d;
+  s.player.silver += n;
+  return `领到${rankName(s)}的俸禄${n}两`;
+}
+
+// 本国占着洛阳、虎牢关的加成
+export function gzBuff(s: Save): { exp: number; silver: number } {
+  const out = { exp: 0, silver: 0 };
+  const w = s.p4.world;
+  if (!s.p4.nation || !w || w.season !== weekIndex()) return out;
+  for (const [id, b] of Object.entries(G.buffs)) {
+    if (w.cities[id]?.owner !== s.p4.nation) continue;
+    out.exp += b.exp ?? 0;
+    out.silver += b.silver ?? 0;
+  }
+  return out;
+}
+
+// ===== 战功商店 =====
+export function shopItemId(s: Save, id: string): string {
+  if (id === '@ore') return oreFor(s.player.level);
+  if (id === '@gem') return 'gem';
+  return id;
+}
+
+export function buyWithMerit(s: Save, i: number): string {
+  const e = G.shop[i];
+  if (!e) return '';
+  if (!s.p4.nation) return '还没投奔哪一国';
+  if (s.p4.merit < e.cost) return `战功不够（要${e.cost}）`;
+  s.p4.merit -= e.cost;
+  const id = e.id === '@gem' ? randomGem(rollRng(s), Math.min(8, 1 + Math.floor(s.player.level / 20))) : shopItemId(s, e.id);
+  const lines = grantReward(s, { items: { [id]: 1 } });
+  return lines.join('，');
+}
+
+// ===== 出征、驻守、守将 =====
+export type GzMode = 'atk' | 'def' | 'boss';
+
+export function attackTargets(s: Save, w: GzWorld): string[] {
+  const n = s.p4.nation;
+  if (!n) return [];
+  const mine = citiesOf(w, n);
+  // 亡了国就只能去打回都城
+  if (!mine.length) return G.cities.filter((c) => c.owner === n && c.kind === 'capital').map((c) => c.id);
+  const set = new Set<string>();
+  for (const id of mine) for (const x of neighbors(id)) if (w.cities[x].owner !== n) set.add(x);
+  return [...set];
+}
+
+export function defendTargets(s: Save, w: GzWorld): string[] {
+  const n = s.p4.nation;
+  if (!n) return [];
+  return citiesOf(w, n).filter((id) => frontier(w, id));
+}
+
+export function guardOf(w: GzWorld, id: string): string {
+  const owner = w.cities[id].owner;
+  const list = G.guards[owner];
+  return list[G.cities.findIndex((c) => c.id === id) % list.length];
+}
+
+// 哪一国的 AI 玩家：名册按序号轮着分给三国
+export function rivalsOf(s: Save, n: NationId): Rival[] {
+  const i = PLAYABLE.indexOf(n);
+  return i < 0 ? [] : rivals(s).filter((_, k) => k % 3 === i);
+}
+
+export function cityReason(s: Save, w: GzWorld, id: string, mode: GzMode, now = Date.now()): string {
+  if (!s.p4.nation) return '还没投奔哪一国';
+  if (s.player.level < G.minLevel) return `${G.minLevel}级才能参加国战`;
+  const c = w.cities[id];
+  if (mode === 'boss') {
+    if (c.owner === s.p4.nation) return '这是本国的城';
+    if (c.troops > 0) return '守军还没打光，守将不会出城';
+    return '';
+  }
+  if (ordersLeft(s, now) <= 0) return '今天的军令用完了，明天再来';
+  if (mode === 'atk' && !attackTargets(s, w).includes(id)) return '只能打和本国接壤的城';
+  if (mode === 'atk' && c.troops <= 0) return '守军已经打光了，去和守将单挑';
+  if (mode === 'def' && !defendTargets(s, w).includes(id)) return '只有前线的本国城池需要驻守';
+  if (mode === 'def' && c.troops >= kindOf(id).max) return '这座城兵已经满了';
+  return '';
+}
+
+function team(s: Save): { allies: BUnit[]; reserve: BUnit[] } {
+  const allies = [playerUnit(s)];
+  const reserve: BUnit[] = [];
+  for (const g of s.generals) {
+    const u = generalUnit(g);
+    if (g.uid === s.activeGeneral && u.alive) allies.push(u);
+    else reserve.push(u);
+  }
+  return { allies, reserve };
+}
+
+// 守将：同级镜像（带装备和加点，比同级怪硬得多），气血再乘倍数；经验、银两、掉落照守将的怪物表算
+function guardUnit(gid: string, lv: number): BUnit {
+  const m = monsters[gid];
+  const u = mirrorUnit('e0', m.name, m.class, 'male', 0, lv, 'enemy', lv > 100);
+  u.maxHp = Math.round(u.maxHp * (m.hpMul ?? 1));
+  u.hp = u.maxHp;
+  u.atk = Math.round(u.atk * (m.atkMul ?? 1));
+  // 名将定力足：乱、封、围不容易中
+  for (const k of ['chaos', 'seal', 'trap'] as const) u.resist[k] += G.player.guardControlResist;
+  return {
+    ...u, kind: 'monster', refId: gid, monsterId: gid, look: m.look,
+    skills: m.skills.map((x) => ({ id: x.id, level: x.level, prof: x.level * 2500 })),
+    aiSkills: m.skills.map((x) => ({ id: x.id, rate: x.rate })),
+    expYield: monsterExp(gid, lv), silverYield: monsterSilver(gid, lv),
+  };
+}
+
+// 驻守时来犯的是哪一国：接壤的敌国里兵最多的那家
+function attackerOf(w: GzWorld, id: string): NationId {
+  const own = w.cities[id].owner;
+  let best: NationId = 'qun';
+  let most = -1;
+  for (const x of neighbors(id)) {
+    const c = w.cities[x];
+    if (c.owner !== own && c.troops > most) {
+      most = c.troops;
+      best = c.owner;
+    }
+  }
+  return best;
+}
+
+export function gzBattle(s: Save, id: string, mode: GzMode, seed: number, now = Date.now()): Battle | string {
+  const w = syncWorld(s, now);
+  const why = cityReason(s, w, id, mode, now);
+  if (why) return why;
+  const rng = new Rng(seed);
+  const foe = mode === 'def' ? attackerOf(w, id) : w.cities[id].owner;
+  const lv = s.player.level;
+  const pool = G.soldiers[foe];
+  const enemies: BUnit[] = [];
+  let title = '';
+  if (mode === 'boss') {
+    const gid = guardOf(w, id);
+    enemies.push(guardUnit(gid, lv + G.player.guardLevel));
+    // 护卫：步卒、谋士、步卒（方士群攻太狠，不带）
+    for (let i = 1; i <= G.player.guardEscorts; i++) enemies.push(monsterUnit(`e${i}`, pool[[0, 1, 0, 2][i - 1] ?? 0], lv, i < 3 ? 0 : 1));
+    title = `${cityDef(id).name}守将·${enemies[0].name}`;
+  } else {
+    const n = rng.int(3, 5);
+    for (let i = 0; i < n; i++) enemies.push(monsterUnit(`e${i}`, rng.pick(pool), Math.max(1, lv + rng.int(-2, 1)), i < 3 ? 0 : 1));
+    title = mode === 'atk' ? `出征·${cityDef(id).name}` : `驻守·${cityDef(id).name}`;
+    // 有时敌国的 AI 玩家带队
+    const rs = rivalsOf(s, foe);
+    if (rs.length && rng.chance(G.player.mirrorChance)) {
+      const r = rng.pick(rs);
+      const m = mirrorUnit(`e${enemies.length}`, r.name, r.classId, r.gender, r.variant, Math.max(1, lv + rng.int(-3, 2)), 'enemy', lv > 100);
+      m.row = 1;
+      if (enemies.length >= 5) enemies[4] = m;
+      else enemies.push(m);
+      title = `${title}（${r.name}率${natName(foe)}）`;
+    }
+  }
+  const { allies, reserve } = team(s);
+  return createBattle({
+    seed: (rng.next() * 4294967296) >>> 0, allies, reserve, enemies, items: { ...s.bag }, title,
+    canFlee: mode !== 'boss', tag: `gz:${mode}:${id}`,
+  });
+}
+
+// 战斗结束后由 finishBattle 调用
+export function afterGz(s: Save, b: Battle, now = Date.now()): string[] {
+  const [, mode, id] = (b.tag ?? '').split(':') as [string, GzMode, string];
+  const w = syncWorld(s, now);
+  const c = w.cities[id];
+  const name = cityDef(id).name;
+  const n = s.p4.nation;
+  const lines: string[] = [];
+  if (mode !== 'boss') {
+    ordersLeft(s, now);
+    s.p4.orders.used++;
+  }
+  if (b.outcome !== 'win' || !c || !n) {
+    lines.push(b.outcome === 'fled' ? '撤兵回营' : `${mode === 'boss' ? '没打过守将' : '出征失利'}，败退回营`);
+    return lines;
+  }
+  const max = kindOf(id).max;
+  const P = G.player;
+  if (mode === 'atk') {
+    if (c.owner === n) {
+      lines.push(`${name}已经被本国拿下了`);
+    } else {
+      const dmg = Math.round(max * P.hitPct + s.player.level * P.hitPerLevel);
+      c.troops = Math.max(0, c.troops - dmg);
+      lines.push(`击溃${name}守军${dmg}人（还剩${c.troops}），战功+${P.meritAtk}`);
+      lines.push(...addMerit(s, P.meritAtk));
+      if (c.troops <= 0) lines.push(`${name}守军打光了！守将${monsters[guardOf(w, id)].name}要出城迎战——趁对方没补上兵，在沙盘上点${name}和他单挑`);
+      bump(s, 'gzAttacks');
+    }
+  } else if (mode === 'def') {
+    const add = Math.round(max * P.defendPct);
+    c.troops = Math.min(max, c.troops + add);
+    lines.push(`守住了${name}，守军+${add}（${c.troops}），战功+${P.meritDef}`);
+    lines.push(...addMerit(s, P.meritDef));
+    bump(s, 'gzDefends');
+  } else if (c.owner !== n && c.troops <= 0) {
+    const was = c.owner;
+    c.owner = n;
+    c.troops = Math.round(max * P.captureTroopsPct);
+    event(w, `${s.player.name}率${natName(n)}攻下了${natName(was).replace('军', '')}的${name}`, true);
+    s.p4.seen = w.seq;
+    lines.push(`斩将夺城！${name}归了${nationDef(n).full}，战功+${P.meritBoss}`);
+    lines.push(...addMerit(s, P.meritBoss));
+    bump(s, 'gzCaptures');
+  }
+  return lines;
+}

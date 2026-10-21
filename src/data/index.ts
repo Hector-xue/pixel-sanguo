@@ -217,7 +217,40 @@ export const systems = systemsJson as unknown as {
   merc: { battles: number; silverPerLevel: number; levelOffset: number };
   achv: { id: string; name: string; desc: string; key: string; need: number; reward: Reward; title?: string }[];
   wenqu: { perDay: number; expRatio: number; silverPerLevel: number; questions: { q: string; a: string[]; ok: number }[] };
+  guozhan: GuozhanDef;
+  league: {
+    fightsPerDay: number; winPoints: number; baseP: number; perWin: number; stageLevel: number[];
+    rewards: (Reward & { silverPerLevel: number; rep: number })[]; title: string;
+  };
+  kuaqu: {
+    minLevel: number; fightsPerDay: number; servers: string[]; base: number; spread: number; playerWeight: number;
+    winPoints: number; levelDiffPoints: number; oppLevel: [number, number]; rewards: (Reward & { silverPerLevel: number })[]; title: string;
+  };
 };
+
+export type NationId = 'wei' | 'shu' | 'wu' | 'qun';
+export type CityKind = 'capital' | 'key' | 'pass' | 'normal';
+export interface GuozhanDef {
+  minLevel: number;
+  ordersPerDay: number;
+  turnMinutes: number;
+  seasonDays: number;
+  nations: { id: NationId; name: string; full: string; ruler: string; color: number; joinable: boolean }[];
+  kinds: Record<CityKind, { name: string; max: number; def: number; yield: number }>;
+  cities: { id: string; name: string; x: number; y: number; kind: CityKind; owner: NationId }[];
+  links: [string, string][];
+  soldiers: Record<NationId, string[]>;
+  guards: Record<NationId, string[]>;
+  ai: { attackChance: number; sendPct: number; minRatio: number; startPct: number; qunStartPct: number; qunYieldMul: number; reinforcePct: number; bigNationDamp: number; luck: [number, number] };
+  player: { hitPct: number; hitPerLevel: number; defendPct: number; captureTroopsPct: number; meritAtk: number; meritDef: number; meritBoss: number; guardControlResist: number; guardLevel: number; guardEscorts: number; mirrorChance: number; joinCooldownDays: number };
+  ranks: { name: string; merit: number }[];
+  rankBonus: { hp: number; atk: number; def: number };
+  salaryPerRankLevel: number;
+  buffs: Record<string, { exp?: number; silver?: number; text: string }>;
+  seasonMinMerit: number;
+  seasonRewards: (Reward & { silverPerLevel: number })[];
+  shop: { id: string; cost: number }[];
+}
 // 有馆驿的城镇（馆驿传送的目的地）
 export function innTowns(): string[] {
   return Object.keys(locations).filter((id) => locations[id].facilities?.includes('inn'));

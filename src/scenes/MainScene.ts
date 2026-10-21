@@ -22,6 +22,9 @@ import { Button, H, ScrollArea, W, bar, goldFrame, hit, sfx, text, toast } from 
 import { UI, drawFace, fireTex, vgrad } from '../art/chrome';
 import * as P from '../ui/panels';
 import * as X from '../ui/p3';
+import * as G4 from '../ui/p4';
+import { announce } from '../game/guozhan';
+import { autoTick } from '../game/cloud';
 import { checkAchievements } from '../game/achv';
 import { treasureNow } from '../game/events';
 import { log } from '../game/state';
@@ -66,11 +69,23 @@ export class MainScene extends Phaser.Scene implements P.Host {
     });
     // 抢宝开场时在系统频道公告一次
     this.time.addEvent({ delay: 15000, loop: true, callback: () => this.announceTreasure() });
+    // 国战大事（城池易主）进公告
+    this.time.addEvent({ delay: 60000, loop: true, callback: () => {
+      announce(store.save);
+    // 云存档自动同步：每分钟看一眼，有变化且离上次满 5 分钟就传；切到后台时不等
+    const sync = (due: boolean) => void autoTick(store.save, due).then((msg) => msg && toast(this, msg, 3200));
+    this.time.addEvent({ delay: 60000, loop: true, callback: () => sync(false) });
+    const onHide = () => document.visibilityState === 'hidden' && sync(true);
+    document.addEventListener('visibilitychange', onHide);
+    this.events.once('shutdown', () => document.removeEventListener('visibilitychange', onHide));
+      this.chat.refresh();
+    } });
+    announce(store.save);
     this.announceTreasure();
     const daily = dailyTick(store.save);
     this.refresh();
     if (daily.length) toast(this, daily.join('\n'), 2600);
-    if (import.meta.env.DEV) Object.assign(window, { __P: P, __T: T, __F: F, __R: R, __X: X, __store: store, __main: this });
+    if (import.meta.env.DEV) Object.assign(window, { __P: P, __T: T, __F: F, __R: R, __X: X, __G4: G4, __store: store, __main: this });
   }
 
   // 存档变了就整页重画，简单可靠
@@ -332,7 +347,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
   private drawFunc(x: number, y: number, w: number): void {
     const items: [string, () => void][] = [
       ['状态', () => P.statusPanel(this)], ['物品', () => P.bagPanel(this)], ['副将', () => P.generalsPanel(this)],
-      ['组队', () => X.teamPanel(this)], ['排行', () => X.rankPanel(this)], ['好友', () => P.notYet(this, '好友', '单机版没有其他真人玩家，去掉了好友')],
+      ['组队', () => X.teamPanel(this)], ['排行', () => X.rankPanel(this)], ['国战', () => G4.guozhanPanel(this)],
       ['邮件', () => welfarePanel(this)], ['任务', () => P.questPanel(this)], ['擂台', () => X.arenaPanel(this)],
       ['帮派', () => X.sectPanel(this)], ['训练', () => X.trainingPanel(this)], ['宝库', () => X.vaultPanel(this)],
       ['公告', () => P.messagesPanel(this)], ['攻略', () => P.helpPanel(this)], ['退出', () => P.exitPanel(this)],
@@ -344,7 +359,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     items.forEach(([name, fn], i) => {
       const bx = x + (i % 3) * bw;
       const by = y + Math.floor(i / 3) * 34;
-      const dot = (name === '状态' && store.save.player.free > 0) || (name === '任务' && store.save.main.state === 'ready') || (name === '邮件' && (welfarePending(store.save) || X.festivalPending(store.save)));
+      const dot = (name === '状态' && store.save.player.free > 0) || (name === '任务' && store.save.main.state === 'ready') || (name === '邮件' && (welfarePending(store.save) || X.festivalPending(store.save))) || (name === '国战' && G4.guozhanPending(store.save));
       g.fillStyle(0x000000, 0.4).fillRect(bx, by, bw - 2, 32);
       if (i % 3 === 0) g.fillStyle(UI.line).fillRect(x, by + 32, w, 1);
       // 金楔：上宽下窄的斜三角

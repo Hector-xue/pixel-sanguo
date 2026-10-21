@@ -26,19 +26,96 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: 云存档服务测试
+        run: python3 -m unittest discover -s server -v
       - run: npm run build
-      - uses: actions/upload-pages-artifact@v3
-        if: github.event_name != 'pull_request'
+      - uses: actions/upload-artifact@v4
         with:
+          name: web
           path: dist
+          retention-days: 3
 
-  deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+  # 安卓套壳：Capacitor 把网页包进 App（离线可玩），固定签名，新版能直接覆盖安装
+  apk:
+    if: github.event_name != 'pull_request'
     needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: dist
+      - name: 生成安卓工程
+        run: |
+          npx cap add android
+          # 图标用网页那套；去掉自适应图标（前景会被裁）
+          for d in android/app/src/main/res/mipmap-*dpi; do
+            cp public/icon-192.png "$d/ic_launcher.png"
+            cp public/icon-192.png "$d/ic_launcher_round.png"
+            cp public/icon-192.png "$d/ic_launcher_foreground.png"
+          done
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+          # 竖屏
+          sed -i 's/<activity/<activity android:screenOrientation="portrait"/' android/app/src/main/AndroidManifest.xml
+          # 版本号：versionCode 用 CI 运行序号（只增不减才能覆盖安装）
+          VER=$(node -p "require('./package.json').version")
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$VER.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
+          npx cap sync android
+      - name: 编译
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon -q
+      - name: 签名
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$KS_B64" || { echo "缺签名 secret ANDROID_KEYSTORE_B64"; exit 1; }
+          echo "$KS_B64" | base64 -d > ks.jks
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          IN=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$BT/zipalign" -f -p 4 "$IN" aligned.apk
+          "$BT/apksigner" sign --ks ks.jks --ks-key-alias sanguo --ks-pass env:KS_PW --key-pass env:KS_PW --out pixel-sanguo.apk aligned.apk
+          "$BT/apksigner" verify --print-certs pixel-sanguo.apk | head -3
+          rm -f ks.jks
+          ls -l pixel-sanguo.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: pixel-sanguo.apk
+          retention-days: 3
+
+  # APK 编不出来也照样发网页：这次就不带安装包（下载链接暂时 404），下次编出来再补上
+  deploy:
+    if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    needs: [build, apk]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: dist
+      - uses: actions/download-artifact@v4
+        if: needs.apk.result == 'success'
+        with:
+          name: apk
+          path: dist/download
+      - run: ls -lR dist/download || echo "这次没有安装包"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
       - id: deployment
         uses: actions/deploy-pages@v4
