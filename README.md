@@ -4,6 +4,8 @@
 
 当前进度：**P1 新手村**。
 
+**在线试玩：https://hector-xue.github.io/pixel-sanguo/**（手机浏览器打开，竖屏；「添加到主屏幕」后全屏运行，和 App 一样从桌面图标进）。存档在浏览器本地，换浏览器/设备用「功能 → 退出 → 导出存档」带走。
+
 ## 开发
 
 ```bash
@@ -11,7 +13,12 @@ npm install
 npm run dev        # http://127.0.0.1:5173
 npm test           # 战斗规则单测 + 6 种职业性别的自动通关模拟
 npm run build
-./deploy.sh        # 构建并发布到 https://ops.ivyea.com/sanguo/（需要 IvyeaOps 登录）
+```
+
+推到 `main` 后 GitHub Actions 会自动跑单测、构建并发布到 GitHub Pages（`.github/workflows/pages.yml`），单测不过不会发布。
+
+```bash
+npx vite-node scripts/make-icons.ts   # 重新生成主屏图标（改了头像画法时）
 ```
 
 ## 目录
