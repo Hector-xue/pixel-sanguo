@@ -1,7 +1,7 @@
 // 角色面板（新版五个分页：信息、属性、装备、战力、生平）和装备详情
 import { C, hex } from '../art/palette';
 import { avatarTex, gearTex, heroLookKey } from '../art/textures';
-import { balance, classes, equips, items, locations, mainQuests, mounts, systems } from '../data';
+import { classes, equips, items, locations, mainQuests, mounts, systems } from '../data';
 import { expToNext } from '../core/formulas';
 import { attrReq, gearBonus, gearLines, gearName, gearValue, tierLevel } from '../core/gear';
 import type { Gear, Slot, Stats } from '../core/types';
@@ -11,10 +11,10 @@ import { evilNow } from '../game/arena';
 import { sectRankName, vigorMax, vigorNow } from '../game/sect';
 import { candidateName } from '../game/social';
 import type { Save } from '../game/state';
-import { bagUsed, generalStats, playerAttrs, playerStats, heroVariant } from '../game/state';
+import { bagCount, bagUsed, generalStats, playerAttrs, playerStats, heroVariant } from '../game/state';
 import { canEquip, equipGear, unequip } from '../game/smith';
 import { store } from '../game/store';
-import { eatPill, staminaMax, staminaNow } from '../game/welfare';
+import { eatPill } from '../game/welfare';
 import type { Host } from './panels';
 import { allocatePanel, done, kv, section } from './panels';
 import { achvPanel, titlePanel } from './p3';
@@ -95,14 +95,13 @@ function infoTab(h: Host, m: Modal, y: number, L: number, R: number): void {
   const s = store.save;
   const p = s.player;
   y = section(m, y, '信息');
-  const sta = staminaNow(s);
   const sect = s.p3.sect.id ? `${systems.sect.sects.find((x) => x.id === s.p3.sect.id)!.name}·${sectRankName(s.p3.sect.rep)}` : '无';
   const rows: [string, string | number, number?][][] = [
     [['称号', titleText(s)], ['会员', '无']],
     [['等级', `${p.level}${s.p3.reborn ? `（${s.p3.reborn}转）` : ''}`], ['升级还需经验', expToNext(p.level) - p.exp]],
     [['银两', p.silver], ['金砖', p.gold, C.darkRed]],
     [['绑定银', p.boundSilver], ['钱庄存款', s.bank]],
-    [['体力', `${sta}/${staminaMax()}`], ['活力', `${vigorNow(s)}/${vigorMax(s)}`]],
+    [['体力丹', bagCount(s, 'tilidan')], ['活力', `${vigorNow(s)}/${vigorMax(s)}`]],
     [['魅力', charmOf(s)], ['居住地', homeName(s)]],
     [['坐骑', s.riding ? `${mounts[s.riding].name}(${s.mounts[s.riding].level}级)` : '无'], ['师门', s.mentor.joined ? (s.mentor.graduated ? '已出师' : '孔庙夫子') : '无']],
     [['教派', sect], ['配偶', s.p3.marriage.spouse ? candidateName(s.p3.marriage.spouse) : '无']],
@@ -115,7 +114,7 @@ function infoTab(h: Host, m: Modal, y: number, L: number, R: number): void {
   }
   y += 8;
   const btns: [string, () => void][] = [
-    ['补体力', () => {
+    ['服体力丹', () => {
       const r = eatPill(s);
       m.close();
       done(h, r);
@@ -145,7 +144,7 @@ function infoTab(h: Host, m: Modal, y: number, L: number, R: number): void {
   const bw = Math.floor((m.cw - 8) / 3);
   btns.forEach(([n, fn], i) => m.inner.add(new Button(h, m.cx + (i % 3) * (bw + 4), y + Math.floor(i / 3) * 30, bw, 26, n, fn)));
   y += 96;
-  m.inner.add(text(h, m.cx, y, `体力每${balance.stamina.regenMinutes}分钟恢复1点，跑环每环用${5}点；体力丹一天最多${balance.stamina.pillPerDay}颗。`, { wrap: m.cw, color: C.gray }));
+  m.inner.add(text(h, m.cx, y, '体力丹：战斗外服下，你和出战副将的气血精力全满。', { wrap: m.cw, color: C.gray }));
 }
 
 function attrTab(h: Host, m: Modal, y: number, L: number, R: number): void {

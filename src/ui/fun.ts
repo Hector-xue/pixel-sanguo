@@ -1,4 +1,4 @@
-// 福利（七日签到、在线奖励）、招贤、跑环、挖宝的对话，以及杂物的使用（宝箱、心法书、技能书……）
+// 福利（江湖行记、战备补给、节日）、招贤、跑环、挖宝的对话，以及杂物的使用（宝箱、心法书、技能书……）
 import { C } from '../art/palette';
 import { avatarTex, iconTex } from '../art/textures';
 import { classes, items, skills, systems } from '../data';
@@ -8,10 +8,11 @@ import { digOnce, guardBattle, nextIsGuard, startDig, buyShovel } from '../game/
 import type { General } from '../game/state';
 import { bagCount, profCap, skillLevelText } from '../game/state';
 import { allGenerals, generalLearn, generalSkillRows, generalUpgrade, readXinfa, recruitOptions, recruitWith } from '../game/generals';
-import { abandonRing, nextRing, openTiers, ringOpen, ringStatusText, taskDone, tierName, turnInRing, RING_ROUNDS, RING_STAMINA } from '../game/ring';
+import { abandonRing, nextRing, openTiers, ringOpen, ringStatusText, taskDone, tierName, turnInRing, RING_ROUNDS } from '../game/ring';
 import { store } from '../game/store';
 import {
-  canSignIn, claimOnline, eatPill, onlineMinutes, openBox, openGemOre, readSkillBook, readSkillBookGeneral, signIn, staminaMax, staminaNow,
+  MILESTONES, SUPPLY_CAP, SUPPLY_EVERY, claimMilestone, claimSupply, eatPill, nextSupply, openBox, openGemOre, readSkillBook, readSkillBookGeneral,
+  supplyNext, suppliesReady,
 } from '../game/welfare';
 import { showDialog } from './dialog';
 import { festivalBlock } from './p3';
@@ -28,64 +29,69 @@ function rewardText(r: Reward): string {
   return parts.join('、');
 }
 
-// ===== 邮件：七日签到 + 在线奖励 =====
+// ===== 福利：江湖行记（里程碑）+ 战备补给（按场次）+ 节日 =====
 let welfareTab = 0;
 export function welfarePanel(h: Host): void {
   const s = store.save;
-  const m = new Modal(h, '邮件 · 福利');
+  const m = new Modal(h, '福利');
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
   const render = () => {
     dyn.removeAll(true);
-    ['七日签到', '在线奖励', '节日'].forEach((n, i) => dyn.add(new Button(h, m.cx + i * (m.cw / 3), m.cy, m.cw / 3 - 2, 22, n, () => {
+    ['江湖行记', '战备补给', '节日'].forEach((n, i) => dyn.add(new Button(h, m.cx + i * (m.cw / 3), m.cy, m.cw / 3 - 2, 22, n, () => {
       welfareTab = i;
       render();
     }, { style: welfareTab === i ? 'dark' : 'tan' })));
     let y = m.cy + 30;
     if (welfareTab === 2) return festivalBlock(h, dyn, m, y, render);
     if (welfareTab === 0) {
-      dyn.add(text(h, m.cx, y, `累计签到 ${s.signin.count}/7 天（漏签不清零）`, { color: C.brown }));
+      dyn.add(text(h, m.cx, y, `一路走来的七件事，做到了就来领（${s.signin.count}/${MILESTONES.length}）`, { color: C.brown }));
       y += 20;
-      systems.signin.days.forEach((d, i) => {
+      MILESTONES.forEach((ms, i) => {
         const got = i < s.signin.count;
-        const today = i === s.signin.count && canSignIn(s);
+        const cur = i === s.signin.count;
+        const ok = cur && ms.done(s);
         const g = h.add.graphics();
-        frame(g, m.cx, y, m.cw, 34, got ? 'disabled' : today ? 'paper' : 'tan');
+        frame(g, m.cx, y, m.cw, 40, got ? 'disabled' : ok ? 'paper' : 'tan');
         dyn.add(g);
-        dyn.add(text(h, m.cx + 8, y + 10, `第${i + 1}天`, { color: today ? C.red : C.darkRed }));
-        dyn.add(text(h, m.cx + 56, y + 10, rewardText(d), { color: C.darkBrown }));
-        if (today) dyn.add(new Button(h, m.cx + m.cw - 58, y + 6, 52, 22, '签到', () => {
-          const r = signIn(s);
+        dyn.add(text(h, m.cx + 8, y + 4, ms.name, { color: ok ? C.red : got ? C.gray : C.darkRed }));
+        dyn.add(text(h, m.cx + 72, y + 4, cur && !ok ? `${ms.goal}（${ms.progress(s)}）` : ms.goal, { color: got ? C.gray : C.brown }));
+        dyn.add(text(h, m.cx + 8, y + 22, rewardText(systems.signin.days[i]), { color: got ? C.gray : C.darkBrown }));
+        if (ok) dyn.add(new Button(h, m.cx + m.cw - 58, y + 9, 52, 22, '领取', () => {
           sfx('level');
-          toast(h, r, 2400);
+          toast(h, claimMilestone(s), 2400);
           h.refresh();
           render();
         }, { style: 'red' }));
-        else dyn.add(text(h, m.cx + m.cw - 8, y + 10, got ? '已领' : '', { align: 'right', color: C.gray }));
-        y += 38;
+        else dyn.add(text(h, m.cx + m.cw - 8, y + 4, got ? '已领' : '', { align: 'right', color: C.gray }));
+        y += 44;
       });
     } else {
-      const min = onlineMinutes(s);
-      dyn.add(text(h, m.cx, y, `今天已在线 ${min} 分钟（开着游戏就算）`, { color: C.brown }));
-      y += 20;
+      const ready = suppliesReady(s);
+      dyn.add(text(h, m.cx, y, `每打${SUPPLY_EVERY}场仗，军需官给你攒一份补给（最多攒${SUPPLY_CAP}份）。`, { wrap: m.cw, color: C.brown }));
+      y += 36;
+      const g = h.add.graphics();
+      frame(g, m.cx, y, m.cw, 70, ready ? 'paper' : 'tan');
+      dyn.add(g);
+      dyn.add(text(h, m.cx + 10, y + 8, ready ? `攒好了 ${ready} 份` : `再打 ${supplyNext(s)} 场就有一份`, { color: ready ? C.red : C.darkRed }));
+      dyn.add(text(h, m.cx + 10, y + 28, `下一份：${rewardText(nextSupply(s))}`, { color: C.darkBrown, wrap: m.cw - 90 }));
+      dyn.add(new Button(h, m.cx + m.cw - 70, y + 22, 62, 26, '领取', () => {
+        sfx('heal');
+        toast(h, claimSupply(s), 2200);
+        h.refresh();
+        render();
+      }, { style: ready ? 'red' : 'tan', disabled: !ready }));
+      y += 80;
+      dyn.add(text(h, m.cx, y, '补给轮着发：', { color: C.brown }));
+      y += 18;
       systems.online.tiers.forEach((t, i) => {
-        const got = s.online.claimed.includes(i);
-        const ok = min >= t.minutes && !got;
-        const g = h.add.graphics();
-        frame(g, m.cx, y, m.cw, 34, got ? 'disabled' : ok ? 'paper' : 'tan');
-        dyn.add(g);
-        dyn.add(text(h, m.cx + 8, y + 10, `${t.minutes}分钟`, { color: C.darkRed }));
-        dyn.add(text(h, m.cx + 72, y + 10, rewardText(t), { color: C.darkBrown }));
-        dyn.add(new Button(h, m.cx + m.cw - 58, y + 6, 52, 22, got ? '已领' : '领取', () => {
-          toast(h, claimOnline(s, i), 2000);
-          h.refresh();
-          render();
-        }, { style: ok ? 'red' : 'tan', disabled: !ok }));
-        y += 38;
+        const next = i === s.p5.supply % systems.online.tiers.length;
+        dyn.add(text(h, m.cx + 8, y, `${next ? '▶ ' : '　 '}${rewardText(t)}`, { color: next ? C.red : C.darkBrown }));
+        y += 18;
       });
+      y += 8;
+      dyn.add(text(h, m.cx, y, `已经打了${s.battles}场，领过${s.p5.supply}份。`, { color: C.gray }));
     }
-    y += 6;
-    dyn.add(text(h, m.cx, y, `体力 ${staminaNow(s)}/${staminaMax()}　体力丹 ×${bagCount(s, 'tilidan')}`, { color: C.brown }));
   };
   render();
 }
@@ -121,11 +127,11 @@ export function ringTalk(h: Host): void {
     sfx('level');
     toast(h, r.lines.join('\n'), 2600);
     h.refresh();
-    if (s.ring.index) say(`做得好。接着跑第${s.ring.index}环吗？（每环用${RING_STAMINA}点体力，现在${staminaNow(s)}点）`, [
+    if (s.ring.index) say(`做得好。接着跑第${s.ring.index}环吗？`, [
       { label: '接着跑', fn: () => ringTalk(h) },
       { label: '歇会儿', fn: () => {} },
     ]);
-    else say('这一档跑完了，最后这几本技能书是给你的。体力恢复了再来。');
+    else say('这一档跑完了，最后这几本技能书是给你的。歇口气再来。');
     return;
   }
   if (t) return say(`${ringStatusText(s)}。做完了回来找我。`, [
@@ -140,7 +146,7 @@ export function ringTalk(h: Host): void {
   if (s.ring.index) return say(`你跑到${tierName(s.ring.index)}第${s.ring.index}环了，接着来？`, [{ label: '接任务', fn: take(1) }, { label: '返回', fn: () => {} }]);
   // 一环 20 级、二环 40 级、三环 60 级；等级够的才列出来
   const tiers = openTiers(s);
-  say(`一档${RING_ROUNDS}个任务，跑完有技能书：一环第1–10环、二环第11–20环（40级）、三环第21–30环（60级）。中途断了要从这一档的头跑。每接一环用${RING_STAMINA}点体力。`, [
+  say(`一档${RING_ROUNDS}个任务，跑完有技能书：一环第1–10环、二环第11–20环（40级）、三环第21–30环（60级）。中途断了要从这一档的头跑。`, [
     ...tiers.map((t) => ({ label: `接${['一环', '二环', '三环'][t - 1]}`, fn: take(t) })),
     { label: '返回', fn: () => {} },
   ]);

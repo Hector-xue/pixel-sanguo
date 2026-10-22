@@ -10,10 +10,12 @@ export interface P5State {
   gifts: Record<string, string>;
   tierGot: Record<string, number>;
   journey: { cooldown: number; seen: Record<string, number> };
+  // 已领的战备补给份数
+  supply: number;
 }
 
 export function p5Defaults(): P5State {
-  return { favor: {}, chatDay: {}, gifts: {}, tierGot: {}, journey: { cooldown: 1, seen: {} } };
+  return { favor: {}, chatDay: {}, gifts: {}, tierGot: {}, journey: { cooldown: 1, seen: {} }, supply: 0 };
 }
 
 export const TIERS: { at: number; name: string }[] = [

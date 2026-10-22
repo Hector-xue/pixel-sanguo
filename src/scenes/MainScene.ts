@@ -29,6 +29,7 @@ import { ChatBox } from '../ui/chat';
 import { Button, H, Modal, SAFE_TOP, W, bar, hit, sfx, text, textWidth, toast } from '../ui/widgets';
 import { UI, sealBox, titlePlaque, vgrad } from '../art/chrome';
 import { showDialog } from '../ui/dialog';
+import { worldMap } from '../ui/worldmap';
 import * as P from '../ui/panels';
 import * as X from '../ui/p3';
 import * as G4 from '../ui/p4';
@@ -598,7 +599,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const back = s.location === 'baodong' ? 'xuchang' : s.location !== 'xinshoucun' && !exits.some((e) => e.to === 'xinshoucun') ? 'xinshoucun' : null;
     const dest = questDestination(s);
     const n = exits.length + (back ? 1 : 0);
-    const m = this.sheet('地图', 138 + n * 50 + (dest && dest !== s.location ? 34 : 0));
+    const m = this.sheet('地图', 172 + n * 50 + (dest && dest !== s.location ? 34 : 0));
     // 当前位置：一张小场景图 + 名牌
     const fg = this.add.graphics();
     fg.fillStyle(0x3a2414).fillRect(m.cx, m.cy, m.cw, 72);
@@ -608,6 +609,11 @@ export class MainScene extends Phaser.Scene implements P.Host {
     titlePlaque(pg, m.cx + m.cw / 2, m.cy + 50, Math.max(80, textWidth(loc.name) + 30));
     m.inner.add([pg, text(this, m.cx + m.cw / 2, m.cy + 52, `当前：${loc.name}`, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
     let y = m.cy + 80;
+    m.inner.add(new Button(this, m.cx, y, m.cw, 28, '展开舆图（全图）', () => {
+      m.close();
+      worldMap(this, (to) => this.autoPath(to));
+    }, { style: 'tan' }));
+    y += 34;
     if (dest && dest !== s.location) {
       m.inner.add(new Button(this, m.cx, y, m.cw, 28, `寻路到任务地点：${locations[dest].name}`, () => {
         m.close();
@@ -647,7 +653,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const items: [string, () => void, boolean][] = [
       ['状态', () => P.statusPanel(this), s.player.free > 0], ['物品', () => P.bagPanel(this), false], ['副将', () => P.generalsPanel(this), false],
       ['任务', () => P.questPanel(this), s.main.state === 'ready'], ['组队', () => X.teamPanel(this), false], ['排行', () => X.rankPanel(this), false],
-      ['国战', () => G4.guozhanPanel(this), G4.guozhanPending(s)], ['邮件', () => welfarePanel(this), welfarePending(s) || X.festivalPending(s)], ['擂台', () => X.arenaPanel(this), false],
+      ['国战', () => G4.guozhanPanel(this), G4.guozhanPending(s)], ['福利', () => welfarePanel(this), welfarePending(s) || X.festivalPending(s)], ['擂台', () => X.arenaPanel(this), false],
       ['帮派', () => X.sectPanel(this), false], ['训练', () => X.trainingPanel(this), false], ['宝库', () => X.vaultPanel(this), false],
       ['公告', () => P.messagesPanel(this), false], ['攻略', () => P.helpPanel(this), false], ['退出', () => P.exitPanel(this), false],
     ];

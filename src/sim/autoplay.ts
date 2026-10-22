@@ -421,11 +421,8 @@ function doFlag(sim: Sim, flag: string): boolean {
     case 'ring3': {
       if (!s.ring.task) {
         go(s, 'xuchang');
-        const r = nextRing(s, sim.now, flag === 'ring2' ? 2 : 3);
-        if (!s.ring.task) {
-          if (r.includes('体力')) sim.now += 30 * 60000;
-          return false;
-        }
+        nextRing(s, sim.now, flag === 'ring2' ? 2 : 3);
+        if (!s.ring.task) return false;
       }
       return doRingTask(sim);
     }
@@ -433,11 +430,8 @@ function doFlag(sim: Sim, flag: string): boolean {
     case 'ringRound': {
       if (!s.ring.task) {
         go(s, 'xuchang');
-        const r = nextRing(s, sim.now);
-        if (!s.ring.task) {
-          if (r.includes('体力')) sim.now += 30 * 60000;
-          return false;
-        }
+        nextRing(s, sim.now);
+        if (!s.ring.task) return false;
       }
       return doRingTask(sim);
     }

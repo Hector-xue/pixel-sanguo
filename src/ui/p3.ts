@@ -777,7 +777,7 @@ export function fightTreasure(h: Host): void {
   fight(h, treasureBattle(store.save, randomSeed()));
 }
 
-// ===== 节日（邮件第三页） =====
+// ===== 节日（福利第三页） =====
 export function festivalBlock(h: Host, parent: Phaser.GameObjects.Container, m: Modal, y: number, rerender: () => void): void {
   const s = store.save;
   const f = festivalToday();

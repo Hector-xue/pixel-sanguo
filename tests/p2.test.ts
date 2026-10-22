@@ -13,7 +13,7 @@ import {
   playerStats, serialize, setActive,
 } from '../src/game/state';
 import { buyGold, buyMount, deposit, ride, sellGold, teleport, teleportTargets, templeGraduate, templeJoin, withdraw } from '../src/game/town';
-import { canSignIn, claimOnline, dailyTick, eatPill, onlineTick, openBox, signIn, spendStamina, staminaNow } from '../src/game/welfare';
+import { MILESTONES, SUPPLY_CAP, claimMilestone, claimSupply, dailyTick, eatPill, milestoneReady, openBox, suppliesReady } from '../src/game/welfare';
 import { Rng } from '../src/core/rng';
 import { autoplay } from '../src/sim/autoplay';
 
@@ -178,14 +178,12 @@ describe('副将养成', () => {
 });
 
 describe('跑环', () => {
-  it('20级才开；接环扣体力；完成后交给跑环使者；10环一轮给技能书；放弃要从头来', () => {
+  it('20级才开；接环不要体力；完成后交给跑环使者；10环一轮给技能书；放弃要从头来', () => {
     const s = fresh();
     expect(nextRing(s, T0)).toContain('20级');
     s.player.level = 20;
     for (const loc of ['xuchang', 'xuchangjiaowai', 'xuchangxijiao']) arrive(s, loc);
-    s.staminaAt = T0;
     expect(nextRing(s, T0)).toContain('第1环');
-    expect(s.stamina).toBe(95);
     expect(s.ring.index).toBe(1);
     expect(turnInRing(s).ok).toBe(false);
     for (let i = 1; i <= 10; i++) {
@@ -214,42 +212,51 @@ describe('跑环', () => {
   });
 });
 
-describe('福利与体力', () => {
-  it('七日签到累计、一天一次、第7天送大乔', () => {
+describe('福利与体力丹', () => {
+  it('江湖行记按里程碑依次领，做不到不能领，第七件送大乔', () => {
     const s = fresh();
-    s.player.level = 30;
-    for (let d = 0; d < 7; d++) {
-      expect(canSignIn(s, T0 + d * DAY)).toBe(true);
-      signIn(s, T0 + d * DAY);
-      expect(canSignIn(s, T0 + d * DAY + 1000)).toBe(false);
+    expect(milestoneReady(s)).toBe(false);
+    expect(claimMilestone(s)).toContain('还没做到');
+    s.battles = 30;
+    s.player.level = 20;
+    s.p5.favor.cunzhang = 30;
+    for (let i = 0; i < MILESTONES.length; i++) {
+      if (i === 2) {
+        // 第三件要有副将：先卡住，收了副将才能往下领
+        expect(milestoneReady(s)).toBe(false);
+        s.inn.push({ uid: 'g1', name: '测试' } as never);
+      }
+      expect(milestoneReady(s)).toBe(true);
+      expect(claimMilestone(s)).toContain(MILESTONES[i].name);
     }
     expect([...s.generals, ...s.inn].some((g) => g.name === '大乔')).toBe(true);
-    expect(signIn(s, T0 + 8 * DAY)).toContain('全部领完');
+    expect(claimMilestone(s)).toContain('全部领完');
   });
 
-  it('在线奖励按当天在线时长，换天清零', () => {
+  it('战备补给按场次攒，最多攒三份，轮着发', () => {
     const s = fresh();
-    onlineTick(s, 4 * 60, T0);
-    expect(claimOnline(s, 0, T0)).toContain('5分钟');
-    onlineTick(s, 60, T0);
-    expect(claimOnline(s, 0, T0)).toContain('银两');
-    expect(claimOnline(s, 0, T0)).toContain('领过');
-    onlineTick(s, 10, T0 + DAY);
-    expect(s.online.seconds).toBe(10);
+    expect(suppliesReady(s)).toBe(0);
+    expect(claimSupply(s)).toContain('再打10场');
+    s.battles = 10;
+    expect(suppliesReady(s)).toBe(1);
+    expect(claimSupply(s)).toContain('银两');
+    expect(suppliesReady(s)).toBe(0);
+    s.battles = 200;
+    expect(suppliesReady(s)).toBe(SUPPLY_CAP);
+    claimSupply(s);
+    // 攒满后多出来的作废，领一份后还剩两份
+    expect(suppliesReady(s)).toBe(SUPPLY_CAP - 1);
   });
 
-  it('体力按时间恢复，体力丹一天最多20颗', () => {
+  it('体力丹战斗外回满主角和出战副将', () => {
     const s = fresh();
-    s.staminaAt = T0;
-    expect(spendStamina(s, 30, T0)).toBe(true);
-    expect(staminaNow(s, T0 + 6 * 60000 * 10)).toBe(80);
-    addItem(s, 'tilidan', 30);
-    s.stamina = 0;
-    s.staminaAt = T0;
-    for (let i = 0; i < 4; i++) eatPill(s, T0);
-    expect(s.stamina).toBe(80);
-    s.pills.n = 20;
-    expect(eatPill(s, T0)).toContain('20颗');
+    expect(eatPill(s)).toContain('满的');
+    s.player.hp = 1;
+    expect(eatPill(s)).toContain('没有');
+    addItem(s, 'tilidan', 1);
+    expect(eatPill(s)).toContain('回满');
+    expect(s.bag.tilidan ?? 0).toBe(0);
+    expect(s.player.hp).toBeGreaterThan(1);
   });
 
   it('宝箱能开出东西；每天过去副将忠诚下降、钱庄有利息', () => {

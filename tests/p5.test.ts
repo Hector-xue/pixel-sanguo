@@ -1,5 +1,5 @@
 // 精品化第一轮：NPC 好感（闲聊、送礼、谢礼）、野外奇遇、旧存档迁移
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { newSave, deserialize, serialize } from '../src/game/state';
 import { FAVOR_MAX, GIFTS_PER_DAY, TIERS, chatWith, favorOf, giftValue, giveGift, likedCat, tierOf } from '../src/game/bond';
 import { rollJourney } from '../src/game/journey';
@@ -111,6 +111,56 @@ describe('奇遇', () => {
         break;
       }
     }
+  });
+});
+
+describe('奇遇第二批', () => {
+  it('十七件事都碰得上（按地形、夜里、20级、熟人），每个选项都能跑通', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 22, 23, 0));
+    const s = fresh();
+    s.player.level = 25;
+    s.player.silver = 100000;
+    s.bag.zhixue = 20;
+    s.player.skills = [{ id: 'lipi', level: 1, prof: 0 }] as never;
+    s.p5.favor.cunzhang = 40;
+    const seen = new Set<string>();
+    const arts = ['cave', 'river', 'camp', 'ruins', 'forest'];
+    for (const art of arts) {
+      s.location = Object.keys(locations).find((k) => !locations[k].town && locations[k].art === art && locations[k].groups.length)!;
+      s.p5.journey.seen = {};
+      for (let i = 0; i < 3000; i++) {
+        s.p5.journey.cooldown = 0;
+        const ev = rollJourney(s);
+        if (!ev || seen.has(`${art}:${ev.id}`)) continue;
+        seen.add(`${art}:${ev.id}`);
+        seen.add(ev.id);
+        for (const c of ev.choices) {
+          expect(c.disabled ?? false).toBe(false);
+          const copy = deserialize(serialize(s));
+          const out = c.run(copy);
+          expect(out.lines.length).toBeGreaterThan(0);
+        }
+      }
+    }
+    vi.useRealTimers();
+    const ids = ['oldman', 'chest', 'doctor', 'robbers', 'traveler', 'spring', 'herb', 'fortune', 'peddler', 'refugees', 'fallen', 'campfire', 'cache', 'fisher', 'deserter', 'stele', 'friend'];
+    for (const id of ids) expect(seen.has(id), id).toBe(true);
+  });
+
+  it('熟人偶遇会涨交情', () => {
+    const s = fresh();
+    s.location = Object.keys(locations).find((k) => !locations[k].town && locations[k].groups.length)!;
+    s.p5.favor.cunzhang = 30;
+    for (let i = 0; i < 3000; i++) {
+      s.p5.journey.cooldown = 0;
+      const ev = rollJourney(s);
+      if (ev?.id !== 'friend') continue;
+      ev.choices[1].run(s);
+      expect(favorOf(s, 'cunzhang')).toBe(35);
+      return;
+    }
+    throw new Error('没碰上熟人');
   });
 });
 

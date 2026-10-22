@@ -349,7 +349,7 @@ export function bankPanel(h: Host, tab?: number): void {
       y += 34;
       [1, 10, 50].forEach((n, i) => dyn.add(new Button(h, m.cx + i * (m.cw / 3), y, m.cw / 3 - 4, 28, `卖${n}块`, act(() => sellGold(s, n)), { disabled: s.player.gold < n })));
       y += 40;
-      dyn.add(text(h, m.cx, y, '金砖在「功能 → 宝库」的商城里花（将军令、心法书……），也能买好马。七日签到也送金砖。', { wrap: m.cw, color: C.gray }));
+      dyn.add(text(h, m.cx, y, '金砖在「功能 → 宝库」的商城里花（将军令、心法书……），也能买好马。江湖行记也送金砖。', { wrap: m.cw, color: C.gray }));
     }
   };
   render();

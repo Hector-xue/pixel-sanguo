@@ -4,7 +4,7 @@ import { expToNext } from '../core/formulas';
 import type { Rng } from '../core/rng';
 import type { RingTask, RingType, Save } from './state';
 import { bagCount, bump, grantPlayerExp, log, npcLocation, onFlag, removeItem, rollRng } from './state';
-import { grantReward, oreFor, randomGem, spendStamina, staminaNow } from './welfare';
+import { grantReward, oreFor, randomGem } from './welfare';
 import { visited } from './town';
 
 const R = systems.ring;
@@ -114,14 +114,12 @@ export function ringStatusText(s: Save): string {
   return `${tierName(s.ring.index)}第${s.ring.index}环：${taskText(t)}${taskDone(s, t) ? '。已完成，回去找跑环使者' : ''}`;
 }
 
-// 接下一环（没在跑时从 tier 那一档的第一环开始）。每接一环扣体力
-export function nextRing(s: Save, now = Date.now(), tier = 1): string {
+// 接下一环（没在跑时从 tier 那一档的第一环开始）
+export function nextRing(s: Save, _now = Date.now(), tier = 1): string {
   if (!ringOpen(s)) return `${R.minLevel}级以后再来`;
   if (s.ring.task) return '你手上还有没做完的环';
   const T = R.tiers[tier - 1];
   if (!s.ring.index && (!T || s.player.level < T.minLevel)) return `${T?.name ?? ''}要${T?.minLevel}级`;
-  if (staminaNow(s, now) < R.stamina) return `体力不够（要${R.stamina}点，现在${s.stamina}点）。体力会慢慢恢复，也可以吃体力丹`;
-  spendStamina(s, R.stamina, now);
   if (!s.ring.index) s.ring.index = T.from;
   s.ring.task = makeTask(s, rollRng(s));
   if (s.ring.task.type === 'goto' && s.ring.task.at === s.location) s.ring.task.arrived = true;
@@ -195,4 +193,3 @@ export function onRingCapture(s: Save, monsterId: string): string | null {
 }
 
 export const RING_ROUNDS = R.rounds;
-export const RING_STAMINA = R.stamina;

@@ -5,8 +5,6 @@ import { MainScene } from './scenes/MainScene';
 import { BattleScene } from './scenes/BattleScene';
 import { H, W } from './ui/widgets';
 import { autoFullscreen, fitZoom, syncHeight } from './ui/screen';
-import { store } from './game/store';
-import { onlineTick } from './game/welfare';
 
 async function boot(): Promise<void> {
   try {
@@ -47,10 +45,6 @@ async function boot(): Promise<void> {
   window.addEventListener('resize', onResize);
   document.addEventListener('fullscreenchange', onResize);
   autoFullscreen();
-  // 在线奖励按当天在线时长算：页面在前台时每 10 秒记一次
-  setInterval(() => {
-    if (!document.hidden && store.has()) onlineTick(store.save, 10);
-  }, 10000);
   (window as unknown as { __game: Phaser.Game }).__game = game;
 }
 

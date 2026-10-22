@@ -1,10 +1,10 @@
-// 福利与道具：发奖励、宝箱、体力（体力丹）、七日签到、在线奖励、每日结算、技能书、宝石珍矿
+// 福利与道具：发奖励、宝箱、体力丹、江湖行记（里程碑）、战备补给（按场次）、每日结算、技能书、宝石珍矿
 import { GEM_KINDS, balance, gemId, items, systems, equips } from '../data';
 import type { LootEntry, Reward } from '../data';
 import { Rng } from '../core/rng';
 import { decayLoyalty, giveRandomRecruit, giveRecruit } from './generals';
 import type { Save } from './state';
-import { addItem, addProf, bump, dayKey, dayNum, findGeneral, log, removeItem, rollRng } from './state';
+import { addItem, addProf, bump, dayKey, dayNum, findGeneral, generalStats, log, playerStats, removeItem, rollRng } from './state';
 
 // ===== 发奖励 =====
 export function grantReward(s: Save, r: Reward): string[] {
@@ -100,86 +100,89 @@ export function readSkillBookGeneral(s: Save, uid: string, skillId: string): str
   return `${g.name}的熟练度+${st.prof - before}`;
 }
 
-// ===== 体力 =====
-const ST = balance.stamina;
-
-export function staminaMax(): number {
-  return ST.max;
-}
-
-// 按真实时间恢复体力
-export function staminaNow(s: Save, now = Date.now()): number {
-  const step = ST.regenMinutes * 60000;
-  if (s.stamina >= ST.max) {
-    s.staminaAt = now;
-    return s.stamina;
-  }
-  const n = Math.floor((now - s.staminaAt) / step);
-  if (n > 0) {
-    s.stamina = Math.min(ST.max, s.stamina + n);
-    s.staminaAt += n * step;
-  }
-  return s.stamina;
-}
-
-export function spendStamina(s: Save, n: number, now = Date.now()): boolean {
-  if (staminaNow(s, now) < n) return false;
-  if (s.stamina >= ST.max) s.staminaAt = now;
-  s.stamina -= n;
-  return true;
-}
-
-export function eatPill(s: Save, now = Date.now()): string {
-  const day = dayKey(now);
-  if (s.pills.day !== day) s.pills = { day, n: 0 };
-  if (s.pills.n >= ST.pillPerDay) return `今天已经吃了${ST.pillPerDay}颗体力丹`;
-  if (staminaNow(s, now) >= ST.max) return '体力是满的';
+// ===== 体力丹 =====
+// 单机不按真实时间卡人：跑环不再扣体力。体力丹改成战斗外服下，主角和出战副将气血精力全满
+export function eatPill(s: Save): string {
+  const p = s.player;
+  const st = playerStats(s);
+  const g = s.generals.find((x) => x.uid === s.activeGeneral);
+  const gs = g ? generalStats(g) : null;
+  const full = p.hp >= st.maxHp && p.mp >= st.maxMp && (!g || !gs || (g.hp >= gs.maxHp && g.mp >= gs.maxMp));
+  if (full) return '气血精力都是满的';
   if (!removeItem(s, 'tilidan', 1)) return '没有体力丹';
-  s.pills.n++;
-  s.stamina = Math.min(ST.max, s.stamina + ST.pill);
-  return `体力+${ST.pill}（${s.stamina}/${ST.max}），今天还能吃${ST.pillPerDay - s.pills.n}颗`;
+  p.hp = st.maxHp;
+  p.mp = st.maxMp;
+  if (g && gs) {
+    g.hp = gs.maxHp;
+    g.mp = gs.maxMp;
+  }
+  return `服下体力丹，${g ? `你和${g.name}` : '你'}的气血精力都回满了`;
 }
 
-// ===== 七日签到（累计签到，漏签不清零） =====
-export function canSignIn(s: Save, now = Date.now()): boolean {
-  return s.signin.count < systems.signin.days.length && s.signin.day !== dayKey(now);
+// ===== 江湖行记：七个里程碑，达成就能领（替代原来的七日签到；s.signin.count 是已领到第几个） =====
+export interface Milestone {
+  name: string;
+  goal: string;
+  done: (s: Save) => boolean;
+  progress: (s: Save) => string;
+}
+export const MILESTONES: Milestone[] = [
+  { name: '初出茅庐', goal: '打第一场仗', done: (s) => s.battles >= 1, progress: (s) => `${Math.min(1, s.battles)}/1` },
+  { name: '小有名气', goal: '升到5级', done: (s) => s.player.level >= 5, progress: (s) => `${s.player.level}/5级` },
+  { name: '收得良将', goal: '收服第一员副将', done: (s) => s.generals.length + s.inn.length >= 1, progress: (s) => `${Math.min(1, s.generals.length + s.inn.length)}/1` },
+  { name: '身经百战', goal: '累计打30场仗', done: (s) => s.battles >= 30, progress: (s) => `${Math.min(30, s.battles)}/30` },
+  { name: '崭露头角', goal: '升到15级', done: (s) => s.player.level >= 15, progress: (s) => `${s.player.level}/15级` },
+  { name: '江湖故交', goal: '和一位江湖人交情到「熟络」', done: (s) => Object.values(s.p5.favor).some((f) => f >= 30), progress: (s) => `最高交情${Math.max(0, ...Object.values(s.p5.favor))}/30` },
+  { name: '名动一方', goal: '升到20级', done: (s) => s.player.level >= 20, progress: (s) => `${s.player.level}/20级` },
+];
+
+export function milestoneReady(s: Save): boolean {
+  const m = MILESTONES[s.signin.count];
+  return !!m && m.done(s);
 }
 
-export function signIn(s: Save, now = Date.now()): string {
-  if (!canSignIn(s, now)) return s.signin.count >= systems.signin.days.length ? '七日签到已经全部领完' : '今天已经签过到了';
+export function claimMilestone(s: Save): string {
+  const m = MILESTONES[s.signin.count];
+  if (!m) return '江湖行记已经全部领完';
+  if (!m.done(s)) return `还没做到：${m.goal}（${m.progress(s)}）`;
   const r = systems.signin.days[s.signin.count];
   s.signin.count++;
-  s.signin.day = dayKey(now);
   const lines = grantReward(s, r);
-  log(s, `第${s.signin.count}天签到：${lines.join('，')}`);
-  return [`第${s.signin.count}天签到成功`, ...lines].join('\n');
+  log(s, `江湖行记「${m.name}」：${lines.join('，')}`);
+  return [`江湖行记「${m.name}」`, ...lines].join('\n');
 }
 
-// ===== 在线奖励（按当天在线时长） =====
-export function onlineTick(s: Save, seconds: number, now = Date.now()): void {
-  const day = dayKey(now);
-  if (s.online.day !== day) s.online = { day, seconds: 0, claimed: [] };
-  s.online.seconds += seconds;
+// ===== 战备补给：每打 SUPPLY_EVERY 场攒一份，最多攒 SUPPLY_CAP 份，五档奖励轮着发（替代原来的在线奖励） =====
+export const SUPPLY_EVERY = 10;
+export const SUPPLY_CAP = 3;
+
+export function suppliesReady(s: Save): number {
+  return Math.max(0, Math.min(SUPPLY_CAP, Math.floor(s.battles / SUPPLY_EVERY) - s.p5.supply));
 }
 
-export function onlineMinutes(s: Save, now = Date.now()): number {
-  return s.online.day === dayKey(now) ? Math.floor(s.online.seconds / 60) : 0;
+// 下一份补给离攒好还差几场
+export function supplyNext(s: Save): number {
+  return SUPPLY_EVERY - (s.battles % SUPPLY_EVERY);
 }
 
-export function claimOnline(s: Save, i: number, now = Date.now()): string {
-  const t = systems.online.tiers[i];
-  if (!t) return '';
-  onlineTick(s, 0, now);
-  if (s.online.claimed.includes(i)) return '已经领过了';
-  if (onlineMinutes(s, now) < t.minutes) return `今天在线满${t.minutes}分钟才能领`;
-  s.online.claimed.push(i);
-  return grantReward(s, t).join('\n');
+export function nextSupply(s: Save): Reward {
+  const tiers = systems.online.tiers;
+  return tiers[s.p5.supply % tiers.length];
 }
 
-export function welfarePending(s: Save, now = Date.now()): boolean {
-  if (canSignIn(s, now)) return true;
-  const m = onlineMinutes(s, now);
-  return systems.online.tiers.some((t, i) => m >= t.minutes && !(s.online.day === dayKey(now) && s.online.claimed.includes(i)));
+export function claimSupply(s: Save): string {
+  if (!suppliesReady(s)) return `再打${supplyNext(s)}场仗，补给就到了`;
+  // 攒满了还不领，多出来的那几份作废：领的时候把计数追到「最多欠 CAP 份」
+  s.p5.supply = Math.max(s.p5.supply, Math.floor(s.battles / SUPPLY_EVERY) - SUPPLY_CAP);
+  const r = nextSupply(s);
+  s.p5.supply++;
+  const lines = grantReward(s, r);
+  log(s, `战备补给：${lines.join('，')}`);
+  return ['战备补给到了', ...lines].join('\n');
+}
+
+export function welfarePending(s: Save): boolean {
+  return milestoneReady(s) || suppliesReady(s) > 0;
 }
 
 // ===== 每日结算：忠诚下降、钱庄利息 =====

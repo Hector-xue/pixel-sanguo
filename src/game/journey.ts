@@ -1,8 +1,11 @@
 // 野外奇遇：在野外换地点时有一定概率碰上一件事，几个选项，后果各不相同（有的会直接打起来）。
 // 奖励按等级走；同一件事有冷却，不会接连碰上。
-import { items, locations } from '../data';
+import { items, locations, npcs, skills } from '../data';
 import type { MonsterGroup } from '../data';
-import { addItem, bagCount, grantPlayerExp, log, playerStats, removeItem, rollRng } from './state';
+import { daypart } from '../art/props';
+import { FAVOR_MAX, favorOf, tierName } from './bond';
+import { giveRandomRecruit } from './generals';
+import { addItem, addProf, bagCount, grantPlayerExp, log, playerStats, removeItem, rollRng } from './state';
 import type { Save } from './state';
 
 export interface JourneyOutcome {
@@ -43,9 +46,18 @@ function groupHere(s: Save): MonsterGroup | undefined {
   return g.length ? g[0] : undefined;
 }
 
+// 货郎卖的药：等级够得着的里面最贵的一种
+function peddlerDrug(lv: number): string {
+  const ds = Object.keys(items).filter((id) => items[id].cat === 'drug' && (items[id].hp ?? 0) > 0 && !items[id].quest && items[id].price > 0);
+  ds.sort((a, b) => items[a].price - items[b].price);
+  const fit = ds.filter((id) => items[id].price <= Math.max(30, lv * 15));
+  return fit[fit.length - 1] ?? ds[0];
+}
+
 function events(s: Save): JourneyEvent[] {
   const lv = s.player.level;
   const out: JourneyEvent[] = [];
+  const art = locations[s.location].art;
   const drug = cheapestDrug(s);
   out.push({
     id: 'oldman',
@@ -178,13 +190,185 @@ function events(s: Save): JourneyEvent[] {
         }
         if (r < 0.6) {
           addItem(s2, 'tilidan', 1);
-          return { who: 'strategist|算命先生', lines: ['中吉。前路虽有坎坷，贵人自来。这颗丹药拿着。', '（得到体力丹×1）'] };
+          return { who: 'strategist|算命先生', lines: ['中吉。前路虽有坎坷，贵人自来。这颗丹药拿着，危急时服下。', '（得到体力丹×1）'] };
         }
         return { who: 'strategist|算命先生', lines: ['小凶……近日出门，多带几瓶药。', '（你摸了摸药囊。）'] };
       } },
       { label: '不信这个', run: () => ({ who: 'strategist|算命先生', lines: ['命里有时终须有，命里无时莫强求啊。'] }) },
     ],
   });
+  // ===== 第二批：货郎、难民、落难武人、夜里篝火、按地形的几件、熟人偶遇 =====
+  const pd = peddlerDrug(lv);
+  const price = Math.max(1, Math.floor(items[pd].price / 2)) * 3;
+  out.push({
+    id: 'peddler',
+    who: 'gentry|行脚货郎',
+    lines: ['走过路过别错过！刚从城里进的货，半价出手——', `（${items[pd].name}×3，${price}两）`],
+    choices: [
+      { label: `买下（${price}两）`, disabled: s.player.silver < price, run: (s2) => {
+        s2.player.silver -= price;
+        const lost = addItem(s2, pd, 3);
+        return { who: 'gentry|行脚货郎', lines: ['爽快！下回还找我。', lost ? `（负重满了，只拿到${3 - lost}个${items[pd].name}。）` : `（得到${items[pd].name}×3。）`] };
+      } },
+      { label: '看看就走', run: () => ({ who: 'gentry|行脚货郎', lines: ['唉，生意难做啊……'] }) },
+    ],
+  });
+  const alms = lv * 8;
+  out.push({
+    id: 'refugees',
+    who: 'refugee|逃难的百姓',
+    lines: ['（一家老小推着独轮车，孩子饿得直哭。）', '侠士……行行好，给口吃的吧。'],
+    choices: [
+      { label: `分他们${alms}两盘缠`, disabled: s.player.silver < alms, run: (s2) => {
+        s2.player.silver -= alms;
+        return { who: 'refugee|逃难的百姓', lines: ['恩公大恩，来世做牛做马也要报答！', `（${exp(s2, lv * 30)}）`] };
+      } },
+      { label: '护送他们一程', run: (s2) => {
+        const g = groupHere(s2);
+        if (g && rollRng(s2).chance(0.5)) return { who: 'refugee|逃难的百姓', lines: ['（没走多远，林子里钻出一伙歹人，直奔独轮车来！）'], fight: g };
+        return { who: 'refugee|逃难的百姓', lines: ['（一路平安，到了岔口，老汉千恩万谢。）', `（${exp(s2, lv * 15)}）`] };
+      } },
+      { label: '爱莫能助', run: () => ({ who: '', lines: ['（你别过脸去，加快了脚步。）'] }) },
+    ],
+  });
+  if (lv >= 20) {
+    const d2 = cheapestDrug(s);
+    out.push({
+      id: 'fallen',
+      who: 'cavalry|落难的武人',
+      lines: ['（一个披甲的汉子倒在路边，战马早没了，刀还攥在手里。）', '某家……兵败至此。壮士若肯相救，此身任凭驱使。'],
+      choices: [
+        { label: d2 ? `给他敷药（${items[d2].name}）` : '给他敷药（身上没有药）', disabled: !d2, run: (s2) => {
+          removeItem(s2, d2!, 1);
+          if (rollRng(s2).chance(0.4)) {
+            const line = giveRandomRecruit(s2, '英才');
+            return { who: 'cavalry|落难的武人', lines: ['救命之恩，无以为报。某愿追随左右！', `（${line || '他说日后定来相投。'}）`] };
+          }
+          return { who: 'cavalry|落难的武人', lines: ['多谢壮士。某还有家小，就此别过——日后必报！', `（${exp(s2, lv * 20)}）`] };
+        } },
+        { label: '问他从哪来', run: (s2) => ({ who: 'cavalry|落难的武人', lines: ['前头的营寨守得紧，壮士若要过去，多带些人手。', `（${exp(s2, lv * 6)}）`] }) },
+      ],
+    });
+  }
+  if (daypart() === 'night') {
+    out.push({
+      id: 'campfire',
+      who: 'elder|守夜的老兵',
+      lines: ['（夜深了，路边一堆篝火，一个老兵在烤干粮。）', '坐下暖暖吧，夜里赶路不安生。'],
+      choices: [
+        { label: '坐下歇一宿', run: (s2) => {
+          const st = playerStats(s2);
+          s2.player.hp = st.maxHp;
+          s2.player.mp = st.maxMp;
+          return { who: 'elder|守夜的老兵', lines: ['（老兵讲了半宿当年的仗，你听着听着睡着了。）', '（气血、精力全满。）'] };
+        } },
+        { label: '听他讲讲打仗', run: (s2) => ({ who: 'elder|守夜的老兵', lines: ['打仗啊，先保命，再立功。冲在最前头的，坟头草都三尺了。', `（${exp(s2, lv * 18)}）`] }) },
+      ],
+    });
+  }
+  if (art === 'cave' || art === 'tomb') {
+    out.push({
+      id: 'cache',
+      who: '',
+      lines: ['（石壁上有一块砖颜色不太一样，敲上去是空的。）'],
+      choices: [
+        { label: '撬开暗格', run: (s2) => {
+          const rng = rollRng(s2);
+          if (rng.chance(0.25)) {
+            const st = playerStats(s2);
+            const dmg = Math.round(st.maxHp * 0.2);
+            s2.player.hp = Math.max(1, s2.player.hp - dmg);
+            return { who: '', lines: ['（咔哒一声，暗格里射出几枚毒针！）', `（气血-${dmg}）`] };
+          }
+          if (rng.chance(0.4)) {
+            addItem(s2, 'zhenkuang', 1);
+            return { who: '', lines: ['（暗格里裹着一块沉甸甸的石头——宝石珍矿！）'] };
+          }
+          const silver = rng.int(lv * 20, lv * 40);
+          s2.player.silver += silver;
+          return { who: '', lines: [`（一包发霉的布袋，里面是前人藏的银子。银两+${silver}。）`] };
+        } },
+        { label: '不动它', run: () => ({ who: '', lines: ['（墓里的东西，还是少碰为妙。）'] }) },
+      ],
+    });
+  }
+  if (art === 'river' || art === 'marsh') {
+    out.push({
+      id: 'fisher',
+      who: 'elder|垂钓的渔翁',
+      lines: ['（水边一位渔翁戴着斗笠，钓竿半天没动。）', '年轻人，这水里的鱼和江湖里的人一样，急不得。'],
+      choices: [
+        { label: '陪他钓一会儿', run: (s2) => {
+          const st = playerStats(s2);
+          s2.player.hp = Math.min(st.maxHp, s2.player.hp + Math.round(st.maxHp * 0.5));
+          return { who: 'elder|垂钓的渔翁', lines: ['（钓上来一尾鲤鱼，渔翁就地烤了分你一半。）', '（气血回了五成。）', `（${exp(s2, lv * 10)}）`] };
+        } },
+        { label: '请教几句', run: (s2) => ({ who: 'elder|垂钓的渔翁', lines: ['打不过就退，退了再来。鱼咬钩也不是一回就咬实的。', `（${exp(s2, lv * 14)}）`] }) },
+      ],
+    });
+  }
+  if (art === 'camp' || art === 'gate' || art === 'pass') {
+    const bounty = lv * 20;
+    out.push({
+      id: 'deserter',
+      who: 'soldier|逃兵',
+      lines: ['（草丛里蹲着一个小兵，号衣都扯破了，见了你直哆嗦。）', '别、别抓我！家里老娘病着，我是要回去看她……'],
+      choices: [
+        { label: '放他走', run: (s2) => ({ who: 'soldier|逃兵', lines: ['谢谢恩人！这块腰牌给你，营里认它。', `（${exp(s2, lv * 16)}）`] }) },
+        { label: '押回营里', run: (s2) => {
+          s2.player.silver += bounty;
+          return { who: 'soldier|逃兵', lines: ['（军曹赏了你几两银子，那小兵被拖走时一直回头看你。）', `（银两+${bounty}）`] };
+        } },
+      ],
+    });
+  }
+  if ((art === 'ruins' || art === 'altar' || art === 'manor') && s.player.skills.length) {
+    out.push({
+      id: 'stele',
+      who: '',
+      lines: ['（半截残碑倒在荒草里，上面刻着几行看不太清的字，像是兵法。）'],
+      choices: [
+        { label: '拓下来细看（20两买纸墨）', disabled: s.player.silver < 20, run: (s2) => {
+          s2.player.silver -= 20;
+          const rng = rollRng(s2);
+          const st = rng.pick(s2.player.skills);
+          const before = st.prof;
+          addProf(st, 20 + lv * 2);
+          return { who: '', lines: [`（琢磨了一下午，对「${skills[st.id].name}」有了新的体会。）`, `（熟练度+${st.prof - before}${st.prof === before ? '，已到本级上限' : ''}）`] };
+        } },
+        { label: '看两眼就走', run: (s2) => ({ who: '', lines: ['（字迹斑驳，你只认出「兵者，诡道也」几个字。）', `（${exp(s2, lv * 5)}）`] }) },
+      ],
+    });
+  }
+  // 熟人偶遇：交情到「熟络」的人，会在野外碰上你，送点东西，交情再涨一点
+  const friends = Object.keys(s.p5.favor).filter((id) => npcs[id] && favorOf(s, id) >= 30);
+  if (friends.length) {
+    const fid = friends[Math.floor((s.player.level * 7 + s.battles) % friends.length)];
+    const n = npcs[fid];
+    out.push({
+      id: 'friend',
+      who: fid,
+      lines: [`哎呀，这不是{name}吗？在这荒郊野外也能碰上！`, '正好，我这儿有点东西，你拿着路上用。'],
+      choices: [
+        { label: '多谢！', run: (s2) => {
+          const rng = rollRng(s2);
+          const silver = rng.int(lv * 15, lv * 30);
+          s2.player.silver += silver;
+          s2.p5.favor[fid] = Math.min(FAVOR_MAX, favorOf(s2, fid) + 3);
+          const lines = [`（${n.name}塞给你${silver}两盘缠。交情+3，现在是「${tierName(s2, fid)}」。）`];
+          if (rng.chance(0.4)) {
+            addItem(s2, 'baoxiang', 1);
+            lines.push('（还有一只宝箱。）');
+          }
+          return { who: fid, lines: ['客气什么，咱们谁跟谁。', ...lines] };
+        } },
+        { label: '一起走一段', run: (s2) => {
+          s2.p5.favor[fid] = Math.min(FAVOR_MAX, favorOf(s2, fid) + 5);
+          return { who: fid, lines: ['（你们边走边聊，说了好多城里的新鲜事。）', `（交情+5，现在是「${tierName(s2, fid)}」。${exp(s2, lv * 12)}）`] };
+        } },
+      ],
+    });
+  }
   return out;
 }
 
