@@ -155,10 +155,10 @@ def main():
         'normal': {'name': '城池', 'max': 3000, 'def': 1.15, 'yield': 60},
     }
     systems['guozhan'] = {
-        '_src': '【实锤】原版有国战（抢洛阳、虎牢关）和军团争霸；【推定】单机版做成魏蜀吴 + 董卓余部的 AI 沙盘：每小时一回合、一周一赛季，城池、兵力、战功、官职、奖励全部自己设计',
+        '_src': '【实锤】原版有国战（抢洛阳、虎牢关）和军团争霸；【推定】单机版做成魏蜀吴 + 董卓余部的 AI 沙盘：日子按天下历走（打一仗走一格，18 仗一天、七天一赛季），城池、兵力、战功、官职、奖励全部自己设计',
         'minLevel': 60,
         'ordersPerDay': 8,
-        'turnMinutes': 60,
+        'dayBattles': 18,
         'seasonDays': 7,
         'nations': NATIONS,
         'kinds': kinds,
@@ -191,7 +191,7 @@ def main():
         ],
     }
     systems['league'] = {
-        '_src': '【实锤】原版有军团争霸、教派战；【推定】单机版是四个教派一周循环赛，每天一轮，你替本教派打三阵',
+        '_src': '【实锤】原版有军团争霸、教派战；【推定】单机版是四个教派一个赛季（天下历七天）的循环赛，每天一轮，你替本教派打三阵',
         'fightsPerDay': 3,
         'winPoints': 3,
         'baseP': 0.3,
@@ -206,10 +206,10 @@ def main():
         'title': '争霸盟主',
     }
     systems['kuaqu'] = {
-        '_src': '【实锤】原版有跨区大战（只查到名字）；【推定】单机版是周六周日两天，和两个 AI 区比积分',
+        '_src': '【实锤】原版有跨区大战（只查到名字）；【推定】单机版是每个赛季最后两天（天下历第六、七天），和两个 AI 区比积分',
         'minLevel': 80,
         'fightsPerDay': 5,
-        'servers': ['二区·烽火连城', '五区·逐鹿中原'],
+        'servers': ['兖州', '徐州'],
         'base': 900,
         'spread': 0.15,
         'playerWeight': 2,
@@ -221,7 +221,7 @@ def main():
             {'silverPerLevel': 250, 'items': {'gaojibaoxiang': 1}},
             {'silverPerLevel': 120, 'items': {'baoxiang': 1}},
         ],
-        'title': '跨区之王',
+        'title': '会武魁首',
     }
 
     achv = [a for a in systems['achv'] if not a.get('p4')]
@@ -232,8 +232,8 @@ def main():
         {'id': 'gzGeneral', 'name': '拜将封侯', 'desc': '官职升到将军', 'key': 'gzRank', 'need': 8, 'reward': {'items': {'dajiangjunling': 1}}, 'title': '将军', 'p4': True},
         {'id': 'gzMarshal', 'name': '大将军', 'desc': '官职升到大将军', 'key': 'gzRank', 'need': 9, 'reward': {'gold': 100}, 'title': '大将军', 'p4': True},
         {'id': 'gzSeason', 'name': '开国元勋', 'desc': '所在国拿下一个赛季的第一', 'key': 'gzSeasonWins', 'need': 1, 'reward': {'gold': 50}, 'title': '开国元勋', 'p4': True},
-        {'id': 'leagueChamp', 'name': '争霸盟主', 'desc': '本教派拿下一周军团争霸第一', 'key': 'leagueChamps', 'need': 1, 'reward': {'gold': 30}, 'title': '争霸盟主', 'p4': True},
-        {'id': 'kuaquChamp', 'name': '跨区之王', 'desc': '本区拿下跨区大战第一', 'key': 'kuaquChamps', 'need': 1, 'reward': {'gold': 30}, 'title': '跨区之王', 'p4': True},
+        {'id': 'leagueChamp', 'name': '争霸盟主', 'desc': '本教派拿下一季军团争霸第一', 'key': 'leagueChamps', 'need': 1, 'reward': {'gold': 30}, 'title': '争霸盟主', 'p4': True},
+        {'id': 'kuaquChamp', 'name': '会武魁首', 'desc': '本州拿下诸州会武第一', 'key': 'kuaquChamps', 'need': 1, 'reward': {'gold': 30}, 'title': '会武魁首', 'p4': True},
     ]
     systems['achv'] = achv
 

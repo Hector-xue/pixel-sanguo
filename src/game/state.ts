@@ -1,5 +1,6 @@
 // 存档与游戏规则（纯逻辑，可测）。界面只调这里的函数，不直接改存档字段。
 import { migrateTraining } from './training';
+import { migrateCalendar } from './calendar';
 import { balance, bountyOptions, classSkills, classes, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation, systems } from '../data';
 import { p5Defaults } from './bond';
 import type { P5State } from './bond';
@@ -213,6 +214,8 @@ export function p3Defaults(): P3State {
 export interface GzCity {
   owner: NationId;
   troops: number;
+  // 你把守军打光时走到第几回合：之后一天（24 回合）不补兵、不调兵进来，留给你去单挑守将
+  broken?: number;
 }
 
 export interface GzEvent {
@@ -233,7 +236,10 @@ export interface GzWorld {
 
 export interface P4State {
   nation: NationId | null;
+  // 入国时天下历走到第几格
   joinedAt: number;
+  // 天下历的底数：总战斗场数减它就是天下历走了几格（老存档换算时定下）
+  calBase: number;
   // 可花的战功、累计战功（定官职）、本赛季战功
   merit: number;
   meritTotal: number;
@@ -251,6 +257,7 @@ export function p4Defaults(): P4State {
   return {
     nation: null,
     joinedAt: 0,
+    calBase: 0,
     merit: 0,
     meritTotal: 0,
     seasonMerit: 0,
@@ -1074,7 +1081,10 @@ export function deserialize(text: string): Save {
   const d = p2Defaults();
   for (const [k, v] of Object.entries(d)) if ((s as unknown as Record<string, unknown>)[k] === undefined) (s as unknown as Record<string, unknown>)[k] = v;
   s.p3 = { ...p3Defaults(), ...(s.p3 ?? {}) };
+  // 国战原来按真实时间走：没有天下历底数的老存档换算一次
+  const oldCal = !!s.p4 && s.p4.calBase === undefined;
   s.p4 = { ...p4Defaults(), ...(s.p4 ?? {}) };
+  if (oldCal) migrateCalendar(s);
   s.p5 = { ...p5Defaults(), ...(s.p5 ?? {}) };
   s.p5.life = { ...p5Defaults().life, ...s.p5.life };
   migrateMain(s);

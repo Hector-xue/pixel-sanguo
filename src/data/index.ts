@@ -235,7 +235,8 @@ export type CityKind = 'capital' | 'key' | 'pass' | 'normal';
 export interface GuozhanDef {
   minLevel: number;
   ordersPerDay: number;
-  turnMinutes: number;
+  // 天下历几仗算一天
+  dayBattles: number;
   seasonDays: number;
   nations: { id: NationId; name: string; full: string; ruler: string; color: number; joinable: boolean }[];
   kinds: Record<CityKind, { name: string; max: number; def: number; yield: number }>;

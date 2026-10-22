@@ -10,12 +10,11 @@ import {
 } from '../game/contest';
 import {
   PLAYABLE, attackTargets, buyWithMerit, cityDef, cityReason, citiesOf, claimSalary, claimSeason, defendTargets, gzBattle,
-  guardOf, joinNation, joinReason, kindOf, nationDef, nationRanks, neighbors, nextRank, ordersLeft, rankName, salary, seasonTurns,
-  shopItemId, syncWorld, turnOf,
+  DAY_BATTLES, battlesToNextDay, calTick, guardOf, joinNation, joinReason, kindOf, nationDef, nationRanks, neighbors, nextRank, ordersLeft,
+  rankName, salary, salaryClaimed, shopItemId, syncWorld, turnOf, weekIndex,
 } from '../game/guozhan';
 import type { GzMode } from '../game/guozhan';
 import type { Save } from '../game/state';
-import { dayKey } from '../game/state';
 import { store } from '../game/store';
 import type { Host } from './panels';
 import { fight, heroAvatar, row, rows, tabs } from './p3';
@@ -41,7 +40,7 @@ function joinPanel(h: Host, after: () => void): void {
   const w = syncWorld(s);
   const m = new Modal(h, s.p4.nation ? '改投别国' : '投奔一国');
   let y = m.cy;
-  m.inner.add(text(h, m.cx, y, '三国争天下，洛阳、虎牢关还在董卓余部手里。投奔一国，出征敌城、驻守前线，攒战功升官职。一周一个赛季，按城数排名发奖。', { wrap: m.cw, color: C.darkBrown }));
+  m.inner.add(text(h, m.cx, y, '三国争天下，洛阳、虎牢关还在董卓余部手里。投奔一国，出征敌城、驻守前线，攒战功升官职。天下历七天一个赛季（每打18仗过一天），按城数排名发奖。', { wrap: m.cw, color: C.darkBrown }));
   y += 70;
   const why = joinReason(s);
   if (why) {
@@ -103,10 +102,9 @@ function mapTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y0: number
   const s = store.save;
   const w = syncWorld(s);
   const n = s.p4.nation!;
-  const now = Date.now();
-  const left = Math.max(0, 60 - new Date(now).getMinutes());
+  const t = calTick(s);
   dyn.add(text(h, m.cx, y0, `${rankName(s)}　战功${s.p4.merit}　军令${ordersLeft(s)}/${G.ordersPerDay}`, { color: C.darkRed }));
-  dyn.add(text(h, m.cx + m.cw, y0, `${turnText(turnOf(now))}·${left}分后下回合`, { align: 'right', color: C.brown }));
+  dyn.add(text(h, m.cx + m.cw, y0, `第${weekIndex(t) + 1}季${turnText(turnOf(t)).replace(/\d+时$/, '')}·再打${battlesToNextDay(t)}仗到明天`, { align: 'right', color: C.brown }));
   // 沙盘
   const mx = m.cx;
   const my = y0 + 20;
@@ -196,7 +194,7 @@ function mapTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y0: number
 function reportTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: number): void {
   const s = store.save;
   const w = syncWorld(s);
-  dyn.add(text(h, m.cx, y, `本赛季战报（周一开局，${seasonTurns}回合，每小时一回合）`, { color: C.darkRed }));
+  dyn.add(text(h, m.cx, y, `本赛季战报（七天一季，每打${DAY_BATTLES}仗过一天）`, { color: C.darkRed }));
   const r = rows(h, m, dyn, y + 20);
   const list = [...w.events].reverse();
   if (!list.length) {
@@ -232,7 +230,7 @@ function meritTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: numbe
     toast(h, claimSalary(s));
     h.refresh();
     rerender();
-  }, { style: 'red', disabled: !salary(s) || s.p4.salaryDay === dayKey() }));
+  }, { style: 'red', disabled: !salary(s) || salaryClaimed(s) }));
   const sc = s.p4.seasonClaim;
   dyn.add(new Button(h, m.cx + half, y, half, 24, sc ? `领上赛季奖励（第${sc.rank}）` : '没有赛季奖励', () => {
     toast(h, claimSeason(s).join('\n'), 2600);
@@ -262,7 +260,7 @@ function leagueTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: numb
   const L = systems.league;
   const claim = s.p4.league.claim;
   if (claim) {
-    dyn.add(new Button(h, m.cx, y, m.cw, 24, `领上周争霸奖励（第${claim.rank}名）`, () => {
+    dyn.add(new Button(h, m.cx, y, m.cw, 24, `领上赛季争霸奖励（第${claim.rank}名）`, () => {
       toast(h, claimLeague(s).join('\n'), 2600);
       sfx('level');
       h.refresh();
@@ -271,20 +269,19 @@ function leagueTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: numb
     y += 30;
   }
   if (!s.p3.sect.id) {
-    dyn.add(text(h, m.cx, y, `军团争霸是四个教派的一周循环赛。先入一个教派（${systems.sect.minLevel}级以后去陈留找教派使者）。`, { wrap: m.cw, color: C.brown }));
+    dyn.add(text(h, m.cx, y, `军团争霸是四个教派一个赛季（天下历七天）的循环赛。先入一个教派（${systems.sect.minLevel}级以后去陈留找教派使者）。`, { wrap: m.cw, color: C.brown }));
     return;
   }
-  const days = ['一', '二', '三', '四', '五', '六', '日'];
-  dyn.add(text(h, m.cx, y, `星期${days[v.day]}：对阵${v.foe?.name ?? '-'}，今天还能打${v.left}阵（已赢${v.wins}阵）`, { wrap: m.cw, color: C.darkRed }));
+  dyn.add(text(h, m.cx, y, `第${v.day + 1}天：对阵${v.foe?.name ?? '-'}，今天还能打${v.left}阵（已赢${v.wins}阵）`, { wrap: m.cw, color: C.darkRed }));
   y += 18;
   dyn.add(text(h, m.cx, y, `每天三阵，你赢得越多本教派越可能拿下这一轮（赢3阵约${Math.round(Math.min(0.95, L.baseP + L.perWin * 3) * 100)}%）。结果第二天揭晓。`, { wrap: m.cw, color: C.brown }));
   y += 36;
-  dyn.add(new Button(h, m.cx, y, m.cw, 26, v.left ? `出战第${v.fought + 1}阵` : '今天打完了', () => {
+  dyn.add(new Button(h, m.cx, y, m.cw, 26, v.left ? `出战第${v.fought + 1}阵` : `今天打完了·再打${v.next}仗到明天`, () => {
     m.close();
     fight(h, leagueBattle(s, randomSeed()));
   }, { style: 'red', disabled: !v.left }));
   y += 34;
-  dyn.add(text(h, m.cx, y, '本周积分（赢一轮3分）', { color: C.darkRed }));
+  dyn.add(text(h, m.cx, y, '本赛季积分（赢一轮3分）', { color: C.darkRed }));
   y += 18;
   v.table.forEach((r, i) => {
     dyn.add(text(h, m.cx + 8, y, `${i + 1}. ${r.name}`, { color: r.mine ? C.red : C.darkBrown }));
@@ -293,7 +290,7 @@ function leagueTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: numb
   });
   y += 6;
   for (const x of v.history) {
-    dyn.add(text(h, m.cx + 8, y, `星期${days[x.day]} 对${x.foe}：${x.won ? '胜' : '负'}（你赢了${x.wins}阵）`, { color: x.won ? C.green : C.gray }));
+    dyn.add(text(h, m.cx + 8, y, `第${x.day + 1}天 对${x.foe}：${x.won ? '胜' : '负'}（你赢了${x.wins}阵）`, { color: x.won ? C.green : C.gray }));
     y += 16;
   }
 }
@@ -304,7 +301,7 @@ function kuaquTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: numbe
   const K = systems.kuaqu;
   const claim = s.p4.kuaqu.claim;
   if (claim) {
-    dyn.add(new Button(h, m.cx, y, m.cw, 24, `领上周会武奖励（第${claim.rank}名）`, () => {
+    dyn.add(new Button(h, m.cx, y, m.cw, 24, `领上赛季会武奖励（第${claim.rank}名）`, () => {
       toast(h, claimKuaqu(s).join('\n'), 2600);
       sfx('level');
       h.refresh();
@@ -313,7 +310,7 @@ function kuaquTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: numbe
     y += 30;
   }
   const why = kuaquReason(s);
-  dyn.add(text(h, m.cx, y, why || `周末两天，和别州高手过招，每赢一场给本州加分。今天还能打${K.fightsPerDay - v.fought.length}场，你共拿${v.points}分。`, { wrap: m.cw, color: why ? C.red : C.darkRed }));
+  dyn.add(text(h, m.cx, y, why || `赛季最后两天，和别州高手过招，每赢一场给本州加分。今天还能打${K.fightsPerDay - v.fought.length}场（再打${v.next}仗换一批对手），你共拿${v.points}分。`, { wrap: m.cw, color: why ? C.red : C.darkRed }));
   y += 36;
   dyn.add(text(h, m.cx, y, '各区积分', { color: C.darkRed }));
   y += 18;

@@ -9,7 +9,7 @@ import {
 import { finishBattle } from '../src/game/encounter';
 import {
   PLAYABLE, attackTargets, buyWithMerit, citiesOf, claimSalary, claimSeason, cityReason, defendTargets, gzBattle, gzBuff, joinNation,
-  nationRanks, neighbors, ordersLeft, rankName, seasonTurns, syncWorld, turnOf, weekIndex, weekday,
+  DAY_BATTLES, SEASON_BATTLES, calTick, nationRanks, neighbors, ordersLeft, rankName, seasonTurns, syncWorld, turnOf, weekIndex, weekday,
 } from '../src/game/guozhan';
 import { joinSect } from '../src/game/sect';
 import { bagCount, deserialize, generalStats, newSave, playerStats, serialize } from '../src/game/state';
@@ -17,10 +17,11 @@ import type { Save } from '../src/game/state';
 import { autoplay, generalCommand, playerCommand } from '../src/sim/autoplay';
 
 const G = systems.guozhan;
-const HOUR = 3600000;
-// 2026-10-19 是星期一
-const MON = new Date(2026, 9, 19, 0, 0).getTime();
-const SAT = new Date(2026, 9, 24, 12).getTime();
+// 天下历：赛季第一天第一格、第六天打到一半
+const D = DAY_BATTLES;
+const MON = 0;
+const SAT = 5 * D + 9;
+const NEXT = SEASON_BATTLES;
 
 function hero(level = 80, seed = 5): Save {
   const s = newSave({ server: '1区', name: '测试', gender: 'male', classId: 'warrior', avatar: 0, seed });
@@ -43,10 +44,10 @@ function drive(s: Save, b: Battle): Battle['outcome'] {
 }
 
 // 不打，直接判赢/输，看结算
-function settle(s: Save, b: Battle | string, outcome: 'win' | 'lose', now: number) {
+function settle(s: Save, b: Battle | string, outcome: 'win' | 'lose') {
   if (typeof b === 'string') throw new Error(b);
   b.outcome = outcome;
-  return finishBattle(s, b, now);
+  return finishBattle(s, b);
 }
 
 describe('P4 数据', () => {
@@ -69,30 +70,40 @@ describe('P4 数据', () => {
 });
 
 describe('国战沙盘', () => {
-  it('周一 0 点开赛季，每小时一回合，一周 168 回合', () => {
+  it('天下历：打一仗走一格，18 仗一天、七天一季，AI 一天 24 回合', () => {
+    expect(D).toBe(18);
     expect(weekday(MON)).toBe(0);
     expect(weekday(SAT)).toBe(5);
-    expect(weekIndex(MON - 1)).toBe(weekIndex(MON) - 1);
+    expect(weekIndex(NEXT - 1)).toBe(0);
+    expect(weekIndex(NEXT)).toBe(1);
+    expect(weekday(NEXT)).toBe(0);
     expect(turnOf(MON)).toBe(0);
-    expect(turnOf(MON + 5 * HOUR + 59 * 60000)).toBe(5);
+    expect(turnOf(D)).toBe(24);
     expect(seasonTurns).toBe(168);
-    expect(turnOf(MON + 7 * 24 * HOUR - 1)).toBe(167);
+    expect(turnOf(NEXT - 1)).toBeLessThan(168);
+    // 每打一仗（切磋也算）天下走一格
+    const s = hero();
+    const t0 = calTick(s);
+    const b = gzBattle(s, 'xuchang', 'atk', 1);
+    expect(typeof b).toBe('string');
+    s.battles += 3;
+    expect(calTick(s)).toBe(t0 + 3);
   });
 
-  it('离线补算和一小时一小时推进结果一样', () => {
+  it('一格一格推进和一次补算结果一样', () => {
     const a = hero();
     const b = hero();
-    for (let t = 0; t <= 60; t++) syncWorld(a, MON + t * HOUR + 1000);
-    syncWorld(b, MON + 60 * HOUR + 1000);
+    for (let t = 0; t <= 60; t++) syncWorld(a, t);
+    syncWorld(b, 60);
     expect(JSON.stringify(a.p4.world)).toBe(JSON.stringify(b.p4.world));
-    expect(a.p4.world!.turn).toBe(60);
+    expect(a.p4.world!.turn).toBe(turnOf(60));
   });
 
   it('一个赛季打下来三国都还在、都城不被 AI 打下；城池会易主', () => {
     let moved = 0;
     for (let seed = 1; seed <= 60; seed++) {
       const s = hero(80, seed);
-      const w = syncWorld(s, MON + 167 * HOUR + 1000);
+      const w = syncWorld(s, NEXT - 1);
       for (const n of PLAYABLE) expect(citiesOf(w, n).length, `${seed} ${n}`).toBeGreaterThan(0);
       for (const c of G.cities.filter((x) => x.kind === 'capital')) expect(w.cities[c.id].owner).toBe(c.owner);
       if (w.events.some((e) => e.big)) moved++;
@@ -108,8 +119,8 @@ describe('国战沙盘', () => {
     expect(s.p4.nation).toBe('wei');
     s.p4.merit = 100;
     s.p4.seasonMerit = 100;
-    expect(joinNation(s, 'shu', MON + 3 * 24 * HOUR)).toContain('不能改投');
-    joinNation(s, 'shu', MON + 8 * 24 * HOUR);
+    expect(joinNation(s, 'shu', 3 * D)).toContain('不能改投');
+    joinNation(s, 'shu', 8 * D);
     expect(s.p4.nation).toBe('shu');
     expect(s.p4.merit).toBe(50);
     expect(s.p4.seasonMerit).toBe(0);
@@ -118,16 +129,16 @@ describe('国战沙盘', () => {
   it('本国名将助阵（带专属被动）；敌方守将也带被动', () => {
     const s = hero(80);
     joinNation(s, 'shu', MON);
-    const w = syncWorld(s, MON + 1000);
+    const w = syncWorld(s, MON);
     const id = attackTargets(s, w)[0];
-    const b = gzBattle(s, id, 'atk', 1, MON + 1000);
+    const b = gzBattle(s, id, 'atk', 1, MON);
     if (typeof b === 'string') throw new Error(b);
     const aid = b.units.find((u) => u.id === 'a9')!;
     expect(aid.side).toBe('ally');
     expect(G.guards.shu).toContain(aid.passive);
     expect(aid.passive).toBeTruthy();
     expect(b.title).toContain('助阵');
-    const boss = gzBattle(s, id, 'boss', 2, MON + 1000);
+    const boss = gzBattle(s, id, 'boss', 2, MON);
     if (typeof boss === 'string') return;
     expect(boss.units.find((u) => u.id === 'e0')!.passive).toBeTruthy();
   });
@@ -135,39 +146,41 @@ describe('国战沙盘', () => {
   it('出征打赢削守军、加战功、用掉军令；军令每天8道', () => {
     const s = hero(80);
     joinNation(s, 'wei', MON);
-    const w = syncWorld(s, MON + 1000);
+    const w = syncWorld(s, MON);
     const id = attackTargets(s, w)[0];
     const before = w.cities[id].troops;
-    const sum = settle(s, gzBattle(s, id, 'atk', 1, MON + 1000), 'win', MON + 2000);
+    const sum = settle(s, gzBattle(s, id, 'atk', 1, MON), 'win');
     expect(s.p4.world!.cities[id].troops).toBeLessThan(before);
     expect(s.p4.merit).toBe(G.player.meritAtk);
-    expect(ordersLeft(s, MON + 2000)).toBe(G.ordersPerDay - 1);
+    expect(ordersLeft(s, MON)).toBe(G.ordersPerDay - 1);
     expect(sum.lines.join()).toContain('击溃');
     s.p4.orders.used = G.ordersPerDay;
-    expect(gzBattle(s, id, 'atk', 2, MON + 3000)).toContain('军令用完');
+    expect(gzBattle(s, id, 'atk', 2, MON)).toContain('军令用完');
+    expect(gzBattle(s, id, 'atk', 2) as string).toContain(`再打${D - 1}仗就到明天`);
     // 第二天又有了
-    expect(ordersLeft(s, MON + 25 * HOUR)).toBe(G.ordersPerDay);
+    expect(ordersLeft(s, D)).toBe(G.ordersPerDay);
     // 不接壤的城打不了
     const far = G.cities.find((c) => !attackTargets(s, s.p4.world!).includes(c.id) && s.p4.world!.cities[c.id].owner !== 'wei')!;
-    expect(cityReason(s, s.p4.world!, far.id, 'atk', MON + 25 * HOUR)).toContain('接壤');
+    expect(cityReason(s, s.p4.world!, far.id, 'atk', D)).toContain('接壤');
   });
 
   it('守军打光守将出城；斩将夺城，城归本国；输了不回新手村、不扣经验', () => {
     const s = hero(80);
     joinNation(s, 'wei', MON);
-    const w = syncWorld(s, MON + 1000);
+    const w = syncWorld(s, MON);
     const id = attackTargets(s, w)[0];
-    expect(cityReason(s, w, id, 'boss', MON + 1000)).toContain('守军还没打光');
+    expect(cityReason(s, w, id, 'boss', MON)).toContain('守军还没打光');
     w.cities[id].troops = 0;
+    w.cities[id].broken = w.turn;
     s.location = 'luoyang';
     const exp = (s.player.exp = 500);
-    const lose = settle(s, gzBattle(s, id, 'boss', 3, MON + 1000), 'lose', MON + 2000);
+    const lose = settle(s, gzBattle(s, id, 'boss', 3), 'lose');
     expect(s.location).toBe('luoyang');
     expect(s.player.exp).toBe(exp);
     expect(lose.lines.join()).toContain('败退回营');
     // 守将战不用军令
-    expect(ordersLeft(s, MON + 2000)).toBe(G.ordersPerDay);
-    settle(s, gzBattle(s, id, 'boss', 4, MON + 3000), 'win', MON + 4000);
+    expect(ordersLeft(s, MON)).toBe(G.ordersPerDay);
+    settle(s, gzBattle(s, id, 'boss', 4), 'win');
     expect(s.p4.world!.cities[id].owner).toBe('wei');
     expect(s.life.gzCaptures).toBe(1);
     expect(s.p4.merit).toBe(G.player.meritBoss);
@@ -176,22 +189,23 @@ describe('国战沙盘', () => {
   it('驻守补兵；占着洛阳经验加成；官职加属性、有俸禄；战功能换东西', () => {
     const s = hero(80);
     joinNation(s, 'wei', MON);
-    const w = syncWorld(s, MON + 1000);
+    const w = syncWorld(s, MON);
     const front = defendTargets(s, w)[0];
     w.cities[front].troops = 500;
-    settle(s, gzBattle(s, front, 'def', 5, MON + 1000), 'win', MON + 2000);
+    settle(s, gzBattle(s, front, 'def', 5, MON), 'win');
     expect(s.p4.world!.cities[front].troops).toBeGreaterThan(500);
     expect(gzBuff(s).exp).toBe(0);
     s.p4.world!.cities.luoyang.owner = 'wei';
-    // gzBuff 只认当前赛季：这里把世界当成本周的
-    s.p4.world!.season = weekIndex();
+    // gzBuff 只认当前赛季
+    expect(s.p4.world!.season).toBe(weekIndex(calTick(s)));
     expect(gzBuff(s).exp).toBeCloseTo(0.1);
     const atk0 = playerStats(s).atk;
     s.p4.meritTotal = 10000;
     expect(rankName(s)).toBe('将军');
     expect(playerStats(s).atk).toBeGreaterThan(atk0);
     expect(claimSalary(s, MON)).toContain('俸禄');
-    expect(claimSalary(s, MON + 1000)).toContain('领过');
+    expect(claimSalary(s, 1)).toContain('领过');
+    expect(claimSalary(s, D)).toContain('俸禄');
     s.p4.merit = 1000;
     buyWithMerit(s, G.shop.findIndex((e) => e.id === 'jiangjunling'));
     expect(bagCount(s, 'jiangjunling')).toBe(1);
@@ -202,9 +216,9 @@ describe('国战沙盘', () => {
     const s = hero(80);
     joinNation(s, 'wei', MON);
     s.p4.seasonMerit = G.seasonMinMerit;
-    const w = syncWorld(s, MON + 1000);
-    const rank = nationRanks(syncWorld(deserialize(serialize(s)), MON + 167 * HOUR + 1000)).findIndex((x) => x.id === 'wei') + 1;
-    syncWorld(s, MON + 7 * 24 * HOUR + 1000);
+    const w = syncWorld(s, MON);
+    const rank = nationRanks(syncWorld(deserialize(serialize(s)), NEXT - 1)).findIndex((x) => x.id === 'wei') + 1;
+    syncWorld(s, NEXT);
     expect(s.p4.world!.season).toBe(w.season + 1);
     expect(s.p4.seasonMerit).toBe(0);
     expect(s.p4.seasonClaim?.rank).toBe(rank);
@@ -213,10 +227,77 @@ describe('国战沙盘', () => {
     expect(s.player.silver).toBeGreaterThan(silver);
     expect(claimSeason(s)[0]).toContain('没有');
   });
+
+  it('打光守军后一天之内守军不补，过了这天补回来', () => {
+    const s = hero(80);
+    joinNation(s, 'wei');
+    const w = syncWorld(s);
+    const id = attackTargets(s, w)[0];
+    w.cities[id].troops = 1;
+    const sum = settle(s, gzBattle(s, id, 'atk', 8), 'win');
+    expect(sum.lines.join()).toContain('一天之内');
+    for (let i = 0; i < D - 2; i++) {
+      s.battles++;
+      const c = syncWorld(s).cities[id];
+      expect(c.owner).not.toBe('wei');
+      expect(c.troops).toBe(0);
+    }
+    expect(cityReason(s, s.p4.world!, id, 'boss')).toBe('');
+    s.battles += 3;
+    expect(syncWorld(s).cities[id].troops).toBeGreaterThan(0);
+  });
+
+  it('一天最后一格开打，军令记在那天；打完进了下一天，军令又满', () => {
+    const s = hero(80);
+    joinNation(s, 'wei');
+    s.battles = D - 1;
+    const id = attackTargets(s, syncWorld(s))[0];
+    settle(s, gzBattle(s, id, 'atk', 7), 'win');
+    expect(calTick(s)).toBe(D);
+    expect(ordersLeft(s)).toBe(G.ordersPerDay);
+  });
+
+  it('老存档：真实时间的赛季、当天用掉的军令、入国时间换算到天下历', () => {
+    const s = hero(80);
+    s.battles = 500;
+    joinNation(s, 'wei');
+    syncWorld(s);
+    // 2026-10-22（周四）15 点：按老算法本周第 3 天 15 时
+    const now = new Date(2026, 9, 22, 15, 0).getTime();
+    const raw = JSON.parse(serialize(s));
+    delete raw.p4.calBase;
+    const realWeek = Math.floor((Math.floor((now - new Date(now).getTimezoneOffset() * 60000) / 86400000) + 3) / 7);
+    raw.p4.world.season = realWeek;
+    raw.p4.world.turn = 3 * 24 + 15;
+    const today = new Date(now);
+    raw.p4.orders = { day: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`, used: 5 };
+    raw.p4.joinedAt = now - 2 * 86400000;
+    raw.p4.league.week = realWeek - 1;
+    const realNow = Date.now;
+    Date.now = () => now;
+    let s2: Save;
+    try {
+      s2 = deserialize(JSON.stringify(raw));
+    } finally {
+      Date.now = realNow;
+    }
+    const t = calTick(s2);
+    expect(weekday(t)).toBe(3);
+    expect(s2.p4.world!.season).toBe(0);
+    expect(ordersLeft(s2)).toBe(G.ordersPerDay - 5);
+    // 入国两天：还要再过五天才能改投
+    expect(joinNation(s2, 'shu')).toContain('不能改投');
+    expect(joinNation(s2, 'shu', t + 5 * D + 1)).toContain('改投');
+    // 上周的争霸记录算成上一季，进来就结算
+    expect(s2.p4.league.week).toBe(-1);
+    // 再读一次不会重复换算
+    const s3 = deserialize(serialize(s2));
+    expect(s3.p4.calBase).toBe(s2.p4.calBase);
+  });
 });
 
 describe('军团争霸、跨区大战', () => {
-  it('四个教派一周循环；你赢的阵越多，本教派越容易赢这一轮', () => {
+  it('四个教派一季循环；你赢的阵越多，本教派越容易赢这一轮', () => {
     const s = hero(80);
     let w0 = 0;
     let w3 = 0;
@@ -230,30 +311,30 @@ describe('军团争霸、跨区大战', () => {
     expect(t.reduce((a, r) => a + r.won, 0)).toBe(14);
   });
 
-  it('没入教派不能打；每天三阵；跨周按名次发奖', () => {
+  it('没入教派不能打；每天三阵；跨赛季按名次发奖', () => {
     const s = hero(80);
     expect(leagueBattle(s, 1, MON)).toContain('先入一个教派');
     joinSect(s, 'qinglong');
     for (let i = 0; i < 3; i++) {
-      const b = leagueBattle(s, i, MON + HOUR);
+      const b = leagueBattle(s, i, MON + 1);
       if (typeof b === 'string') throw new Error(b);
       b.outcome = 'win';
-      afterContest(s, b, MON + HOUR);
+      afterContest(s, b, MON + 1);
     }
-    expect(leagueView(s, MON + HOUR).left).toBe(0);
-    expect(leagueBattle(s, 9, MON + HOUR)).toContain('打完');
-    leagueView(s, MON + 7 * 24 * HOUR);
+    expect(leagueView(s, MON + 1).left).toBe(0);
+    expect(leagueBattle(s, 9, MON + 1)).toContain('打完');
+    leagueView(s, NEXT);
     expect(s.p4.league.claim).not.toBeNull();
     const rep = s.p3.sect.rep;
-    claimLeague(s, MON + 7 * 24 * HOUR);
+    claimLeague(s, NEXT);
     expect(s.p3.sect.rep).toBeGreaterThan(rep);
   });
 
-  it('跨区只在周末、80级以上；赢了加分；周一按名次领奖', () => {
+  it('跨区只在赛季最后两天、80级以上；赢了加分；下个赛季按名次领奖', () => {
     const s = hero(79);
     expect(kuaquReason(s, SAT)).toContain('80级');
     s.player.level = 85;
-    expect(kuaquReason(s, MON)).toContain('周六');
+    expect(kuaquReason(s, MON)).toContain('第六、七天');
     expect(kuaquReason(s, SAT)).toBe('');
     const foes = kuaquFoes(s, SAT);
     expect(foes.length).toBe(systems.kuaqu.fightsPerDay);
@@ -266,9 +347,9 @@ describe('军团争霸、跨区大战', () => {
     expect(kuaquBattle(s, 0, 2, SAT)).toContain('打过');
     const v = kuaquView(s, SAT);
     expect(v.scores.length).toBe(3);
-    kuaquView(s, MON + 7 * 24 * HOUR);
+    kuaquView(s, NEXT);
     expect(s.p4.kuaqu.claim?.points).toBe(v.points);
-    expect(claimKuaqu(s, MON + 7 * 24 * HOUR)[0]).toContain('诸州会武');
+    expect(claimKuaqu(s, NEXT)[0]).toContain('诸州会武');
   });
 
   it('老存档补上 P4 字段', () => {
@@ -287,7 +368,7 @@ describe('P4 实战（自动打到 60 级出头）', () => {
     s0.player.level = 1;
     autoplay(s0, 11, 6000, mainQuests.findIndex((q) => q.id === 'm60'));
     expect(s0.player.level).toBeGreaterThanOrEqual(60);
-    joinNation(s0, 'wei', SAT);
+    joinNation(s0, 'wei');
     joinSect(s0, 'qinglong');
     // 出征前先去医馆回满（国战不是切磋，按当前血量上）
     const st = playerStats(s0);
@@ -303,14 +384,14 @@ describe('P4 实战（自动打到 60 级出头）', () => {
     const N = 20;
     for (let k = 0; k < N; k++) {
       let s = deserialize(snap);
-      const w = syncWorld(s, SAT);
+      const w = syncWorld(s);
       const id = attackTargets(s, w)[0];
-      if (drive(s, gzBattle(s, id, 'atk', 100 + k, SAT) as Battle) === 'win') win.atk++;
+      if (drive(s, gzBattle(s, id, 'atk', 100 + k) as Battle) === 'win') win.atk++;
       s = deserialize(snap);
-      syncWorld(s, SAT).cities[id].troops = 0;
-      if (drive(s, gzBattle(s, id, 'boss', 200 + k, SAT) as Battle) === 'win') win.boss++;
+      syncWorld(s).cities[id].troops = 0;
+      if (drive(s, gzBattle(s, id, 'boss', 200 + k) as Battle) === 'win') win.boss++;
       s = deserialize(snap);
-      if (drive(s, leagueBattle(s, 300 + k, SAT) as Battle) === 'win') win.league++;
+      if (drive(s, leagueBattle(s, 300 + k) as Battle) === 'win') win.league++;
     }
     console.log('P4 实战胜率', s0.player.level, JSON.stringify(win));
     expect(win.atk / N).toBeGreaterThan(0.7);

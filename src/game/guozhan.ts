@@ -1,5 +1,5 @@
-// 国战沙盘：魏、蜀、吴三国加董卓余部（群雄）争 17 座城。AI 势力按真实时间每小时走一回合（补兵、调兵、打邻城），
-// 离线这段时间的回合上线时一次补算（同一个种子同一个钟点，算出来的结果都一样）。一周一个赛季，周一开局，按城数排名。
+// 国战沙盘：魏、蜀、吴三国加董卓余部（群雄）争 17 座城。日子按「天下历」走：你每打一仗天下走一格，18 仗算一天，
+// AI 势力一天走 24 回合（补兵、调兵、打邻城），七天一个赛季，按城数排名（同一个种子同一格，算出来的结果都一样）。
 // 主角 60 级入一国：每天 8 道军令出征敌城（削守军）或驻守己城（补兵）；守军打光了守将出城单挑，赢了这座城归本国。
 import { PASSIVES } from '../core/passives';
 import { monsters, systems } from '../data';
@@ -12,38 +12,19 @@ import { generalUnit, monsterUnit, playerUnit } from './encounter';
 import { mirrorUnit, rivals } from './rivals';
 import type { Rival } from './rivals';
 import type { GzCity, GzWorld, Save } from './state';
-import { bump, dayKey, dayNum, gzRank, log, rollRng } from './state';
+import { bump, gzRank, log, rollRng } from './state';
+import { DAY_BATTLES, TURNS, battlesToNextDay, calDay, calTick, turnOf, weekIndex } from './calendar';
 import { grantReward, oreFor, randomGem } from './welfare';
 
+export { DAY_BATTLES, SEASON_BATTLES, SEASON_DAYS, battlesToNextDay, calDay, calTick, turnOf, weekIndex, weekday } from './calendar';
+
 const G = systems.guozhan;
-const DAY = 86400000;
 export const PLAYABLE: NationId[] = ['wei', 'shu', 'wu'];
-const TURNS = (G.seasonDays * 24 * 60) / G.turnMinutes;
 
 export function hashStr(str: string): number {
   let h = 2166136261;
   for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   return h >>> 0;
-}
-
-// ===== 时间：周一 0 点开赛季（本地时间） =====
-export function weekIndex(now = Date.now()): number {
-  // 1970-01-01 是星期四，+3 让每周从星期一算起
-  return Math.floor((dayNum(now) + 3) / 7);
-}
-
-// 0 = 星期一 … 6 = 星期日
-export function weekday(now = Date.now()): number {
-  return (dayNum(now) + 3) % 7;
-}
-
-function localMs(now: number): number {
-  return now - new Date(now).getTimezoneOffset() * 60000;
-}
-
-export function turnOf(now = Date.now()): number {
-  const start = (weekIndex(now) * 7 - 3) * DAY;
-  return Math.max(0, Math.min(TURNS, Math.floor((localMs(now) - start) / (G.turnMinutes * 60000))));
 }
 
 export const seasonTurns = TURNS;
@@ -84,6 +65,17 @@ function event(w: GzWorld, text: string, big: boolean): void {
   if (w.events.length > 60) w.events.splice(0, w.events.length - 60);
 }
 
+// 守军被你打光后的一天（24 回合）里：守城一方补不上兵、调不进兵，别家也不来抢，留给你去单挑守将
+const ROUTED_TURNS = 24;
+
+function routed(w: GzWorld, id: string): boolean {
+  const c = w.cities[id];
+  if (c.broken === undefined) return false;
+  if (w.turn - c.broken < ROUTED_TURNS && c.troops <= 0) return true;
+  delete c.broken;
+  return false;
+}
+
 const natName = (n: NationId) => (n === 'qun' ? '董卓余部' : `${nationDef(n).name}军`);
 
 // AI 走一回合：补兵 → 后方往前线调兵 → 各国看情况打邻城（都城 AI 只能围、打不下来，三国不会被 AI 灭掉）
@@ -95,6 +87,7 @@ function aiTurn(s: Save, w: GzWorld): void {
   for (const c of G.cities) {
     const st = w.cities[c.id];
     const k = G.kinds[c.kind];
+    if (routed(w, c.id)) continue;
     // 地盘越大补兵越慢（免得一家独大一路滚雪球），董卓余部只守不攻、补得也慢
     const damp = st.owner === 'qun' ? A.qunYieldMul : Math.max(0.5, 1 - A.bigNationDamp * Math.max(0, counts[st.owner] - 4));
     st.troops = Math.min(k.max, st.troops + Math.round(k.yield * damp));
@@ -102,7 +95,7 @@ function aiTurn(s: Save, w: GzWorld): void {
   for (const n of rng.shuffle([...PLAYABLE])) {
     const mine = citiesOf(w, n);
     if (!mine.length) continue;
-    const front = mine.filter((id) => frontier(w, id));
+    const front = mine.filter((id) => frontier(w, id) && !routed(w, id));
     // 后方的城把一部分兵调到最缺兵的前线
     if (front.length) {
       const weakest = front.reduce((a, b) => (w.cities[a].troops / kindOf(a).max <= w.cities[b].troops / kindOf(b).max ? a : b));
@@ -121,7 +114,8 @@ function aiTurn(s: Save, w: GzWorld): void {
     for (const from of front) {
       for (const to of neighbors(from)) {
         const t = w.cities[to];
-        if (t.owner === n) continue;
+        // 守将正出城和你单挑的城，别家不来插手
+        if (t.owner === n || routed(w, to)) continue;
         const ratio = (w.cities[from].troops * A.sendPct) / Math.max(1, t.troops * kindOf(to).def) * rng.range(0.9, 1.1);
         if (!best || ratio > best.ratio) best = { from, to, ratio };
       }
@@ -142,6 +136,7 @@ function aiTurn(s: Save, w: GzWorld): void {
       const was = tgt.owner;
       tgt.owner = n;
       tgt.troops = Math.max(100, Math.round(send * (1 - def / att)));
+      delete tgt.broken;
       event(w, `${natName(n)}从${cityDef(best.from).name}出兵，攻占了${natName(was).replace('军', '')}的${name}`, true);
     } else {
       tgt.troops = Math.max(50, Math.round(tgt.troops - (att / kindOf(best.to).def) * 0.6));
@@ -150,9 +145,9 @@ function aiTurn(s: Save, w: GzWorld): void {
   }
 }
 
-// 把世界推进到 now：跨了赛季先把旧赛季打完、结算，再开新局
-export function syncWorld(s: Save, now = Date.now()): GzWorld {
-  const season = weekIndex(now);
+// 把世界推进到天下历第 t 格：跨了赛季先把旧赛季打完、结算，再开新局
+export function syncWorld(s: Save, t = calTick(s)): GzWorld {
+  const season = weekIndex(t);
   let w = s.p4.world;
   if (w && w.season !== season) {
     while (w.turn < TURNS) {
@@ -167,7 +162,7 @@ export function syncWorld(s: Save, now = Date.now()): GzWorld {
     s.p4.world = w;
     s.p4.seen = 0;
   }
-  const target = turnOf(now);
+  const target = turnOf(t);
   while (w.turn < target) {
     aiTurn(s, w);
     w.turn++;
@@ -176,9 +171,9 @@ export function syncWorld(s: Save, now = Date.now()): GzWorld {
 }
 
 // 新出的大事进公告（最多 3 条，免得刷屏）
-export function announce(s: Save, now = Date.now()): void {
+export function announce(s: Save): void {
   if (!s.p4.nation || s.player.level < G.minLevel) return;
-  const w = syncWorld(s, now);
+  const w = syncWorld(s);
   const fresh = w.events.filter((e) => e.seq > s.p4.seen && e.big);
   for (const e of fresh.slice(-3)) log(s, `【国战】${e.text}`);
   s.p4.seen = w.seq;
@@ -214,18 +209,16 @@ export function claimSeason(s: Save): string[] {
 }
 
 // ===== 入国 =====
-export function joinReason(s: Save, now = Date.now()): string {
+export function joinReason(s: Save, t = calTick(s)): string {
   if (s.player.level < G.minLevel) return `${G.minLevel}级才能参加国战`;
-  if (s.p4.nation && now - s.p4.joinedAt < G.player.joinCooldownDays * DAY) {
-    const left = Math.ceil((G.player.joinCooldownDays * DAY - (now - s.p4.joinedAt)) / DAY);
-    return `入国${G.player.joinCooldownDays}天以内不能改投别国（还要${left}天）`;
-  }
+  const wait = G.player.joinCooldownDays * DAY_BATTLES - (t - s.p4.joinedAt);
+  if (s.p4.nation && wait > 0) return `入国${G.player.joinCooldownDays}天以内不能改投别国（还要打${wait}仗）`;
   return '';
 }
 
-export function joinNation(s: Save, id: NationId, now = Date.now()): string {
+export function joinNation(s: Save, id: NationId, t = calTick(s)): string {
   if (!PLAYABLE.includes(id) || s.p4.nation === id) return '';
-  const why = joinReason(s, now);
+  const why = joinReason(s, t);
   if (why) return why;
   const before = s.p4.nation;
   if (before) {
@@ -234,8 +227,8 @@ export function joinNation(s: Save, id: NationId, now = Date.now()): string {
     s.p4.merit = Math.floor(s.p4.merit / 2);
   }
   s.p4.nation = id;
-  s.p4.joinedAt = now;
-  syncWorld(s, now);
+  s.p4.joinedAt = t;
+  syncWorld(s, t);
   s.p4.seen = s.p4.world!.seq;
   bump(s, 'gzJoined');
   const d = nationDef(id);
@@ -244,8 +237,8 @@ export function joinNation(s: Save, id: NationId, now = Date.now()): string {
 }
 
 // ===== 军令、官职、俸禄 =====
-export function ordersLeft(s: Save, now = Date.now()): number {
-  const d = dayKey(now);
+export function ordersLeft(s: Save, t = calTick(s)): number {
+  const d = calDay(t);
   if (s.p4.orders.day !== d) s.p4.orders = { day: d, used: 0 };
   return Math.max(0, G.ordersPerDay - s.p4.orders.used);
 }
@@ -272,10 +265,14 @@ export function salary(s: Save): number {
   return gzRank(s.p4.meritTotal) * s.player.level * G.salaryPerRankLevel;
 }
 
-export function claimSalary(s: Save, now = Date.now()): string {
+export function salaryClaimed(s: Save, t = calTick(s)): boolean {
+  return s.p4.salaryDay === calDay(t);
+}
+
+export function claimSalary(s: Save, t = calTick(s)): string {
   if (!s.p4.nation) return '还没投奔哪一国';
-  const d = dayKey(now);
-  if (s.p4.salaryDay === d) return '今天的俸禄已经领过了';
+  const d = calDay(t);
+  if (s.p4.salaryDay === d) return `今天的俸禄已经领过了，再打${battlesToNextDay(t)}仗到明天`;
   const n = salary(s);
   if (!n) return '士卒没有俸禄，攒战功升了伍长再来';
   s.p4.salaryDay = d;
@@ -287,7 +284,7 @@ export function claimSalary(s: Save, now = Date.now()): string {
 export function gzBuff(s: Save): { exp: number; silver: number } {
   const out = { exp: 0, silver: 0 };
   const w = s.p4.world;
-  if (!s.p4.nation || !w || w.season !== weekIndex()) return out;
+  if (!s.p4.nation || !w || w.season !== weekIndex(calTick(s))) return out;
   for (const [id, b] of Object.entries(G.buffs)) {
     if (w.cities[id]?.owner !== s.p4.nation) continue;
     out.exp += b.exp ?? 0;
@@ -346,7 +343,7 @@ export function rivalsOf(s: Save, n: NationId): Rival[] {
   return i < 0 ? [] : rivals(s).filter((_, k) => k % 3 === i);
 }
 
-export function cityReason(s: Save, w: GzWorld, id: string, mode: GzMode, now = Date.now()): string {
+export function cityReason(s: Save, w: GzWorld, id: string, mode: GzMode, t = calTick(s)): string {
   if (!s.p4.nation) return '还没投奔哪一国';
   if (s.player.level < G.minLevel) return `${G.minLevel}级才能参加国战`;
   const c = w.cities[id];
@@ -355,7 +352,7 @@ export function cityReason(s: Save, w: GzWorld, id: string, mode: GzMode, now = 
     if (c.troops > 0) return '守军还没打光，守将不会出城';
     return '';
   }
-  if (ordersLeft(s, now) <= 0) return '今天的军令用完了，明天再来';
+  if (ordersLeft(s, t) <= 0) return `今天的军令用完了，去别处再打${battlesToNextDay(t)}仗就到明天`;
   if (mode === 'atk' && !attackTargets(s, w).includes(id)) return '只能打和本国接壤的城';
   if (mode === 'atk' && c.troops <= 0) return '守军已经打光了，去和守将单挑';
   if (mode === 'def' && !defendTargets(s, w).includes(id)) return '只有前线的本国城池需要驻守';
@@ -430,9 +427,9 @@ function attackerOf(w: GzWorld, id: string): NationId {
   return best;
 }
 
-export function gzBattle(s: Save, id: string, mode: GzMode, seed: number, now = Date.now()): Battle | string {
-  const w = syncWorld(s, now);
-  const why = cityReason(s, w, id, mode, now);
+export function gzBattle(s: Save, id: string, mode: GzMode, seed: number, t = calTick(s)): Battle | string {
+  const w = syncWorld(s, t);
+  const why = cityReason(s, w, id, mode, t);
   if (why) return why;
   const rng = new Rng(seed);
   const foe = mode === 'def' ? attackerOf(w, id) : w.cities[id].owner;
@@ -473,16 +470,16 @@ export function gzBattle(s: Save, id: string, mode: GzMode, seed: number, now = 
   });
 }
 
-// 战斗结束后由 finishBattle 调用
-export function afterGz(s: Save, b: Battle, now = Date.now()): string[] {
+// 战斗结束后由 finishBattle 调用（t 是开打那一格，军令记在开打那天）
+export function afterGz(s: Save, b: Battle, t = calTick(s)): string[] {
   const [, mode, id] = (b.tag ?? '').split(':') as [string, GzMode, string];
-  const w = syncWorld(s, now);
+  const w = syncWorld(s, t);
   const c = w.cities[id];
   const name = cityDef(id).name;
   const n = s.p4.nation;
   const lines: string[] = [];
   if (mode !== 'boss') {
-    ordersLeft(s, now);
+    ordersLeft(s, t);
     s.p4.orders.used++;
   }
   if (b.outcome !== 'win' || !c || !n) {
@@ -499,7 +496,10 @@ export function afterGz(s: Save, b: Battle, now = Date.now()): string[] {
       c.troops = Math.max(0, c.troops - dmg);
       lines.push(`击溃${name}守军${dmg}人（还剩${c.troops}），战功+${P.meritAtk}`);
       lines.push(...addMerit(s, P.meritAtk));
-      if (c.troops <= 0) lines.push(`${name}守军打光了！守将${monsters[guardOf(w, id)].name}要出城迎战——趁对方没补上兵，在沙盘上点${name}和他单挑`);
+      if (c.troops <= 0) {
+        c.broken = w.turn;
+        lines.push(`${name}守军打光了！守将${monsters[guardOf(w, id)].name}要出城迎战——一天之内（再打${DAY_BATTLES}仗以内）在沙盘上点${name}和他单挑，过了这天守军就补回来了`);
+      }
       bump(s, 'gzAttacks');
     }
   } else if (mode === 'def') {
@@ -512,6 +512,7 @@ export function afterGz(s: Save, b: Battle, now = Date.now()): string[] {
     const was = c.owner;
     c.owner = n;
     c.troops = Math.round(max * P.captureTroopsPct);
+    delete c.broken;
     event(w, `${s.player.name}率${natName(n)}攻下了${natName(was).replace('军', '')}的${name}`, true);
     s.p4.seen = w.seq;
     lines.push(`斩将夺城！${name}归了${nationDef(n).full}，战功+${P.meritBoss}`);

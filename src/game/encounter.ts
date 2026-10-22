@@ -20,7 +20,7 @@ import {
 import { afterGuard } from './dig';
 import { afterArena } from './arena';
 import { afterContest } from './contest';
-import { afterGz, gzBuff } from './guozhan';
+import { afterGz, calTick, gzBuff } from './guozhan';
 import { onSectKills } from './sect';
 import { afterTreasure, festivalExpMul } from './events';
 import { mercUnit, mercUsed } from './social';
@@ -162,6 +162,8 @@ export interface BattleSummary {
 
 // 打完写回存档：血量、精力、药品消耗、熟练度、经验银两、掉落、招降、任务进度
 export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummary {
+  // 天下历按开打那一格记（国战军令、争霸场次记在开打那天），记完这一仗天下走一格
+  const tick = calTick(s);
   s.battles++;
   // 仗打久了，随行副将有点懈怠
   const slack = s.battles % LOYALTY_EVERY === 0 && !b.spar && decayLoyalty(s);
@@ -172,7 +174,7 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
   // 切磋（擂台、斗将台、决斗场）：不掉血不掉药，打完原样；结果另算
   if (b.spar) {
     const kind = (b.tag ?? '').split(':')[0];
-    sum.lines.push(...(kind === 'league' || kind === 'kuaqu' ? afterContest(s, b, now) : afterArena(s, b, now)));
+    sum.lines.push(...(kind === 'league' || kind === 'kuaqu' ? afterContest(s, b, tick) : afterArena(s, b, now)));
     for (const l of sum.lines) log(s, l);
     return sum;
   }
@@ -259,7 +261,7 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
   if (b.tag === 'dig') sum.lines.push(...afterGuard(s, b.outcome === 'win'));
   if (b.tag === 'treasure') sum.lines.push(...afterTreasure(s, b.outcome === 'win', now));
   const gz = b.tag?.startsWith('gz:');
-  if (gz) sum.lines.push(...afterGz(s, b, now));
+  if (gz) sum.lines.push(...afterGz(s, b, tick));
   // 雇来的队友：打一场少一场
   if ([...b.units, ...b.reserve].some((u) => u.id === 'merc')) {
     const m = mercUsed(s);
