@@ -17,11 +17,11 @@ import { giveGift, hireMerc, marry, swear, swornReason } from '../src/game/socia
 import { collectStall, putOnStall, settleStall } from '../src/game/stall';
 import { ORE_CHAIN } from '../src/game/smith';
 import {
-  addItem, arrive, bagCount, deserialize, grantPlayerExp, levelCap, makeGeneral, addGeneral, newSave, playerStats, questDropAllowed, serialize,
+  addItem, arrive, bagCount, deserialize, setActive, grantPlayerExp, levelCap, makeGeneral, addGeneral, newSave, playerStats, questDropAllowed, serialize,
   skillSchool, upgradeSkill,
 } from '../src/game/state';
 import type { Save } from '../src/game/state';
-import { endTraining, startTraining, trainCost } from '../src/game/training';
+import { TRAIN_SHARE, setTrainee, trainAfterBattle } from '../src/game/training';
 import { expandVault, vaultStore, vaultTake } from '../src/game/town';
 import { oreFor } from '../src/game/welfare';
 import { Rng } from '../src/core/rng';
@@ -154,23 +154,33 @@ describe('教派、训练、宝库', () => {
     expect(playerStats(s).atk).toBeGreaterThan(atk0);
   });
 
-  it('训练按真实时间给经验，周末半价；训练中的副将不能出战', () => {
+  it('随军操练：挑一个歇着的副将，打赢一仗分一半经验；叫上场就停', () => {
     const s = fresh();
     lvl(s, 30);
-    s.player.silver = 1e6;
+    const g = makeGeneral(s, 'shanzei', 20, new Rng(2));
+    addGeneral(s, g);
+    s.activeGeneral = g.uid;
+    expect(setTrainee(s, g.uid)).toContain('出战');
+    s.activeGeneral = null;
+    expect(setTrainee(s, g.uid)).toContain('随军操练');
+    expect(s.flags.trained).toBe(true);
+    const r = trainAfterBattle(s, 1000);
+    expect(r?.exp).toBe(Math.round(1000 * TRAIN_SHARE));
+    setActive(s, g.uid);
+    expect(s.p3.training).toBeNull();
+  });
+
+  it('老存档里按小时挂着练的，读档时把已练的经验给完、改成随军操练', () => {
+    const s = fresh();
     const g = makeGeneral(s, 'shanzei', 20, new Rng(2));
     addGeneral(s, g);
     s.activeGeneral = null;
-    expect(startTraining(s, g.uid, 2, T0)).toContain('训练');
-    expect(s.flags.trained).toBe(true);
-    const lv = g.level;
-    const r = endTraining(s, T0 + 2 * HOUR);
-    expect(r[0]).toContain('经验');
-    expect(g.level).toBeGreaterThanOrEqual(lv);
-    // 2026-03-14 是周六
-    const sat = at(2026, 3, 14, 10);
-    const wed = at(2026, 3, 11, 10);
-    expect(trainCost(s, 'player', 4, sat) * 2).toBe(trainCost(s, 'player', 4, wed));
+    const exp0 = g.exp + g.level * 1e6;
+    (s.p3 as unknown as { training: unknown }).training = { who: g.uid, start: Date.now() - 2 * HOUR, hours: 4 };
+    const back = deserialize(serialize(s));
+    const g2 = back.generals.find((x) => x.uid === g.uid)!;
+    expect(g2.exp + g2.level * 1e6).toBeGreaterThan(exp0);
+    expect(back.p3.training).toEqual({ who: g.uid });
   });
 
   it('宝库存取、扩容花金砖', () => {

@@ -137,9 +137,16 @@ export function rewardGeneral(s: Save, uid: string): string {
   return `奖赏${g.name}${cost}两，忠诚+${G.rewardLoyalty}（${g.loyalty}/100）`;
 }
 
-// 每过一天忠诚掉一点
-export function decayLoyalty(s: Save, days: number): void {
-  for (const g of [...s.generals, ...s.inn]) if (!g.sworn) g.loyalty = Math.max(0, g.loyalty - G.loyaltyDecayDaily * days);
+// 随行的副将每打 LOYALTY_EVERY 场忠诚掉一点（客栈里歇着的不掉；结拜过的不掉）
+export const LOYALTY_EVERY = 30;
+export function decayLoyalty(s: Save, times = 1): boolean {
+  let any = false;
+  for (const g of s.generals) {
+    if (g.sworn || g.loyalty <= 0) continue;
+    g.loyalty = Math.max(0, g.loyalty - G.loyaltyDecayDaily * times);
+    any = true;
+  }
+  return any;
 }
 
 // ===== 洗资质 =====

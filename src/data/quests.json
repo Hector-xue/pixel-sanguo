@@ -1822,12 +1822,12 @@
       "giver": "puyangtaishou",
       "turnIn": "puyangtaishou",
       "type": "flag",
-      "hint": "在「功能 → 训练」开始一次训练。",
-      "goal": "开始一次训练",
+      "hint": "在「功能 → 训练」挑一员不出战的副将随军操练。",
+      "goal": "安排一员副将随军操练",
       "accept": [
         {
           "who": "puyangtaishou",
-          "text": "训练按时辰收银子，人不在也照样涨经验。"
+          "text": "带兵的人，歇着的弟兄也得练。挑一个跟着你操练，你打一仗，他也长一分本事。"
         }
       ],
       "finish": [

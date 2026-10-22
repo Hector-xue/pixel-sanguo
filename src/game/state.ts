@@ -1,4 +1,5 @@
 // 存档与游戏规则（纯逻辑，可测）。界面只调这里的函数，不直接改存档字段。
+import { migrateTraining } from './training';
 import { balance, bountyOptions, classSkills, classes, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation, systems } from '../data';
 import { p5Defaults } from './bond';
 import type { P5State } from './bond';
@@ -150,7 +151,8 @@ export interface P3State {
   pk: { day: string; fights: number };
   evil: number;
   evilAt?: number;
-  training: { who: string; start: number; hours: number } | null;
+  // 随军操练的副将（老存档里还可能带着 start/hours，读档时折算掉）
+  training: { who: string } | null;
   vault: Record<string, number>;
   vaultCap: number;
   titles: string[];
@@ -770,8 +772,8 @@ export function addGeneral(s: Save, g: General): string {
 }
 
 export function setActive(s: Save, uid: string | null): void {
-  // 训练中的副将不能出战
-  if (uid !== null && s.p3?.training?.who === uid) return;
+  // 操练中的副将叫上场，就不再操练了
+  if (uid !== null && s.p3?.training?.who === uid) s.p3.training = null;
   if (uid === null || s.generals.some((g) => g.uid === uid)) s.activeGeneral = uid;
 }
 
@@ -1056,6 +1058,7 @@ export function deserialize(text: string): Save {
   s.p4 = { ...p4Defaults(), ...(s.p4 ?? {}) };
   s.p5 = { ...p5Defaults(), ...(s.p5 ?? {}) };
   s.p5.life = { ...p5Defaults().life, ...s.p5.life };
+  migrateTraining(s);
   // 单机化：以前的「1区 许昌」这类分区名统一成本州
   if (!s.server || /区/.test(s.server)) s.server = '豫州';
   // 主线加长了：之前停在「全部完成」的存档接着往下走

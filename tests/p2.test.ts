@@ -1,3 +1,4 @@
+import { decayLoyalty } from '../src/game/generals';
 import { describe, expect, it } from 'vitest';
 import { gemId, items, mainQuests, systems } from '../src/data';
 import { gearBonus, gearName } from '../src/core/gear';
@@ -259,16 +260,19 @@ describe('福利与体力丹', () => {
     expect(s.player.hp).toBeGreaterThan(1);
   });
 
-  it('宝箱能开出东西；每天过去副将忠诚下降、钱庄有利息', () => {
+  it('宝箱能开出东西；钱庄按天有利息；副将忠诚不再按天掉，改成每打30场掉一点', () => {
     const s = fresh();
     addItem(s, 'baoxiang', 1);
     expect(openBox(s, 'baoxiang')).toContain('打开了宝箱');
     s.bank = 100000;
     s.generals.push(makeGeneral(s, 'caokou', 3, new Rng(1)));
+    const l0 = s.generals[0].loyalty;
     dailyTick(s, T0);
     dailyTick(s, T0 + DAY);
-    expect(s.generals[0].loyalty).toBe(95);
+    expect(s.generals[0].loyalty).toBe(l0);
     expect(s.bank).toBe(100200);
+    expect(decayLoyalty(s)).toBe(true);
+    expect(s.generals[0].loyalty).toBe(l0 - 5);
   });
 });
 

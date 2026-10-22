@@ -26,7 +26,7 @@ import type { Grade, Save } from '../game/state';
 import { allGenerals, makeRecruit, ownsRecruit, recruitLevel } from '../game/generals';
 import { bagCount, findGeneral, generalStats, playerStats, sectRank } from '../game/state';
 import { store } from '../game/store';
-import { endTraining, startTraining, trainCost, trainExpPerHour, trainingProgress } from '../game/training';
+import { TRAIN_SHARE, setTrainee, trainee } from '../game/training';
 import { expandVault, shopBuy, vaultStore, vaultTake, vaultUsed } from '../game/town';
 import { bankPanel } from './town';
 import { showDialog } from './dialog';
@@ -221,48 +221,39 @@ export function sectPanel(h: Host): void {
 // ===== 训练 =====
 export function trainingPanel(h: Host): void {
   const s = store.save;
-  const m = new Modal(h, '训练');
+  const m = new Modal(h, '训练 · 随军操练');
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
-  let who = 'player';
   const render = () => {
     dyn.removeAll(true);
     let y = m.cy;
-    const p = trainingProgress(s);
-    if (p && s.p3.training) {
-      const tw = s.p3.training.who;
-      const name = tw === 'player' ? s.player.name : findGeneral(s, tw)?.name ?? '';
-      dyn.add(text(h, m.cx, y, `${name}正在训练：${p.hours.toFixed(1)}/${s.p3.training.hours}小时，已攒经验${p.exp}`, { wrap: m.cw, color: C.darkRed }));
-      y += 36;
-      dyn.add(new Button(h, m.cx, y, m.cw, 26, p.done ? '训练完成，领经验' : '提前结束（按已练时长给经验）', () => {
-        const r = endTraining(s);
-        sfx('level');
-        toast(h, r.join('\n'), 2400);
-        h.refresh();
-        render();
-      }, { style: 'red' }));
+    dyn.add(text(h, m.cx, y, `挑一员不出战的副将跟着队伍操练：你每打赢一仗，他分到你这一仗经验的${Math.round(TRAIN_SHARE * 100)}%。不花银子，也不看时辰。`, { wrap: m.cw, color: C.brown, lineGap: 2 }));
+    y += 50;
+    const cur = trainee(s);
+    const g0 = cur ? findGeneral(s, cur) : null;
+    dyn.add(text(h, m.cx, y, g0 ? `正在操练：${g0.name}（${g0.level}级）` : '眼下没有人在操练', { color: g0 ? C.darkRed : C.gray }));
+    if (g0) dyn.add(new Button(h, m.cx + m.cw - 70, y - 4, 70, 22, '停止', () => {
+      toast(h, setTrainee(s, null), 1600);
+      h.refresh();
+      render();
+    }));
+    y += 26;
+    const list = allGenerals(s).filter((g) => g.uid !== s.activeGeneral);
+    if (!list.length) {
+      dyn.add(text(h, m.cx, y, '除了出战的那位，还没有别的副将。先去招一个。', { wrap: m.cw, color: C.gray }));
       return;
     }
-    dyn.add(text(h, m.cx, y, '交银两挂着练，关了游戏也按真实时间涨经验。周末半价。训练中的副将不能出战。', { wrap: m.cw, color: C.brown }));
-    y += 36;
-    const opts: [string, string][] = [['player', s.player.name], ...allGenerals(s).map((g) => [g.uid, `${g.name}（${g.level}级）`] as [string, string])];
-    const r = rows(h, m, dyn, y, 150);
-    for (const [id, name] of opts) {
-      row(h, r, null, name, `每小时经验${trainExpPerHour(s, id)}`, who === id ? '已选' : '选', () => {
-        who = id;
-        render();
-      }, { style: who === id ? 'red' : 'tan' });
-    }
-    r.area.setContentHeight(r.y);
-    const by = m.py + m.ph - 140;
-    balance.training.hours.forEach((hr, i) => {
-      const cost = trainCost(s, who, hr);
-      dyn.add(new Button(h, m.cx + (i % 2) * (m.cw / 2), by + Math.floor(i / 2) * 34, m.cw / 2 - 4, 28, `${hr}小时 ${cost}两`, () => {
-        toast(h, startTraining(s, who, hr), 2200);
+    const r = rows(h, m, dyn, y);
+    for (const g of list) {
+      const on = g.uid === cur;
+      row(h, r, null, `${g.name}（${g.level}级）`, on ? '操练中' : '', on ? '操练中' : '操练', () => {
+        if (on) return;
+        toast(h, setTrainee(s, g.uid), 2000);
         h.refresh();
         render();
-      }, { disabled: s.player.silver < cost }));
-    });
+      }, { style: on ? 'tan' : 'red', disabled: on });
+    }
+    r.area.setContentHeight(r.y);
   };
   render();
 }

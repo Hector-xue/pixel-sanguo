@@ -24,6 +24,7 @@ import { store } from '../game/store';
 import { Button, H, SAFE_TOP, W, drawBar, sfx, text, textWidth, wrap } from '../ui/widgets';
 import { PAPER, UI, paperTex, titlePlaque, vgrad, woodFrame } from '../art/chrome';
 import { FORMS, clashText } from '../game/formation';
+import { passiveOf } from '../core/passives';
 import type { FormId } from '../game/formation';
 
 // 版面：战场从屏幕最顶铺到指令盘（顶上状态栏、挖孔那一截只露天空），对阵栏是压在天空上的一条墨色半透明带
@@ -729,7 +730,8 @@ export class BattleScene extends Phaser.Scene {
       this.panel.add(text(this, 96, top + 44, `气血 ${t.hp}/${t.maxHp}`, { color: 0xb42c18 }));
       this.panel.add(text(this, 96, top + 60, `精力 ${t.mp}/${t.maxMp}`, { color: 0x2c50b0 }));
       this.panel.add(text(this, 96, top + 76, `出手顺序 第${order}`, { color: 0x8a5aa0 }));
-      this.panel.add(text(this, 96, top + 96, '点场上的人换目标', { color: 0x9a8460 }));
+      const tp = passiveOf(t.passive);
+      this.panel.add(text(this, 96, top + 96, tp ? `「${tp.name}」${tp.desc.length > 12 ? tp.desc.slice(0, 12) + '…' : tp.desc}` : '点场上的人换目标', { color: tp ? 0xb07800 : 0x9a8460 }));
       this.panel.add(new Button(this, W - 100, top + 22, 86, 40, '出手', () => {
         const id = this.selected!;
         this.clearSelect();
@@ -1026,6 +1028,17 @@ export class BattleScene extends Phaser.Scene {
           this.addLog(e.text);
           await wait(this, ms(500));
           break;
+        case 'passive': {
+          // 专属被动：头顶飘一行金字，战报记一笔
+          const v = this.views.get(e.actor);
+          if (v) {
+            this.float(v, `「${e.label}」`, C.yellow);
+            this.spark(v, C.yellow);
+          }
+          this.addLog(`${this.nameOf(e.actor)}·${e.label}`);
+          await wait(this, ms(260));
+          break;
+        }
         case 'end':
           break;
       }

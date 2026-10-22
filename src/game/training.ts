@@ -1,63 +1,59 @@
-// 训练：交银两让主角或某个副将挂着练，按真实时间涨经验（关了游戏也算）。周末半价（原版 VIP3 周末半价，单机版人人都有）。
-// 训练中的副将不能出战；主角训练时照常行动，只是同一时间只能训练一个对象。
+// 训练（随军操练）：挑一员不出战的副将跟着队伍走，每打赢一仗分到主角这一仗经验的一半。
+// 单机不按真实时间算：关着游戏不涨，打得越多涨得越多。同一时间只操练一个。
 import { balance } from '../data';
 import { expToNext } from '../core/formulas';
 import type { Save } from './state';
-import { bump, findGeneral, grantGeneralExp, grantPlayerExp, log, onFlag } from './state';
+import { bump, findGeneral, grantGeneralExp, log, onFlag } from './state';
 
-const T = balance.training;
+export const TRAIN_SHARE = 0.5;
 
-export function trainCost(s: Save, who: string, hours: number, now = Date.now()): number {
-  const lv = who === 'player' ? s.player.level : findGeneral(s, who)?.level ?? 1;
-  const day = new Date(now).getDay();
-  const weekend = day === 0 || day === 6;
-  return Math.round(lv * T.silverPerLevelHour * hours * (weekend ? 0.5 : 1));
+export function trainee(s: Save): string | null {
+  return s.p3.training?.who ?? null;
 }
 
-export function trainExpPerHour(s: Save, who: string): number {
-  const lv = who === 'player' ? s.player.level : findGeneral(s, who)?.level ?? 1;
-  return Math.round(expToNext(lv) * T.expRatioPerHour);
-}
-
-export function startTraining(s: Save, who: string, hours: number, now = Date.now()): string {
-  if (s.p3.training) return '已经有人在训练了，先结束那一个';
-  if (!T.hours.includes(hours)) return '';
-  if (who !== 'player') {
-    const g = findGeneral(s, who);
-    if (!g) return '';
-    if (s.activeGeneral === who) return '出战的副将不能训练，先设成休息';
+export function setTrainee(s: Save, uid: string | null): string {
+  if (uid === null) {
+    const old = trainee(s);
+    s.p3.training = null;
+    return old ? `${findGeneral(s, old)?.name ?? '副将'}不再随军操练` : '';
   }
-  const cost = trainCost(s, who, hours, now);
-  if (s.player.silver < cost) return `银两不够，要${cost}两`;
-  s.player.silver -= cost;
-  s.p3.training = { who, start: now, hours };
+  const g = findGeneral(s, uid);
+  if (!g) return '';
+  if (s.activeGeneral === uid) return '出战的副将本来就在拿经验，挑一个歇着的';
+  s.p3.training = { who: uid };
   s.flags.trained = true;
   onFlag(s, 'trained');
   bump(s, 'trainings');
-  const name = who === 'player' ? s.player.name : findGeneral(s, who)!.name;
-  log(s, `${name}开始训练${hours}小时，花了${cost}两`);
-  return `${name}开始训练${hours}小时（花费${cost}两）`;
-}
-
-export function trainingProgress(s: Save, now = Date.now()): { hours: number; done: boolean; exp: number } | null {
-  const t = s.p3.training;
-  if (!t) return null;
-  const h = Math.min(t.hours, (now - t.start) / 3600000);
-  return { hours: h, done: h >= t.hours, exp: Math.floor(h * trainExpPerHour(s, t.who)) };
-}
-
-// 结束训练（没到时间也可以提前结束，按已练的时长给经验，银两不退）
-export function endTraining(s: Save, now = Date.now()): string[] {
-  const p = trainingProgress(s, now);
-  const t = s.p3.training;
-  if (!p || !t) return ['没有在训练'];
-  s.p3.training = null;
-  if (t.who === 'player') return [`训练结束，经验+${p.exp}`, ...grantPlayerExp(s, p.exp)];
-  const g = findGeneral(s, t.who);
-  if (!g) return ['那个副将已经不在了'];
-  return [`${g.name}训练结束，经验+${p.exp}`, ...grantGeneralExp(g, p.exp)];
+  log(s, `${g.name}开始随军操练`);
+  return `${g.name}开始随军操练：之后每打赢一仗，分到你这一仗经验的一半`;
 }
 
 export function isTraining(s: Save, uid: string): boolean {
   return s.p3.training?.who === uid;
+}
+
+// 打赢一仗后调用：给操练的副将分经验
+export function trainAfterBattle(s: Save, playerExp: number): { name: string; exp: number; lines: string[] } | null {
+  const id = trainee(s);
+  if (!id || playerExp <= 0) return null;
+  const g = findGeneral(s, id);
+  if (!g) {
+    s.p3.training = null;
+    return null;
+  }
+  const exp = Math.round(playerExp * TRAIN_SHARE);
+  return { name: g.name, exp, lines: grantGeneralExp(g, exp) };
+}
+
+// 老存档：以前按小时挂着练的，按已练时长把经验一次给完，再改成随军操练
+export function migrateTraining(s: Save, now = Date.now()): void {
+  const t = s.p3.training as ({ who: string; start?: number; hours?: number } | null);
+  if (!t || t.start === undefined) return;
+  const hours = Math.min(t.hours ?? 0, Math.max(0, (now - t.start) / 3600000));
+  const g = t.who === 'player' ? null : findGeneral(s, t.who);
+  if (g) {
+    const exp = Math.floor(hours * Math.round(expToNext(g.level) * balance.training.expRatioPerHour));
+    if (exp > 0) grantGeneralExp(g, exp);
+    s.p3.training = s.activeGeneral === g.uid ? null : { who: g.uid };
+  } else s.p3.training = null;
 }

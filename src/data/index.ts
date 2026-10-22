@@ -126,6 +126,8 @@ export interface RecruitDef {
   class: ClassId;
   gender: Gender;
   look: string;
+  // 阵营：魏 / 蜀 / 吴 / 群
+  faction?: 'wei' | 'shu' | 'wu' | 'qun';
 }
 
 export interface TierDef {

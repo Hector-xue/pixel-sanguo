@@ -1,4 +1,5 @@
 // 战斗内核：纯逻辑，不碰画面。一回合 = 双方下指令 → 回合开始结算中毒 → 按速度依次出手。
+import { passiveOf } from './passives';
 import { balance, items, skills } from '../data';
 import { lerpLevel, resistReduce, skillMp } from './formulas';
 import { Rng } from './rng';
@@ -56,6 +57,10 @@ export interface BUnit {
   variant?: number;
   // 副将忠诚：低了打仗时有概率不听指挥
   loyalty?: number;
+  // 专属被动（PASSIVES 的键），和这场里打倒了几个人（无双用）、发没发过狂
+  passive?: string;
+  kills?: number;
+  raged?: boolean;
 }
 
 export type CommandType = 'attack' | 'skill' | 'capture' | 'item' | 'summon' | 'defend' | 'flee';
@@ -85,6 +90,7 @@ export type BEvent =
   | { t: 'flee'; ok: boolean }
   | { t: 'defend'; actor: string }
   | { t: 'text'; text: string }
+  | { t: 'passive'; actor: string; label: string }
   | { t: 'end'; outcome: Outcome };
 
 export type Outcome = 'win' | 'lose' | 'fled';
@@ -229,7 +235,38 @@ function guardOf(u: BUnit): number {
 
 class Resolver {
   ev: BEvent[] = [];
+  // 这回合已经追击过的人（七进七出每回合一次）
+  chased = new Set<string>();
   constructor(public b: Battle) {}
+
+  pv(u: BUnit) {
+    return passiveOf(u.passive);
+  }
+
+  tell(u: BUnit): void {
+    const p = this.pv(u);
+    if (p) this.emit({ t: 'passive', actor: u.id, label: p.name });
+  }
+
+  // 被动改过的攻击、防御
+  effAtk(u: BUnit): number {
+    const p = this.pv(u);
+    let m = 1;
+    if (p?.kind === 'opening' && p.stat === 'atk' && this.b.round <= (p.n ?? 1)) m += p.v;
+    if (p?.kind === 'berserk' && u.hp < u.maxHp / 2) {
+      m += p.v;
+      if (!u.raged) {
+        u.raged = true;
+        this.tell(u);
+      }
+    }
+    return u.atk * m;
+  }
+
+  effDef(u: BUnit): number {
+    const p = this.pv(u);
+    return p?.kind === 'opening' && p.stat === 'def' && this.b.round <= (p.n ?? 1) ? u.def * (1 + p.v) : u.def;
+  }
 
   get rng(): Rng {
     return this.b.rng;
@@ -239,7 +276,7 @@ class Resolver {
     this.ev.push(e);
   }
 
-  damage(t: BUnit, amount: number, extra: Partial<Extract<BEvent, { t: 'damage' }>> = {}): void {
+  damage(t: BUnit, amount: number, extra: Partial<Extract<BEvent, { t: 'damage' }>> = {}, src?: BUnit): void {
     if (!t.alive) return;
     amount = Math.max(1, Math.round(amount));
     t.hp = Math.max(0, t.hp - amount);
@@ -248,7 +285,10 @@ class Resolver {
       t.status.trap = 0;
       this.emit({ t: 'statusEnd', target: t.id, status: 'trap' });
     }
-    if (t.hp <= 0) this.kill(t);
+    if (t.hp <= 0) {
+      this.kill(t);
+      if (src) src.kills = (src.kills ?? 0) + 1;
+    }
   }
 
   kill(t: BUnit): void {
@@ -276,10 +316,12 @@ class Resolver {
   physical(a: BUnit, t: BUnit): { dmg: number; crit: boolean; fatal: boolean } {
     const D = balance.damage;
     const v = 1 + this.rng.range(-D.variance, D.variance);
-    let dmg = Math.max(a.atk * v - t.def * D.defK, a.atk * D.minRatio);
+    const atk = this.effAtk(a);
+    let dmg = Math.max(atk * v - this.effDef(t) * D.defK, atk * D.minRatio);
     dmg *= 1 - resistReduce(t.resist.phys + guardOf(t));
     if (t.defending) dmg *= D.defend;
-    const crit = this.rng.chance(a.rates.crit / 100);
+    const ap = this.pv(a);
+    const crit = this.rng.chance((a.rates.crit + (ap?.kind === 'crit' ? ap.v : 0)) / 100);
     const fatal = !crit && this.rng.chance(a.rates.fatal / 100);
     if (crit) dmg *= D.crit;
     if (fatal) dmg *= D.fatal;
@@ -293,8 +335,25 @@ class Resolver {
       this.emit({ t: 'miss', target: t.id });
       return;
     }
-    const { dmg, crit, fatal } = this.physical(a, t);
-    this.damage(t, dmg, { crit, fatal });
+    const hit = this.physical(a, t);
+    let dmg = hit.dmg;
+    const { crit, fatal } = hit;
+    // 格挡：挨普攻有机会只吃一半
+    const tp = this.pv(t);
+    if (tp?.kind === 'block' && t.side !== a.side && this.rng.chance(tp.v)) {
+      this.tell(t);
+      dmg *= 0.5;
+    }
+    this.damage(t, dmg, { crit, fatal }, a);
+    // 带毒
+    const ap = this.pv(a);
+    if (ap?.kind === 'venom' && t.alive && t.side !== a.side) t.status.poison.push({ dmg: Math.max(1, Math.round(dmg * ap.v)), turns: 2 });
+    // 逗乐：挨打的把打人的逗得发愣
+    if (tp?.kind === 'jest' && t.alive && a.alive && t.side !== a.side && !controlOf(a) && this.rng.chance(tp.v)) {
+      this.tell(t);
+      a.status.chaos = 1;
+      this.emit({ t: 'status', target: a.id, status: 'chaos', ok: true });
+    }
     if (allowCounter && t.alive && a.alive && !controlOf(t) && t.side !== a.side && this.rng.chance(t.rates.counter / 100)) {
       this.attack(t, a, '反击', false);
     }
@@ -303,7 +362,8 @@ class Resolver {
   magic(u: BUnit, st: SkillState, def: SkillDef, t: BUnit): number {
     const raw = (def.base ? def.base[0] + def.base[1] * u.level : 0) * lerpLevel(def.mul, st.level) * profCoef(st);
     const res = def.resist ? t.resist[def.resist] : 0;
-    let dmg = raw * (1 - resistReduce(res + guardOf(t))) * (1 + this.rng.range(-0.05, 0.05));
+    const sp = this.pv(u);
+    let dmg = raw * (1 - resistReduce(res + guardOf(t))) * (1 + this.rng.range(-0.05, 0.05)) * (sp?.kind === 'spell' ? 1 + sp.v : 1);
     if (t.defending) dmg *= balance.damage.defend;
     return dmg;
   }
@@ -330,7 +390,7 @@ class Resolver {
         this.emit({ t: 'act', actor: u.id, label: def.name, target: t.id, kind: 'melee', skill: cmd.skill });
         const keep = 1 - resistReduce((def.resist ? t.resist[def.resist] : 0) + guardOf(t));
         const pct = lerpLevel(def.pct, lvl) * profCoef(st);
-        let dmg = (t.hp * pct + u.atk * (def.atkMul ?? 0)) * keep;
+        let dmg = (t.hp * pct + this.effAtk(u) * (def.atkMul ?? 0)) * keep;
         if (t.defending) dmg *= balance.damage.defend;
         const mpCut = Math.round(t.mp * pct * keep);
         t.mp = Math.max(0, t.mp - mpCut);
@@ -342,7 +402,7 @@ class Resolver {
         if (!t) return;
         this.emit({ t: 'act', actor: u.id, label: def.name, target: t.id, kind: 'melee', skill: cmd.skill });
         const boost = 1 + (st.prof / (balance.skill.maxLevel * balance.skill.profPerLevel)) * (def.profMul ?? 0);
-        let dmg = u.atk * lerpLevel(def.mul, lvl) * boost * (1 - resistReduce(t.resist.phys + guardOf(t)));
+        let dmg = this.effAtk(u) * lerpLevel(def.mul, lvl) * boost * (1 - resistReduce(t.resist.phys + guardOf(t)));
         if (t.defending) dmg *= balance.damage.defend;
         const selfCost = Math.min(u.hp - 1, Math.round(u.maxHp * lerpLevel(def.selfPct, lvl) * boost));
         this.damage(t, dmg);
@@ -424,7 +484,36 @@ class Resolver {
 
   basicAttack(u: BUnit, targetId?: string): void {
     const t = this.retarget(targetId, attackableFoes(this.b, u));
-    if (t) this.attack(u, t, '普通攻击', true);
+    if (!t) return;
+    // 无双只算这一下之前打倒的人数（本回合打倒的，下回合才算）
+    const killsBefore = u.kills ?? 0;
+    this.attack(u, t, '普通攻击', true);
+    const p = this.pv(u);
+    if (!p || !u.alive || this.b.outcome) return;
+    // 连击：同一个人再打一下
+    if (p.kind === 'combo' && t.alive && this.rng.chance(p.v)) {
+      this.tell(u);
+      this.attack(u, t, '连击', false);
+    }
+    // 追击：打倒了就冲向下一个（每回合一次）
+    if (p.kind === 'chase' && !t.alive && !this.chased.has(u.id)) {
+      const next = this.retarget(undefined, attackableFoes(this.b, u));
+      if (next) {
+        this.chased.add(u.id);
+        this.tell(u);
+        this.attack(u, next, p.name, false);
+      }
+    }
+    // 无双：打倒过几个人，就多打几下
+    if (p.kind === 'wushuang') {
+      const extra = Math.min(p.v, killsBefore);
+      for (let i = 0; i < extra && u.alive; i++) {
+        const tt = t.alive ? t : this.retarget(undefined, attackableFoes(this.b, u));
+        if (!tt) break;
+        if (i === 0) this.tell(u);
+        this.attack(u, tt, p.name, false);
+      }
+    }
   }
 
   capture(u: BUnit, cmd: Command): void {
@@ -442,7 +531,11 @@ class Resolver {
       return;
     }
     const C = balance.capture;
-    const p = Math.max(C.min, Math.min(C.max, C.base + (1 - t.hp / t.maxHp) * C.hpWeight + (u.level - t.level) * C.levelDiff));
+    // 说客：同场的队友帮着劝
+    const talker = friendsOf(this.b, u).find((f) => this.pv(f)?.kind === 'persuade');
+    const bonus = talker ? this.pv(talker)!.v : 0;
+    if (talker) this.tell(talker);
+    const p = Math.max(C.min, Math.min(C.max, C.base + (1 - t.hp / t.maxHp) * C.hpWeight + (u.level - t.level) * C.levelDiff + bonus));
     const ok = this.rng.chance(p);
     this.emit({ t: 'capture', target: t.id, ok });
     if (ok) {
@@ -579,6 +672,26 @@ export function resolveRound(b: Battle, cmds: Command[]): BEvent[] {
     if (u.hp <= 0) r.kill(u);
   }
   if (r.ended()) return r.ev;
+
+  // 回合开始的被动：自己回血、给最虚的队友治疗、开局加成报一声
+  for (const u of living(b)) {
+    const p = r.pv(u);
+    if (!p) continue;
+    if (p.kind === 'regen' && u.hp < u.maxHp) {
+      const hp = Math.min(u.maxHp - u.hp, Math.round(u.maxHp * p.v));
+      u.hp += hp;
+      r.tell(u);
+      r.emit({ t: 'heal', target: u.id, hp, mp: 0 });
+    } else if (p.kind === 'heal') {
+      const hurt = friendsOf(b, u).filter((f) => f.hp < f.maxHp).sort((a, c) => a.hp / a.maxHp - c.hp / c.maxHp)[0];
+      if (hurt) {
+        const hp = Math.min(hurt.maxHp - hurt.hp, Math.round(hurt.maxHp * p.v));
+        hurt.hp += hp;
+        r.tell(u);
+        r.emit({ t: 'heal', target: hurt.id, hp, mp: 0 });
+      }
+    } else if (p.kind === 'opening' && b.round === 1) r.tell(u);
+  }
 
   const byActor = new Map(cmds.map((c) => [c.actor, c]));
   for (const c of cmds) b.lastCmd[c.actor] = c;

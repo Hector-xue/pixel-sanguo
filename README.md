@@ -33,7 +33,7 @@ npx vite-node scripts/make-icons.ts   # 重新生成主屏图标（改了头像�
 - `src/art/` 程序生成的像素美术（32 色调色板、纸娃娃人物、地点场景、图标）
 - `src/ui/`、`src/scenes/` 界面
 - `src/game/` 里 P2 的系统各一个文件：`smith`（武器店、打造、宝石）、`generals`（招贤、副将养成）、`ring`（跑环）、`welfare`（江湖行记、战备补给、宝箱、体力丹）、`town`（钱庄、馆驿、孔庙、军马场）、`dig`（挖宝）、`casino`（娱乐场）
-- `src/game/` 里 P3 的系统：`arena`（擂台、斗将台、决斗场、恶人值）、`rivals`（AI 玩家名册和镜像）、`sect`（教派）、`training`（训练）、`rebirth`（转职、副将转生）、`events`（抢宝、银两环、文曲星、幸运王、节日）、`social`（婚姻、结拜、组队）、`stall`（摆摊）、`achv`（成就、称号、排行榜）
+- `src/game/` 里 P3 的系统：`arena`（擂台、斗将台、决斗场、恶人值）、`rivals`（AI 玩家名册和镜像）、`sect`（教派）、`training`（随军操练：歇着的副将分主角每仗经验的一半）、`rebirth`（转职、副将转生）、`events`（抢宝、银两环、文曲星、幸运王、节日）、`social`（婚姻、结拜、组队）、`stall`（摆摊）、`achv`（成就、称号、排行榜）
 - `src/game/` 里 P4 的系统：`guozhan`（国战沙盘：城池、AI 回合、出征驻守、守将、战功官职、赛季）、`contest`（军团争霸、跨区大战）、`cloud`（云存档客户端）
 - `scripts/gen-p3.py` 生成 P3 的地图、怪物、NPC、主线、6～16 级装备档；`scripts/gen-p4.py` 生成国战的城池、兵种、守将和争霸、跨区的配置（改了脚本重新跑一遍，可重复运行）
 - `server/` 云存档服务和它的接口测试
@@ -47,6 +47,7 @@ npx vite-node scripts/make-icons.ts   # 重新生成主屏图标（改了头像�
 - `src/game/life.ts` + `src/ui/life.ts` 生活技能：钓鱼、采矿、采药（场景里的采集点 + 看准时机点的小游戏，一处挖几次就空、多走几步恢复）和烹饪（城镇灶台做菜，回血回蓝的菜能在战斗里吃，药膳管几场战斗的攻防加成），四项各有等级
 - `src/game/formation.ts` + `src/ui/formation.ts` 阵法：长蛇、锋矢、鱼鳞、鹤翼、八卦按等级解锁、首尾相克，开战时把阵法和克制算进双方数值（规则不变，录像照样复现）；怪群 12 级以上有的列阵，名将首领必列阵
 - `src/game/badges.ts` 徽章：每个地方地上藏一枚印（位置固定、隔几秒反光），集满 10/25/45/全部各有大礼，舆图上标出哪里还没找到
+- `src/core/passives.ts` 武将专属被动（赵云七进七出、吕布无双、大乔流离……招来的 11 位和剧情国战名将各一个），在战斗内核里结算；`src/game/camp.ts` 阵营羁绊（魏蜀吴群同心、二乔、刘备旧部、吕布旧部）
 - `src/game/worldmap.ts` + `src/ui/worldmap.ts` 舆图：按出口方向把地点排成一张图，去过的显示、相邻的露影子、其余罩在云里，点一处自动寻路
 - `src/sim/autoplay.ts` 自动通关模拟（1 级打到汉中篇结束），调数值后跑 `npm test` 看节奏
 - `artpreview.html` 美术预览页（开发服务器下打开）

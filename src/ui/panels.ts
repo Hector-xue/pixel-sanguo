@@ -1,4 +1,6 @@
 // 主界面里点开的各个面板：状态/加点/物品/副将/任务/医馆/技能学校/公告/攻略/退出/此地侠客，以及 NPC 对话
+import { PASSIVES } from '../core/passives';
+import { FACTION_NAMES, campMods, campSummary, factionOf } from '../game/camp';
 import Phaser from 'phaser';
 import { C } from '../art/palette';
 import { avatarTex, bustTex, gearTex, heroLookKey, iconTex } from '../art/textures';
@@ -273,7 +275,9 @@ export function generalsPanel(h: Host): void {
       }));
       dyn.add(h.add.image(m.cx + 4, y + 6, avatarTex(h, g.look)).setOrigin(0).setCrop(0, 0, 24, 24));
       dyn.add(text(h, m.cx + 32, y + 4, `（${g.level}）${g.name}`, { color: C.darkRed }));
-      dyn.add(text(h, m.cx + 32, y + 19, `${g.grade} · ${classes[g.classId].name}`, { color: C.brown }));
+      const fc = factionOf(g);
+      const pv = g.recruitId ? PASSIVES[g.recruitId] : undefined;
+      dyn.add(text(h, m.cx + 32, y + 19, `${g.grade} · ${classes[g.classId].name}${fc ? ` · ${FACTION_NAMES[fc]}` : ''}${pv ? ` · ${pv.name}` : ''}`, { color: C.brown }));
       if (genTab === 'team') {
         const active = s.activeGeneral === g.uid;
         dyn.add(new Button(h, m.cx + m.cw - 50, y + 6, 50, 24, active ? '战' : '休', () => {
@@ -290,6 +294,17 @@ export function generalsPanel(h: Host): void {
         }));
       }
     });
+    // 随行的羁绊
+    if (genTab === 'team' && list.length) {
+      let yy = m.cy + 36 + list.length * 40;
+      const bonds = campSummary(s);
+      dyn.add(text(h, m.cx, yy, bonds.length ? '羁绊' : '羁绊：随行里带上同阵营的武将（魏蜀吴群），或者二乔、刘备旧部、吕布旧部，就有加成', { wrap: m.cw, color: C.darkRed }));
+      yy += bonds.length ? 18 : 34;
+      for (const bd of bonds) {
+        dyn.add(text(h, m.cx + 6, yy, `${bd.on ? '●' : '○'} ${bd.label}  ${bd.desc}`, { wrap: m.cw - 10, color: bd.on ? C.green : C.gray }));
+        yy += 18;
+      }
+    }
     if (!list.length) dyn.add(text(h, m.cx + 4, m.cy + 36, genTab === 'team' ? '还没有副将。\n在野外把怪物打到残血，用「招降」收服。新手任务里赵云会教你。' : '馆驿里没有副将。随行满3个后，再招降的会自动放到这里。', { wrap: m.cw - 8, color: C.gray }));
     dyn.add(text(h, m.cx, m.py + m.ph - 40, '「战」：每场战斗带它上场；其余随行副将在战斗中用「招将」换上。', { wrap: m.cw, color: C.gray }));
   };
@@ -346,6 +361,16 @@ export function generalDetail(h: Host, uid: string): void {
   kv(m, L, y, '速度', st.spd);
   y += 16;
   kv(m, L, y, '技能', g.skills.length ? g.skills.map((k) => `${skills[k.id].name}${skillLevelText(k.level)}`).join('、') : g.grade === '常人' ? '无（常人不能学技能）' : '无（10级后能学）');
+  y += 22;
+  // 专属被动、阵营、眼下吃到的羁绊
+  const pv = g.recruitId ? PASSIVES[g.recruitId] : undefined;
+  const fc = factionOf(g);
+  const cm = campMods(s, g);
+  y = section(m, y, '被动与羁绊');
+  m.inner.add(text(h, L, y, pv ? `「${pv.name}」${pv.desc}` : '没有专属被动（名将才有）', { wrap: m.cw - 8, color: pv ? C.darkRed : C.gray }));
+  y += pv && pv.desc.length > 18 ? 32 : 16;
+  kv(m, L, y, '阵营', fc ? FACTION_NAMES[fc] : '无');
+  kv(m, R, y, '羁绊', cm.tags.length ? cm.tags.join('、') : '无');
   const by = m.py + m.ph - 92;
   const reopen = () => {
     m.close();
@@ -610,7 +635,9 @@ export function helpPanel(h: Host): void {
     '【寻路】「功能 → 任务」里点「开启寻路」，会自动走到任务地点。',
     '【装备】六个部位：头、项链、武器、护腕、铠甲、靴子。许昌武器店只卖1级的；10/20/30/40级可以在铁匠铺用矿石+银两打2～5级装备，有机会出精良。三块低级矿石能合成一块高级的。',
     '【宝石】2级以上装备有孔。钻石加抗物理、暴击、速度；绿宝石加抗围困、抗风沙、反击；红宝石加抗扰乱、抗妖火、致命；蓝宝石加抗封锁、抗落雷、体质。三颗同级合成一颗高一级的。',
-    '【副将】招贤使者那里用将军令招英才、大将军令招将才、令牌招指定的人。英才和将才10级后能学技能，学了哪个职业的技能就变成哪个职业。忠诚低于60打仗会不听指挥，每天要奖赏。心法书能让副将迅速升级。',
+    '【副将】招贤使者那里用将军令招英才、大将军令招将才、令牌招指定的人。英才和将才10级后能学技能，学了哪个职业的技能就变成哪个职业。忠诚低于60打仗会不听指挥；随行的副将每打30场忠诚掉5点，记得奖赏。心法书能让副将迅速升级。',
+    '【名将】赵云、大乔、小乔、陈登这些招来的名将各有一个专属被动（副将详情里能看），剧情和国战里的吕布、关羽、诸葛亮也有。被动触发时头顶会飘金字。',
+    '【羁绊】随行里同阵营（魏蜀吴群）的带两个攻防+5%、三个+10%；二乔同行气血上限+10%，刘备旧部速度+10%，吕布旧部攻击+8%。',
     '【跑环】20级以后找许昌的跑环使者，一环10个任务，跑完一整环给技能书。中途放弃要从这一档的第一环重新跑。',
     '【福利】江湖行记：七件事做到了就能领奖，最后一件送大乔。战备补给：每打10场仗攒一份，最多攒3份。',
     '【体力丹】战斗外服下，你和出战副将的气血精力全满。',
@@ -627,7 +654,7 @@ export function helpPanel(h: Host): void {
     '【徽章】每个地方的地上都藏着一枚印，隔几秒反一下光，点到就收下。集齐10、25、45枚和全部各有大礼，舆图上能看到哪里还没找到。',
     '【生活】河边钓鱼、山洞采矿、树林采药：场景里闪光的地方点一下，看准时机点。城镇灶台做菜，药膳管几场战斗的加成。',
     '【擂台】陈留、濮阳、洛阳、长安有擂台：擂台是主角排位，斗将台是副将单挑，决斗场抢江湖侠客的银两（欺负弱的涨恶人值，恶人值找捕快交罚银消掉）。',
-    '【训练】「功能 → 训练」交银两挂着练，关了游戏也按真实时间涨经验，周末半价。',
+    '【训练】「功能 → 训练」挑一员不出战的副将随军操练：你每打赢一仗，他分到你这一仗经验的一半。',
     '【宝库】「功能 → 宝库」是金砖商城：将军令、大将军令、心法书、宝箱都在这里买；「武将」页能看每位英才、将才的资质和属性；「仓库」页随时存取东西，花金砖扩容。',
     '【抢宝】每天9点、11点各开半小时，宝藏埋在野外，「设施 → 战场」能直接传送过去，打赢宝藏守卫就归你，每天3次。',
     '【银两环】40级以后去庐江（谯郡往下）找庐江都尉，打庐江逃兵追回军资换银两，一天3次。',

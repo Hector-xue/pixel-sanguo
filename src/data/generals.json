@@ -1,19 +1,19 @@
 {
   "_src": "英才用将军令招募（例：曹豹、魏续），将才用大将军令招募（例：大乔、小乔、陈登），陈登原本是武士，七日签到第7天送大乔，令牌招募指定副将【实锤】；其余人选、职业、性别【推定】",
   "yingcai": [
-    { "id": "caobao",  "name": "曹豹", "class": "warrior", "gender": "male",   "look": "g_caobao" },
-    { "id": "weixu",   "name": "魏续", "class": "warrior", "gender": "male",   "look": "g_weixu" },
-    { "id": "songxian","name": "宋宪", "class": "warrior", "gender": "male",   "look": "g_songxian" },
-    { "id": "houcheng","name": "侯成", "class": "scholar", "gender": "male",   "look": "g_houcheng" },
-    { "id": "sunqian", "name": "孙乾", "class": "scholar", "gender": "male",   "look": "g_sunqian" },
-    { "id": "jianyong","name": "简雍", "class": "mystic",  "gender": "male",   "look": "g_jianyong" },
-    { "id": "mifang",  "name": "糜芳", "class": "mystic",  "gender": "male",   "look": "g_mifang" }
+    { "id": "caobao", "faction": "qun", "name": "曹豹", "class": "warrior", "gender": "male",   "look": "g_caobao" },
+    { "id": "weixu", "faction": "qun", "name": "魏续", "class": "warrior", "gender": "male",   "look": "g_weixu" },
+    { "id": "songxian", "faction": "qun", "name": "宋宪", "class": "warrior", "gender": "male",   "look": "g_songxian" },
+    { "id": "houcheng", "faction": "qun", "name": "侯成", "class": "scholar", "gender": "male",   "look": "g_houcheng" },
+    { "id": "sunqian", "faction": "shu", "name": "孙乾", "class": "scholar", "gender": "male",   "look": "g_sunqian" },
+    { "id": "jianyong", "faction": "shu", "name": "简雍", "class": "mystic",  "gender": "male",   "look": "g_jianyong" },
+    { "id": "mifang", "faction": "shu", "name": "糜芳", "class": "mystic",  "gender": "male",   "look": "g_mifang" }
   ],
   "jiangcai": [
-    { "id": "daqiao",  "name": "大乔", "class": "mystic",  "gender": "female", "look": "g_daqiao" },
-    { "id": "xiaoqiao","name": "小乔", "class": "scholar", "gender": "female", "look": "g_xiaoqiao" },
-    { "id": "chendeng","name": "陈登", "class": "warrior", "gender": "male",   "look": "g_chendeng" },
-    { "id": "zhaoyun", "name": "赵云", "class": "warrior", "gender": "male",   "look": "zhaoyun" }
+    { "id": "daqiao", "faction": "wu", "name": "大乔", "class": "mystic",  "gender": "female", "look": "g_daqiao" },
+    { "id": "xiaoqiao", "faction": "wu", "name": "小乔", "class": "scholar", "gender": "female", "look": "g_xiaoqiao" },
+    { "id": "chendeng", "faction": "wei", "name": "陈登", "class": "warrior", "gender": "male",   "look": "g_chendeng" },
+    { "id": "zhaoyun", "faction": "shu", "name": "赵云", "class": "warrior", "gender": "male",   "look": "zhaoyun" }
   ],
   "tokens": { "xiaoqiaoling": "xiaoqiao", "zhaoyunling": "zhaoyun" }
 }

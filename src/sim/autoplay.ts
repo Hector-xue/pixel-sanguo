@@ -7,7 +7,7 @@ import { Rng } from '../core/rng';
 import type { Slot } from '../core/types';
 import { GEM_KINDS, classSkills, equips, gemId, items, locations, mainQuests, monsters, mounts, skills } from '../data';
 import { finishBattle, startBattle } from '../game/encounter';
-import { generalLearn, generalSkillRows, readXinfa, recruitWith } from '../game/generals';
+import { generalLearn, generalSkillRows, readXinfa, recruitWith, rewardCost, rewardGeneral } from '../game/generals';
 import { nextRing, taskDone, turnInRing } from '../game/ring';
 import { buyGear, canEquip, combineGem, combineOre, equipGear, forge, forgeRows, ORE_CHAIN, oreCombineCost, sellGear, socketGem } from '../game/smith';
 import type { Save } from '../game/state';
@@ -18,7 +18,7 @@ import {
 import { buyGold, buyMount, ride, shopBuy, visited } from '../game/town';
 import { arenaBattle, challengers } from '../game/arena';
 import { joinSect } from '../game/sect';
-import { endTraining, startTraining, trainingProgress } from '../game/training';
+import { setTrainee } from '../game/training';
 import { generalRebirth, generalRebirthReason, rebirth } from '../game/rebirth';
 import { oreFor } from '../game/welfare';
 
@@ -246,7 +246,8 @@ function upkeep(sim: Sim): void {
     go(s, here);
   }
   for (const g of [...s.generals]) if (!generalRebirthReason(s, g.uid)) generalRebirth(s, g.uid);
-  if (s.p3.training && trainingProgress(s, sim.now)?.done) endTraining(s, sim.now);
+  // 战报提醒副将懈怠了，就去奖赏（忠诚低于80）
+  for (const g of s.generals) while (g.loyalty < 80 && s.player.silver >= rewardCost(g)) rewardGeneral(s, g.uid);
   // 背包快满了，把用不上的东西卖掉
   if (bagUsed(s) > bagCap(s) - 6) {
     const keep = new Set(DRUGS.find(([lv]) => p.level < lv)!.slice(1) as string[]);
@@ -413,7 +414,7 @@ function doFlag(sim: Sim, flag: string): boolean {
     }
     case 'trained': {
       const g = s.generals.find((x) => x.uid !== s.activeGeneral) ?? s.inn[0];
-      startTraining(s, g ? g.uid : 'player', 1, sim.now);
+      if (g) setTrainee(s, g.uid);
       return !!s.flags.trained;
     }
     case 'reborn': {

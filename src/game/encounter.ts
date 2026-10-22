@@ -1,4 +1,8 @@
 // 存档 ↔ 战斗内核 之间的转换：开战时把主角/副将/怪物做成战斗单位，打完把结果写回存档
+import { LOYALTY_EVERY, decayLoyalty } from './generals';
+import { trainAfterBattle } from './training';
+import { campMods } from './camp';
+import { PASSIVES, passiveOf } from '../core/passives';
 import { feastBonus, feastTick } from './life';
 import { applyFormation, clash, enemyFormation, myFormation } from './formation';
 import { balance, items, locations, monsters, startLocation } from '../data';
@@ -68,15 +72,26 @@ export function playerUnit(s: Save): BUnit {
   };
 }
 
-export function generalUnit(g: General): BUnit {
-  const st = generalStats(g);
+export function generalUnit(g: General, s?: Save): BUnit {
+  const st = { ...generalStats(g) };
+  // 阵营羁绊（带着存档才算得出随行的是谁）
+  let hpMul = 1;
+  if (s) {
+    const m = campMods(s, g);
+    st.atk = Math.round(st.atk * (1 + m.atk));
+    st.def = Math.round(st.def * (1 + m.def));
+    st.spd = Math.round(st.spd * (1 + m.spd));
+    hpMul = 1 + m.hp;
+    st.maxHp = Math.round(st.maxHp * hpMul);
+  }
   return {
     ...baseUnit(g.uid, st),
     name: g.name, side: 'ally', kind: 'general', refId: g.uid,
     classId: g.classId, gender: g.gender, look: g.look, level: g.level, row: 0,
-    hp: Math.max(0, Math.min(g.hp, st.maxHp)), mp: Math.min(g.mp, st.maxMp), alive: g.hp > 0,
+    hp: Math.max(0, Math.min(Math.round(g.hp * hpMul), st.maxHp)), mp: Math.min(g.mp, st.maxMp), alive: g.hp > 0,
     skills: g.skills.map((x) => ({ ...x })), aiSkills: [],
     historic: false, capturable: false, expYield: 0, silverYield: 0, loyalty: g.loyalty,
+    passive: g.recruitId && PASSIVES[g.recruitId] ? g.recruitId : undefined,
   };
 }
 
@@ -92,6 +107,7 @@ export function monsterUnit(id: string, monsterId: string, level: number, row: 0
     aiSkills: m.skills.map((x) => ({ id: x.id, rate: x.rate })),
     historic: !!m.historic, capturable: m.capturable !== false,
     expYield: monsterExp(monsterId, level), silverYield: monsterSilver(monsterId, level),
+    passive: PASSIVES[monsterId] ? monsterId : undefined,
   };
 }
 
@@ -118,7 +134,7 @@ export function startGroupBattle(s: Save, group: MonsterGroup, seed: number): Ba
   const allies = [playerUnit(s)];
   const reserve: BUnit[] = [];
   for (const g of s.generals) {
-    const u = generalUnit(g);
+    const u = generalUnit(g, s);
     if (g.uid === s.activeGeneral && u.alive) allies.push(u);
     else reserve.push(u);
   }
@@ -147,6 +163,8 @@ export interface BattleSummary {
 // 打完写回存档：血量、精力、药品消耗、熟练度、经验银两、掉落、招降、任务进度
 export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummary {
   s.battles++;
+  // 仗打久了，随行副将有点懈怠
+  const slack = s.battles % LOYALTY_EVERY === 0 && !b.spar && decayLoyalty(s);
   const rewards: Rewards = computeRewards(b, expLevelMul, (q) => questDropAllowed(s, q), (m) => monsters[m].drops);
   const all = [...b.units, ...b.reserve].filter((u) => u.side === 'ally');
   const sum: BattleSummary = { outcome: b.outcome, rows: [], drops: [], lines: [] };
@@ -160,6 +178,7 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
   }
   const fed = feastTick(s);
   if (fed) sum.lines.push(fed);
+  if (slack) sum.lines.push('连着打了好些仗，副将们有点懈怠了（忠诚下降），记得奖赏');
   for (const [id, n] of Object.entries(b.itemsUsed)) {
     s.bag[id] = Math.max(0, (s.bag[id] ?? 0) - n);
     if (!s.bag[id]) delete s.bag[id];
@@ -177,7 +196,9 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
     } else {
       const g = findGeneral(s, u.refId);
       if (!g) continue;
-      g.hp = keep(u.hp);
+      // 羁绊加过气血上限的，按比例折回本来的上限
+      const realMax = generalStats(g).maxHp;
+      g.hp = keep(u.maxHp > realMax ? Math.round((u.hp * realMax) / u.maxHp) : u.hp);
       g.mp = u.mp;
       for (const [sk, n] of Object.entries(u.profGain)) {
         const st = g.skills.find((x) => x.id === sk);
@@ -189,7 +210,11 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
   if (b.outcome === 'win' && !b.spar) {
     // 本国占着洛阳、虎牢关：经验、银两加成
     const buff = gzBuff(s);
-    rewards.silver = Math.round(rewards.silver * (1 + buff.silver));
+    // 资财：出战的副将会理财
+    const rich = b.units.find((u) => u.side === 'ally' && passiveOf(u.passive)?.kind === 'loot');
+    const loot = rich ? passiveOf(rich.passive)!.v : 0;
+    rewards.silver = Math.round(rewards.silver * (1 + buff.silver + loot));
+    if (rich) sum.lines.push(`${rich.name}·${passiveOf(rich.passive)!.name}：银两多了${Math.round(loot * 100)}%`);
     s.player.silver += rewards.silver;
     // 拜师加成 × 节日加成 × 国战加成
     const mul = mentorExpMul(s) * festivalExpMul(now) * (1 + buff.exp);
@@ -198,6 +223,12 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
       if (u.kind === 'player') {
         sum.rows.push({ name: u.name, exp, silver: rewards.silver });
         sum.lines.push(...grantPlayerExp(s, exp));
+        // 随军操练的副将分一半
+        const tr = trainAfterBattle(s, exp);
+        if (tr) {
+          sum.rows.push({ name: `${tr.name}（操练）`, exp: tr.exp, silver: 0 });
+          sum.lines.push(...tr.lines);
+        }
       } else if (exp > 0) {
         const g = findGeneral(s, u.refId);
         if (!g) continue;

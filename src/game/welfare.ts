@@ -2,7 +2,7 @@
 import { GEM_KINDS, balance, gemId, items, systems, equips } from '../data';
 import type { LootEntry, Reward } from '../data';
 import { Rng } from '../core/rng';
-import { decayLoyalty, giveRandomRecruit, giveRecruit } from './generals';
+import { giveRandomRecruit, giveRecruit } from './generals';
 import type { Save } from './state';
 import { addItem, addProf, bump, dayKey, dayNum, findGeneral, generalStats, log, playerStats, removeItem, rollRng } from './state';
 
@@ -185,14 +185,13 @@ export function welfarePending(s: Save): boolean {
   return milestoneReady(s) || suppliesReady(s) > 0;
 }
 
-// ===== 每日结算：忠诚下降、钱庄利息 =====
+// ===== 每日结算：钱庄利息（副将忠诚改成按打仗场数掉，见 encounter） =====
 export function dailyTick(s: Save, now = Date.now()): string[] {
   const day = dayKey(now);
   if (s.day === day) return [];
   const out: string[] = [];
   if (s.day) {
     const days = Math.max(1, Math.min(7, dayNum(now) - (s.dayN ?? dayNum(now) - 1)));
-    decayLoyalty(s, days);
     if (s.bank > 0) {
       const gain = Math.min(balance.bank.interestCap, Math.floor(s.bank * balance.bank.interestDaily * days));
       if (gain > 0) {
@@ -200,7 +199,6 @@ export function dailyTick(s: Save, now = Date.now()): string[] {
         out.push(`钱庄利息${gain}两`);
       }
     }
-    if (s.generals.length + s.inn.length) out.push('新的一天，副将的忠诚下降了，记得去奖赏');
   }
   s.day = day;
   s.dayN = dayNum(now);
