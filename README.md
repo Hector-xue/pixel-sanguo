@@ -48,6 +48,7 @@ npx vite-node scripts/make-icons.ts   # 重新生成主屏图标（改了头像�
 - `src/game/formation.ts` + `src/ui/formation.ts` 阵法：长蛇、锋矢、鱼鳞、鹤翼、八卦按等级解锁、首尾相克，开战时把阵法和克制算进双方数值（规则不变，录像照样复现）；怪群 12 级以上有的列阵，名将首领必列阵
 - `src/game/badges.ts` 徽章：每个地方地上藏一枚印（位置固定、隔几秒反光），集满 10/25/45/全部各有大礼，舆图上标出哪里还没找到
 - `src/core/passives.ts` 武将专属被动（赵云七进七出、吕布无双、大乔流离……招来的 11 位和剧情国战名将各一个），在战斗内核里结算；`src/game/camp.ts` 阵营羁绊（魏蜀吴群同心、二乔、刘备旧部、吕布旧部）
+- `src/game/guide.ts` + `src/ui/tips.ts` 江湖指引：新系统第一次用得上时出一张小卡片（新阵法、羁绊成形、福利可领），每条只出一次；主线新手篇里另插了采集、灶台、找印、布阵四个教学任务（老存档按任务 id 换算进度，见 `migrateMain`）
 - `src/game/worldmap.ts` + `src/ui/worldmap.ts` 舆图：按出口方向把地点排成一张图，去过的显示、相邻的露影子、其余罩在云里，点一处自动寻路
 - `src/sim/autoplay.ts` 自动通关模拟（1 级打到汉中篇结束），调数值后跑 `npm test` 看节奏
 - `artpreview.html` 美术预览页（开发服务器下打开）

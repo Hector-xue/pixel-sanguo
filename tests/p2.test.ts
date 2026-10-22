@@ -427,7 +427,7 @@ describe('P2 自动通关模拟（1级打到许昌篇结束）', () => {
     for (const gender of ['male', 'female'] as Gender[]) {
       it(`${classId}/${gender} 打通许昌篇，40级以上`, () => {
         const s = fresh(classId, gender);
-        const rep = autoplay(s, 11, 1500, 36);
+        const rep = autoplay(s, 11, 1500, mainQuests.findIndex((q) => q.id === 'm36'));
         console.log(classId, gender, JSON.stringify({ battles: rep.battles, losses: rep.losses, level: rep.level, rings: rep.rings }));
         expect(rep.finished).toBe(true);
         expect(rep.level).toBeGreaterThanOrEqual(40);

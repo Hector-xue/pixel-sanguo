@@ -62,7 +62,7 @@ export function guardBattle(s: Save, seed: number): Battle {
   const allies = [playerUnit(s)];
   const reserve: BUnit[] = [];
   for (const g of s.generals) {
-    const u = generalUnit(g);
+    const u = generalUnit(g, s);
     if (g.uid === s.activeGeneral && u.alive) allies.push(u);
     else reserve.push(u);
   }

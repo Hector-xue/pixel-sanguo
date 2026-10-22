@@ -53,7 +53,7 @@ function sides(s: Save): { allies: BUnit[]; reserve: BUnit[] } {
   const allies = [playerUnit(s)];
   const reserve: BUnit[] = [];
   for (const g of s.generals) {
-    const u = generalUnit(g);
+    const u = generalUnit(g, s);
     if (g.uid === s.activeGeneral && u.alive) allies.push(u);
     else reserve.push(u);
   }
@@ -80,7 +80,7 @@ export function arenaBattle(s: Save, kind: Ladder, rank: number, seed: number): 
   }
   const g = s.generals.find((x) => x.uid === s.activeGeneral);
   if (!g) return '先设一个出战副将';
-  const u = generalUnit(g);
+  const u = generalUnit(g, s);
   u.hp = u.maxHp;
   u.mp = u.maxMp;
   u.alive = true;

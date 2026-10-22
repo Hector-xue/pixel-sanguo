@@ -4,7 +4,7 @@ import { items, locations } from '../data';
 import { grantReward } from './welfare';
 import type { Reward } from '../data';
 import type { Save } from './state';
-import { addItem, log, rollRng } from './state';
+import { addItem, log, onFlag, rollRng } from './state';
 
 function hash(str: string): number {
   let h = 2166136261;
@@ -60,5 +60,7 @@ export function findBadge(s: Save, locId: string): string[] {
   const goal = BADGE_GOALS.find((g) => g.n === n);
   if (goal) lines.push(`集齐${goal.n}枚 ·「${goal.name}」：${grantReward(s, goal.reward).join('，')}`);
   log(s, `找到「${locations[locId].name}印」（徽章 ${n}/${badgeTotal()}）`);
+  s.flags.badge = true;
+  onFlag(s, 'badge');
   return lines;
 }

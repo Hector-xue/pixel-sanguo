@@ -20,7 +20,7 @@ function sparTeam(s: Save): { allies: BUnit[]; reserve: BUnit[] } {
   const allies = [playerUnit(s)];
   const reserve: BUnit[] = [];
   for (const g of s.generals) {
-    const u = generalUnit(g);
+    const u = generalUnit(g, s);
     if (g.uid === s.activeGeneral) allies.push(u);
     else reserve.push(u);
   }

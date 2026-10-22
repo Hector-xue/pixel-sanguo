@@ -262,7 +262,11 @@ export class BattleScene extends Phaser.Scene {
     };
     flag(10, 0xc8301c, 1);
     flag(W - 11, UI.gold, -1);
-    text(this, 30, T + 8, this.b.title, { color: 0xffb0a0, stroke: 0x000000 }).setDepth(251);
+    // 标题太长（国战带了助阵、率军的说明）就截短，完整的写在战报里
+    let title = this.b.title;
+    while (textWidth(title) > 104 && title.length > 2) title = title.slice(0, -1);
+    if (title !== this.b.title) title = `${title.slice(0, -1)}…`;
+    text(this, 30, T + 8, title, { color: 0xffb0a0, stroke: 0x000000 }).setDepth(251);
     text(this, W - 30, T + 8, me, { align: 'right', color: UI.cream, stroke: 0x000000 }).setDepth(251);
     const pg = this.add.graphics().setDepth(251);
     titlePlaque(pg, W / 2, T + 5, 76, 20);

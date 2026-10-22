@@ -102,6 +102,8 @@ export function drawItemIcon(id: string): Grid {
       g.outline(C.ink);
       return g;
     }
+    case 'cai_yaozhou':
+      return bowl(C.lime, C.lightBrown);
     case 'cai_kaoyu':
       return dish(C.brown, C.orange);
     case 'cai_yutang':

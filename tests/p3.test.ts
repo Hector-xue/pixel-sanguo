@@ -372,7 +372,8 @@ describe('战斗录像、成就、存档迁移', () => {
     const s2 = deserialize(JSON.stringify(raw));
     expect(s2.p3.reborn).toBe(0);
     expect(s2.main.state).toBe('available');
-    expect(mainQuests[36].id).toBe('m36');
+    // 主线中间插过新手教学任务，老存档的 step 按任务 id 换算，还是指着 m36
+    expect(mainQuests[s2.main.step].id).toBe('m36');
   });
 });
 

@@ -33,6 +33,7 @@ import { worldMap } from '../ui/worldmap';
 import { gatherGame, lifePanel } from '../ui/life';
 import { formationPanel } from '../ui/formation';
 import { badgeSpot, findBadge, hasBadge } from '../game/badges';
+import { runTips } from '../ui/tips';
 import { FORMS, bestFormation, clash, clashText, enemyFormation, myFormation, setFormation } from '../game/formation';
 import { SPOT_SIZE, spotKind, spotLeft } from '../game/life';
 import type { GatherKind } from '../game/life';
@@ -153,6 +154,8 @@ export class MainScene extends Phaser.Scene implements P.Host {
     this.drawHud();
     this.drawNav();
     this.chat.refresh();
+    // 江湖指引：新东西第一次用得上时提一句（等转场、对话这些先过去）
+    this.time.delayedCall(900, () => this.scene.isActive() && runTips(this));
   }
 
   private stageSignature(): string {

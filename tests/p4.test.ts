@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { monsters, systems } from '../src/data';
+import { mainQuests, monsters, systems } from '../src/data';
 import { aiCommand, living, needsCommand, resolveRound } from '../src/core/battle';
 import type { Battle, Command } from '../src/core/battle';
 import { LOOKS } from '../src/art/units';
@@ -113,6 +113,23 @@ describe('国战沙盘', () => {
     expect(s.p4.nation).toBe('shu');
     expect(s.p4.merit).toBe(50);
     expect(s.p4.seasonMerit).toBe(0);
+  });
+
+  it('本国名将助阵（带专属被动）；敌方守将也带被动', () => {
+    const s = hero(80);
+    joinNation(s, 'shu', MON);
+    const w = syncWorld(s, MON + 1000);
+    const id = attackTargets(s, w)[0];
+    const b = gzBattle(s, id, 'atk', 1, MON + 1000);
+    if (typeof b === 'string') throw new Error(b);
+    const aid = b.units.find((u) => u.id === 'a9')!;
+    expect(aid.side).toBe('ally');
+    expect(G.guards.shu).toContain(aid.passive);
+    expect(aid.passive).toBeTruthy();
+    expect(b.title).toContain('助阵');
+    const boss = gzBattle(s, id, 'boss', 2, MON + 1000);
+    if (typeof boss === 'string') return;
+    expect(boss.units.find((u) => u.id === 'e0')!.passive).toBeTruthy();
   });
 
   it('出征打赢削守军、加战功、用掉军令；军令每天8道', () => {
@@ -268,7 +285,7 @@ describe('P4 实战（自动打到 60 级出头）', () => {
   it('出征、守将、争霸都打得赢', () => {
     const s0 = hero(1, 5);
     s0.player.level = 1;
-    autoplay(s0, 11, 6000, 60);
+    autoplay(s0, 11, 6000, mainQuests.findIndex((q) => q.id === 'm60'));
     expect(s0.player.level).toBeGreaterThanOrEqual(60);
     joinNation(s0, 'wei', SAT);
     joinSect(s0, 'qinglong');

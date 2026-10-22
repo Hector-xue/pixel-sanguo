@@ -5,6 +5,7 @@ import { monsters } from '../data';
 import type { MonsterGroup } from '../data';
 import type { BUnit } from '../core/battle';
 import type { Save } from './state';
+import { onFlag } from './state';
 
 export type FormId = 'changshe' | 'fengshi' | 'yulin' | 'heyi' | 'bagua';
 
@@ -48,6 +49,8 @@ export function setFormation(s: Save, id: FormId): string {
   if (!FORMS[id]) return '';
   if (!formUnlocked(s, id)) return `${FORMS[id].lv}级才能布${FORMS[id].name}`;
   s.p5.formation = id;
+  s.flags.formationSet = true;
+  onFlag(s, 'formationSet');
   return `改布${FORMS[id].name}（${FORMS[id].desc}）`;
 }
 

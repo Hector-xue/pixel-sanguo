@@ -493,5 +493,14 @@
     "cook": true,
     "use": "feast",
     "desc": "吃下后10场战斗攻击、防御各+12%"
+  },
+  "cai_yaozhou": {
+    "name": "草药粥",
+    "cat": "drug",
+    "hp": 120,
+    "mp": 60,
+    "price": 0,
+    "cook": true,
+    "desc": "气血+120、精力+60"
   }
 }

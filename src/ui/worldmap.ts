@@ -296,4 +296,14 @@ export function worldMap(scene: Phaser.Scene, onGo: (dest: string) => void): voi
   });
   root.setAlpha(0);
   scene.tweens.add({ targets: root, alpha: 1, duration: 160 });
+  // 第一次打开：说一下雾和印
+  if (!s.flags.tip_map) {
+    s.flags.tip_map = true;
+    const tip = scene.add.container(0, 0);
+    root.add(tip);
+    const tg = scene.add.graphics();
+    tg.fillStyle(0x0a0604, 0.8).fillRect(16, top + 10, W - 32, 52);
+    tip.add([tg, text(scene, 26, top + 16, '去过的地方照常显示，旁边的露个影子，其余罩在云里。地名旁的小方框是那里的印：红的找到了，空的还没找到。拖动看全图，点地名能寻路过去。', { wrap: W - 52, color: 0xfbefd0, lineGap: 2 })]);
+    scene.time.delayedCall(7000, () => tip.active && scene.tweens.add({ targets: tip, alpha: 0, duration: 300, onComplete: () => tip.destroy() }));
+  }
 }

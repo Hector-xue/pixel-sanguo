@@ -67,7 +67,7 @@ export function likedText(id: string): string {
 const SPECIAL: Record<string, number> = {
   baoxiang: 6, gaojibaoxiang: 10, tilidan: 4, xinfa1: 3, xinfa2: 6, xinfa3: 9, jiangjunling: 10, dajiangjunling: 15, jinengshu: 8, zhusun: 2, junzi: 3,
   // 亲手做的菜：送人最见心意
-  cai_kaoyu: 3, cai_yutang: 5, cai_yaoshan: 5, cai_guiyu: 7, cai_shentang: 8, cai_ligeng: 9, cai_jinlin: 12,
+  cai_yaozhou: 2, cai_kaoyu: 3, cai_yutang: 5, cai_yaoshan: 5, cai_guiyu: 7, cai_shentang: 8, cai_ligeng: 9, cai_jinlin: 12,
 };
 export function giftValue(itemId: string): number {
   const it = items[itemId];

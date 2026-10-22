@@ -1,4 +1,7 @@
 // 自动通关模拟：用自动战斗跑主线（新手篇 + 许昌篇），检查任务能不能走通、升级节奏合不合适。单测和数值调整都用它。
+import { cook, gather } from '../game/life';
+import { findBadge } from '../game/badges';
+import { setFormation } from '../game/formation';
 import { bestFormation, enemyFormation } from '../game/formation';
 import { aiCommand, autoCommand, canCast, controlOf, foesOf, living, needsCommand, resolveRound } from '../core/battle';
 import type { BUnit, Battle, Command } from '../core/battle';
@@ -412,6 +415,23 @@ function doFlag(sim: Sim, flag: string): boolean {
       runBattle(sim, b, null);
       return !!s.flags.arena;
     }
+    case 'gathered': {
+      // 村东竹林采一把草药（多采几次给灶台用）
+      go(s, 'cundong');
+      for (let i = 0; i < 2; i++) gather(s, 'herb', [2]);
+      return !!s.flags.gathered;
+    }
+    case 'cooked': {
+      go(s, 'xinshoucun');
+      cook(s, 'cai_yaozhou');
+      return !!s.flags.cooked;
+    }
+    case 'badge':
+      findBadge(s, s.location);
+      return !!s.flags.badge;
+    case 'formationSet':
+      setFormation(s, s.player.level >= 10 ? 'fengshi' : 'changshe');
+      return !!s.flags.formationSet;
     case 'trained': {
       const g = s.generals.find((x) => x.uid !== s.activeGeneral) ?? s.inn[0];
       if (g) setTrainee(s, g.uid);

@@ -295,6 +295,75 @@
       "chapter": "新手任务"
     },
     {
+      "id": "m7a",
+      "title": "山野草药",
+      "giver": "cunzhang",
+      "turnIn": "cunzhang",
+      "type": "flag",
+      "flag": "gathered",
+      "hint": "村东竹林、村南草原、村北山林的地上有一丛闪光的草药，点一下，看准金色那段再点。",
+      "goal": "在野外采一次药（钓鱼、采矿也算）",
+      "accept": [
+        {
+          "who": "cunzhang",
+          "text": "药材是夺回来了，可医馆一年到头都缺药。"
+        },
+        {
+          "who": "cunzhang",
+          "text": "野外地上闪着光的地方，就是能采东西的。竹林草地里有草药，去采一把来。看准了再下铲，挖得越准收得越多。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "cunzhang",
+          "text": "好手艺！河边能钓鱼，山洞里能挖矿，都是一个道理。一个地方挖几次就空了，多走几个地方再回来。"
+        }
+      ],
+      "reward": {
+        "exp": 600,
+        "silver": 200
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m7b",
+      "title": "灶台",
+      "giver": "cunzhang",
+      "turnIn": "cunzhang",
+      "type": "flag",
+      "flag": "cooked",
+      "hint": "在新手村点「设施 → 灶台」，两把草药就能熬一碗草药粥。",
+      "goal": "在灶台做一道菜",
+      "accept": [
+        {
+          "who": "cunzhang",
+          "text": "草药光嚼着苦。村里有灶台，熬成粥，打仗的时候喝一碗，比药还顶用。"
+        },
+        {
+          "who": "cunzhang",
+          "text": "「设施 → 灶台」，两把草药就够了。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "cunzhang",
+          "text": "香！以后钓了鱼，烤着吃、炖汤都行。有几道药膳吃下去，接下来好几仗都有劲。"
+        },
+        {
+          "who": "cunzhang",
+          "text": "这两条鲫鱼你拿着，回头去灶台烤了。"
+        }
+      ],
+      "reward": {
+        "exp": 400,
+        "silver": 100,
+        "items": {
+          "yu_ji": 2
+        }
+      },
+      "chapter": "新手任务"
+    },
+    {
       "id": "m8",
       "title": "翠竹山庄",
       "giver": "cunzhang",
@@ -321,6 +390,41 @@
       "reward": {
         "exp": 300,
         "silver": 100
+      },
+      "chapter": "新手任务"
+    },
+    {
+      "id": "m8a",
+      "title": "地上的印",
+      "giver": "zhuangzhu",
+      "turnIn": "zhuangzhu",
+      "type": "flag",
+      "flag": "badge",
+      "hint": "每个地方的地上都藏着一枚印，是一小块暗红，隔几秒闪一下光。翠竹山庄这儿就有一枚。",
+      "goal": "找到一枚藏在地上的印",
+      "accept": [
+        {
+          "who": "zhuangzhu",
+          "text": "去山谷之前，先跟你说件趣事。"
+        },
+        {
+          "who": "zhuangzhu",
+          "text": "早年有位游侠走遍天下，每到一处就在地上埋一枚印。我这庄子里也有一枚——你眼尖的话，留神地上闪的那一下。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zhuangzhu",
+          "text": "找着了！据说天下六十九处，处处都有。集齐十枚、二十五枚、四十五枚，各有好东西。"
+        },
+        {
+          "who": "zhuangzhu",
+          "text": "「地图 → 展开舆图」能看到哪里的印还没找到。"
+        }
+      ],
+      "reward": {
+        "exp": 500,
+        "silver": 300
       },
       "chapter": "新手任务"
     },
@@ -552,6 +656,37 @@
         "count": 8,
         "at": "xuchangjiaowai"
       }
+    },
+    {
+      "id": "m15a",
+      "title": "布阵",
+      "giver": "xuling",
+      "turnIn": "xuling",
+      "type": "flag",
+      "flag": "formationSet",
+      "hint": "打开「功能 → 阵法」布一个阵。十级能布锋矢阵。怪物卡上能看到对面列的阵。",
+      "goal": "布一次阵",
+      "accept": [
+        {
+          "who": "xuling",
+          "text": "流寇是乌合之众，可再往后的贼兵会列阵。锋矢、鱼鳞、鹤翼、长蛇、八卦，五个阵首尾相克。"
+        },
+        {
+          "who": "xuling",
+          "text": "克住对面，全队攻击再加一成；被克，就要吃亏。去「功能 → 阵法」布一个，打之前先点开怪物看看它列的什么阵。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "xuling",
+          "text": "记住：开打前看一眼对面的阵，能克就换。这比多练几级管用。"
+        }
+      ],
+      "reward": {
+        "exp": 2500,
+        "silver": 1200
+      },
+      "chapter": "许昌篇"
     },
     {
       "id": "m16",

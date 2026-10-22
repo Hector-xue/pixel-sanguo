@@ -98,7 +98,8 @@ export interface Save {
   nextUid: number;
   bag: Record<string, number>;
   location: string;
-  main: { step: number; state: QuestState; count: number };
+  // qv：主线版本（中间插过新任务，老存档读档时按任务 id 换算 step）
+  main: { step: number; state: QuestState; count: number; qv?: number };
   bounty: { id: string; count: number } | null;
   flags: Record<string, boolean>;
   kills: Record<string, number>;
@@ -350,7 +351,7 @@ export function newSave(o: NewGameOpts): Save {
     nextUid: 1,
     bag: {},
     location: startLocation,
-    main: { step: 0, state: 'available', count: 0 },
+    main: { step: 0, state: 'available', count: 0, qv: MAIN_QV },
     bounty: null,
     flags: {},
     kills: {},
@@ -882,6 +883,24 @@ export function npcMark(s: Save, npcId: string): '!' | '?' | null {
   return null;
 }
 
+// 主线中途插过的任务：版本号 → 那一版新加的任务 id
+const MAIN_INSERTS: Record<number, string[]> = { 2: ['m7a', 'm7b', 'm8a', 'm15a'] };
+export const MAIN_QV = 2;
+
+// 老存档的 step 是按旧任务表数的，换算成新表里同一个任务的位置（插在前面的新任务就跳过了）
+export function migrateMain(s: Save): void {
+  let v = s.main.qv ?? 1;
+  while (v < MAIN_QV) {
+    v++;
+    const added = new Set(MAIN_INSERTS[v] ?? []);
+    const later = new Set(Object.entries(MAIN_INSERTS).filter(([k]) => Number(k) > v).flatMap(([, ids]) => ids));
+    const old = mainQuests.filter((q) => !added.has(q.id) && !later.has(q.id)).map((q) => q.id);
+    const id = old[s.main.step];
+    s.main.step = id ? mainQuests.findIndex((q) => q.id === id) : mainQuests.length;
+  }
+  s.main.qv = MAIN_QV;
+}
+
 export function acceptQuest(s: Save): void {
   const q = currentQuest(s);
   if (!q || s.main.state !== 'available') return;
@@ -1058,6 +1077,7 @@ export function deserialize(text: string): Save {
   s.p4 = { ...p4Defaults(), ...(s.p4 ?? {}) };
   s.p5 = { ...p5Defaults(), ...(s.p5 ?? {}) };
   s.p5.life = { ...p5Defaults().life, ...s.p5.life };
+  migrateMain(s);
   migrateTraining(s);
   // 单机化：以前的「1区 许昌」这类分区名统一成本州
   if (!s.server || /区/.test(s.server)) s.server = '豫州';

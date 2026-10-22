@@ -3,7 +3,7 @@
 import { items, locations } from '../data';
 import { oreFor } from './welfare';
 import type { Save } from './state';
-import { addItem, bagCount, log, removeItem, rollRng } from './state';
+import { addItem, bagCount, log, onFlag, removeItem, rollRng } from './state';
 
 export type GatherKind = 'fish' | 'mine' | 'herb';
 export type LifeKind = GatherKind | 'cook';
@@ -77,7 +77,8 @@ function gainExp(s: Save, k: LifeKind, n: number): string | null {
   }
   if (L.lv[k] >= LIFE_MAX) L.exp[k] = 0;
   if (!up) return null;
-  const line = `${LIFE_NAMES[k]}升到${L.lv[k]}级`;
+  const learned = k === 'cook' ? RECIPES.filter((r) => r.lv === L.lv[k]).map((r) => items[r.id].name) : [];
+  const line = `${LIFE_NAMES[k]}升到${L.lv[k]}级${learned.length ? `，学会了${learned.join('、')}` : ''}`;
   log(s, line);
   return line;
 }
@@ -155,6 +156,10 @@ export function gather(s: Save, kind: GatherKind, qs: Quality[]): GatherResult {
   if (real.length) lines.unshift(`得到${real.map((g) => `${items[g.id].name}×${g.n}`).join('、')}${perfect ? '（漂亮！）' : ''}`);
   const up = gainExp(s, kind, 2 + score * 3);
   if (up) lines.push(up);
+  if (real.length) {
+    s.flags.gathered = true;
+    onFlag(s, 'gathered');
+  }
   if (real.some((g) => g.id === 'yu_jin' || g.id === 'yao_shen' || g.id === 'zhenkuang')) log(s, `${LIFE_NAMES[kind]}得到了${real.map((g) => items[g.id].name).join('、')}`);
   return { ok: true, lines, got: real };
 }
@@ -167,6 +172,7 @@ export interface Recipe {
 }
 
 export const RECIPES: Recipe[] = [
+  { id: 'cai_yaozhou', lv: 1, need: { yao_cao: 2 } },
   { id: 'cai_kaoyu', lv: 1, need: { yu_ji: 1 } },
   { id: 'cai_yutang', lv: 2, need: { yu_li: 1, yao_cao: 1 } },
   { id: 'cai_yaoshan', lv: 3, need: { yu_ji: 1, yao_cao: 3 } },
@@ -199,6 +205,8 @@ export function cook(s: Save, rid: string): string {
   if (lost) lines.push('负重满了，有一份放不下');
   const up = gainExp(s, 'cook', 6 + r.lv * 4);
   if (up) lines.push(up);
+  s.flags.cooked = true;
+  onFlag(s, 'cooked');
   return lines.join('\n');
 }
 

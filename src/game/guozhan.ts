@@ -1,6 +1,7 @@
 // 国战沙盘：魏、蜀、吴三国加董卓余部（群雄）争 17 座城。AI 势力按真实时间每小时走一回合（补兵、调兵、打邻城），
 // 离线这段时间的回合上线时一次补算（同一个种子同一个钟点，算出来的结果都一样）。一周一个赛季，周一开局，按城数排名。
 // 主角 60 级入一国：每天 8 道军令出征敌城（削守军）或驻守己城（补兵）；守军打光了守将出城单挑，赢了这座城归本国。
+import { PASSIVES } from '../core/passives';
 import { monsters, systems } from '../data';
 import type { CityKind, NationId } from '../data';
 import { createBattle } from '../core/battle';
@@ -366,7 +367,7 @@ function team(s: Save): { allies: BUnit[]; reserve: BUnit[] } {
   const allies = [playerUnit(s)];
   const reserve: BUnit[] = [];
   for (const g of s.generals) {
-    const u = generalUnit(g);
+    const u = generalUnit(g, s);
     if (g.uid === s.activeGeneral && u.alive) allies.push(u);
     else reserve.push(u);
   }
@@ -387,6 +388,30 @@ function guardUnit(gid: string, lv: number): BUnit {
     skills: m.skills.map((x) => ({ id: x.id, level: x.level, prof: x.level * 2500 })),
     aiSkills: m.skills.map((x) => ({ id: x.id, rate: x.rate })),
     expYield: monsterExp(gid, lv), silverYield: monsterSilver(gid, lv),
+    // 名将守城也带着自己的专属被动
+    passive: PASSIVES[gid] ? gid : undefined,
+  };
+}
+
+// 本国名将助阵：驻守时是这座城自己的守将，出征时按城池轮一位；AI 指挥，带着专属被动
+export function aidOf(s: Save, w: GzWorld, id: string, mode: GzMode): string | null {
+  const n = s.p4.nation;
+  if (!n) return null;
+  if (mode === 'def' && w.cities[id].owner === n) return guardOf(w, id);
+  const list = G.guards[n];
+  if (!list?.length) return null;
+  return list[(G.cities.findIndex((c) => c.id === id) + 1) % list.length];
+}
+
+function aidUnit(gid: string, lv: number): BUnit {
+  const m = monsters[gid];
+  const u = mirrorUnit('a9', m.name, m.class, 'male', 0, Math.max(1, lv - 2), 'ally', lv > 100);
+  u.atk = Math.round(u.atk * 0.9);
+  return {
+    ...u, look: m.look,
+    skills: m.skills.map((x) => ({ id: x.id, level: x.level, prof: x.level * 2500 })),
+    aiSkills: m.skills.map((x) => ({ id: x.id, rate: x.rate })),
+    passive: PASSIVES[gid] ? gid : undefined,
   };
 }
 
@@ -437,6 +462,11 @@ export function gzBattle(s: Save, id: string, mode: GzMode, seed: number, now = 
     }
   }
   const { allies, reserve } = team(s);
+  const aid = aidOf(s, w, id, mode);
+  if (aid && allies.length < 3) {
+    allies.push(aidUnit(aid, lv));
+    title = `${title} · ${monsters[aid].name}助阵`;
+  }
   return createBattle({
     seed: (rng.next() * 4294967296) >>> 0, allies, reserve, enemies, items: { ...s.bag }, title,
     canFlee: mode !== 'boss', tag: `gz:${mode}:${id}`,
