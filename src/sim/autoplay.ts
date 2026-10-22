@@ -1,4 +1,5 @@
 // 自动通关模拟：用自动战斗跑主线（新手篇 + 许昌篇），检查任务能不能走通、升级节奏合不合适。单测和数值调整都用它。
+import { bestFormation, enemyFormation } from '../game/formation';
 import { aiCommand, autoCommand, canCast, controlOf, foesOf, living, needsCommand, resolveRound } from '../core/battle';
 import type { BUnit, Battle, Command } from '../core/battle';
 import { gearBonus, mountPower, tierLevel } from '../core/gear';
@@ -121,6 +122,9 @@ function runBattle(sim: Sim, b: Battle, captureId: string | null): Battle['outco
 }
 
 function fight(sim: Sim, groupIndex: number, captureId: string | null): Battle['outcome'] {
+  // 会玩的人开打前看一眼对面的阵，换上克它的
+  const g = locations[sim.s.location].groups[groupIndex];
+  if (g) sim.s.p5.formation = bestFormation(sim.s, enemyFormation(g));
   return runBattle(sim, startBattle(sim.s, groupIndex, sim.rng.int(0, 2 ** 31)), captureId);
 }
 

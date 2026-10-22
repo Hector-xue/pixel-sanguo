@@ -18,7 +18,7 @@ import {
 import { canRebirth, generalRebirth, generalRebirthReason, rebirth } from '../game/rebirth';
 import { rivalLevel } from '../game/rivals';
 import {
-  joinSect, leaveSect, sectDef, sectRankName, sectTaskDone, sectTaskText, sectTasksLeft, takeSectTask, turnInSect, vigorMax, vigorNow,
+  joinSect, leaveSect, sectDef, sectRankName, sectTaskDone, sectTaskText, takeSectTask, turnInSect,
 } from '../game/sect';
 import { candidateName, candidates, divorce, giftCost, giftsLeft, giveGift, hireMerc, marry, mercCost, swear, swornReason } from '../game/social';
 import { canSell, collectStall, fairPrice, putOnStall, setStallName, settleStall, takeOffStall } from '../game/stall';
@@ -168,7 +168,7 @@ export function sectPanel(h: Host): void {
     const lines = [
       `职位：${sectRankName(s.p3.sect.rep)}　声望：${s.p3.sect.rep}${next ? `（${next.rep}升${next.name}）` : ''}`,
       `教派加成：${def.desc}（职位越高越多）`,
-      `活力：${vigorNow(s)}/${vigorMax(s)}　今天还能做${sectTasksLeft(s)}个任务（每个用${systems.sect.vigorCost}点活力）`,
+      '任务不限次数，做完一个交了就能接下一个。',
     ];
     for (const l of lines) {
       dyn.add(text(h, m.cx, y, l, { wrap: m.cw, color: C.darkBrown }));
@@ -199,7 +199,7 @@ export function sectPanel(h: Host): void {
         toast(h, takeSectTask(s), 2200);
         h.refresh();
         render();
-      }, { style: 'red', disabled: sectTasksLeft(s) <= 0 }));
+      }, { style: 'red' }));
       y += 32;
     }
     dyn.add(text(h, m.cx, y, '教派排名（按声望）', { color: C.darkRed }));

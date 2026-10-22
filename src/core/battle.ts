@@ -104,6 +104,8 @@ export interface Battle {
   lastCmd: Record<string, Command>;
   // 特殊战斗的标记（挖宝守卫等），战后结算用
   tag?: string;
+  // 双方阵法（只给界面显示，数值开战前已经算进人身上）
+  forms?: { ally: string; enemy: string | null; clash: number };
   // 战斗录像：开局快照 + 每回合的指令（同一种子重算就能复现）
   init?: BattleInit;
   log?: ReplayRound[];

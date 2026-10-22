@@ -45,6 +45,8 @@ npx vite-node scripts/make-icons.ts   # 重新生成主屏图标（改了头像�
 - `src/scenes/BattleScene.ts` 战斗：当地场景做战场、行动顺序条、宣纸指令盘（立绘+指令 / 战报）、朱漆题签报招式名、盖印的战果卷轴
 - `src/game/bond.ts` NPC 好感（闲聊、送礼、按档回赠谢礼）；`src/game/journey.ts` 野外奇遇（十七件事，按地形、昼夜、等级、交情出现，几个选项后果各不相同）
 - `src/game/life.ts` + `src/ui/life.ts` 生活技能：钓鱼、采矿、采药（场景里的采集点 + 看准时机点的小游戏，一处挖几次就空、多走几步恢复）和烹饪（城镇灶台做菜，回血回蓝的菜能在战斗里吃，药膳管几场战斗的攻防加成），四项各有等级
+- `src/game/formation.ts` + `src/ui/formation.ts` 阵法：长蛇、锋矢、鱼鳞、鹤翼、八卦按等级解锁、首尾相克，开战时把阵法和克制算进双方数值（规则不变，录像照样复现）；怪群 12 级以上有的列阵，名将首领必列阵
+- `src/game/badges.ts` 徽章：每个地方地上藏一枚印（位置固定、隔几秒反光），集满 10/25/45/全部各有大礼，舆图上标出哪里还没找到
 - `src/game/worldmap.ts` + `src/ui/worldmap.ts` 舆图：按出口方向把地点排成一张图，去过的显示、相邻的露影子、其余罩在云里，点一处自动寻路
 - `src/sim/autoplay.ts` 自动通关模拟（1 级打到汉中篇结束），调数值后跑 `npm test` 看节奏
 - `artpreview.html` 美术预览页（开发服务器下打开）

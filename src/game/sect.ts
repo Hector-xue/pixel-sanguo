@@ -1,26 +1,12 @@
-// 教派（34 级开放）：加入一个 NPC 教派，每天做教派任务攒声望；声望够了升职位，职位越高教派加成越大。
-// 做任务要花活力（活力每天回满，上限 = 等级 × 3）。教派排名和几个 AI 教派一起比声望。
+// 教派（34 级开放）：加入一个 NPC 教派，做教派任务攒声望；声望够了升职位，职位越高教派加成越大。
+// 单机不按天限次数：做完一个交了就能接下一个。教派排名和几个 AI 教派一起比声望。
 import { items, locations, monsters, systems } from '../data';
 import { expToNext } from '../core/formulas';
 import type { RingTask, Save } from './state';
-import { bagCount, bump, dayKey, grantPlayerExp, log, onFlag, removeItem, rollRng, sectRank } from './state';
+import { bagCount, bump, grantPlayerExp, log, onFlag, removeItem, rollRng, sectRank } from './state';
 import { visited } from './town';
 
 const S = systems.sect;
-
-export function vigorMax(s: Save): number {
-  return s.player.level * S.vigorPerLevel;
-}
-
-// 活力：跨天回满
-export function vigorNow(s: Save, now = Date.now()): number {
-  const d = dayKey(now);
-  if (s.p3.vigorDay !== d) {
-    s.p3.vigorDay = d;
-    s.p3.vigor = vigorMax(s);
-  }
-  return s.p3.vigor;
-}
 
 export function sectDef(id: string | null) {
   return S.sects.find((x) => x.id === id) ?? null;
@@ -50,15 +36,6 @@ export function leaveSect(s: Save): string {
   return `退出了${def.name}，声望清零`;
 }
 
-export function sectTasksLeft(s: Save, now = Date.now()): number {
-  const d = dayKey(now);
-  if (s.p3.sect.day !== d) {
-    s.p3.sect.day = d;
-    s.p3.sect.done = 0;
-  }
-  return Math.max(0, S.tasksPerDay - s.p3.sect.done);
-}
-
 // 教派任务：打怪 / 送药 / 巡视，和跑环差不多但简单
 function huntable(s: Save): { monster: string; at: string }[] {
   const lv = s.player.level;
@@ -74,12 +51,9 @@ function huntable(s: Save): { monster: string; at: string }[] {
   return out;
 }
 
-export function takeSectTask(s: Save, now = Date.now()): string {
+export function takeSectTask(s: Save): string {
   if (!s.p3.sect.id) return '你还没入教派';
   if (s.p3.sect.task) return '手上的教派任务还没做完';
-  if (sectTasksLeft(s, now) <= 0) return '今天的教派任务做完了，明天再来';
-  if (vigorNow(s, now) < S.vigorCost) return `活力不够（要${S.vigorCost}点）`;
-  s.p3.vigor -= S.vigorCost;
   const rng = rollRng(s);
   const hunt = huntable(s);
   const roll = rng.next();

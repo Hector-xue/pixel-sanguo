@@ -196,7 +196,7 @@ export const systems = systemsJson as unknown as {
   casino: { chibiMinutes: number; houseCut: number; minBet: number; maxBet: number; guessMul: number; sides: string[]; titles: { net: number; name: string }[] };
   shop: { goods: { item: string; gold: number }[] };
   sect: {
-    minLevel: number; tasksPerDay: number; vigorCost: number; vigorPerLevel: number;
+    minLevel: number;
     sects: { id: string; name: string; perk: 'atk' | 'spd' | 'mp' | 'def'; desc: string }[];
     ranks: { rep: number; name: string }[];
     perkPerRank: Record<string, number>;

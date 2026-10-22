@@ -12,7 +12,7 @@ import {
 } from '../src/game/events';
 import { canRebirth, generalRebirth, rebirth } from '../src/game/rebirth';
 import { nextRing, turnInRing } from '../src/game/ring';
-import { joinSect, sectTaskDone, takeSectTask, turnInSect, vigorNow } from '../src/game/sect';
+import { joinSect, sectTaskDone, takeSectTask, turnInSect } from '../src/game/sect';
 import { giveGift, hireMerc, marry, swear, swornReason } from '../src/game/social';
 import { collectStall, putOnStall, settleStall } from '../src/game/stall';
 import { ORE_CHAIN } from '../src/game/smith';
@@ -135,16 +135,14 @@ describe('二环、三环、化境、转职', () => {
 });
 
 describe('教派、训练、宝库', () => {
-  it('34级入教派，领任务扣活力，做完涨声望；声望够了升职位、加成变大', () => {
+  it('34级入教派，领任务不限次数，做完涨声望；声望够了升职位、加成变大', () => {
     const s = fresh();
     lvl(s, 50);
     for (const id of Object.keys(locations)) arrive(s, id);
     expect(joinSect(s, 'qinglong')).toContain('青龙会');
     expect(s.flags.joinedSect).toBe(true);
     const atk0 = playerStats(s).atk;
-    const v = vigorNow(s, T0);
-    expect(takeSectTask(s, T0)).toContain('教派任务');
-    expect(s.p3.vigor).toBe(v - systems.sect.vigorCost);
+    expect(takeSectTask(s)).toContain('教派任务');
     const t = s.p3.sect.task!;
     if (t.type === 'deliver') addItem(s, t.item!, t.count);
     else if (t.type === 'goto') t.arrived = true;

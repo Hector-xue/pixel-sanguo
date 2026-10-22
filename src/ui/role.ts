@@ -8,7 +8,8 @@ import type { Gear, Slot, Stats } from '../core/types';
 import { ATTR_KEYS, ATTR_NAMES, RESIST_KEYS, RESIST_NAMES } from '../core/types';
 import { charmOf, titleText } from '../game/achv';
 import { evilNow } from '../game/arena';
-import { sectRankName, vigorMax, vigorNow } from '../game/sect';
+import { sectRankName } from '../game/sect';
+import { FORMS, myFormation } from '../game/formation';
 import { candidateName } from '../game/social';
 import type { Save } from '../game/state';
 import { bagCount, bagUsed, generalStats, playerAttrs, playerStats, heroVariant } from '../game/state';
@@ -101,7 +102,7 @@ function infoTab(h: Host, m: Modal, y: number, L: number, R: number): void {
     [['等级', `${p.level}${s.p3.reborn ? `（${s.p3.reborn}转）` : ''}`], ['升级还需经验', expToNext(p.level) - p.exp]],
     [['银两', p.silver], ['金砖', p.gold, C.darkRed]],
     [['绑定银', p.boundSilver], ['钱庄存款', s.bank]],
-    [['体力丹', bagCount(s, 'tilidan')], ['活力', `${vigorNow(s)}/${vigorMax(s)}`]],
+    [['体力丹', bagCount(s, 'tilidan')], ['阵法', FORMS[myFormation(s)].name]],
     [['魅力', charmOf(s)], ['居住地', homeName(s)]],
     [['坐骑', s.riding ? `${mounts[s.riding].name}(${s.mounts[s.riding].level}级)` : '无'], ['师门', s.mentor.joined ? (s.mentor.graduated ? '已出师' : '孔庙夫子') : '无']],
     [['教派', sect], ['配偶', s.p3.marriage.spouse ? candidateName(s.p3.marriage.spouse) : '无']],

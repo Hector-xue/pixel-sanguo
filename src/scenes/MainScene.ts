@@ -31,6 +31,9 @@ import { UI, sealBox, titlePlaque, vgrad } from '../art/chrome';
 import { showDialog } from '../ui/dialog';
 import { worldMap } from '../ui/worldmap';
 import { gatherGame, lifePanel } from '../ui/life';
+import { formationPanel } from '../ui/formation';
+import { badgeSpot, findBadge, hasBadge } from '../game/badges';
+import { FORMS, bestFormation, clash, clashText, enemyFormation, myFormation, setFormation } from '../game/formation';
 import { SPOT_SIZE, spotKind, spotLeft } from '../game/life';
 import type { GatherKind } from '../game/life';
 import * as P from '../ui/panels';
@@ -156,7 +159,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const s = store.save;
     const loc = locations[s.location];
     const marks = loc.npcs.map((n) => npcMark(s, n) ?? '').join('');
-    return `${s.location}|${daypart()}|${marks}|${s.main.step}:${s.main.state}|${X.treasureHere(s) ? 1 : 0}|${H}|${spotLeft(s, s.location)}`;
+    return `${s.location}|${daypart()}|${marks}|${s.main.step}:${s.main.state}|${X.treasureHere(s) ? 1 : 0}|${H}|${spotLeft(s, s.location)}|${hasBadge(s, s.location) ? 1 : 0}`;
   }
 
   // ===== 舞台 =====
@@ -195,6 +198,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     }
     actors.forEach((a, i) => this.drawActor(a, spots[i][0], spots[i][1]));
     if (gk) this.drawGatherSpot(gk, spots[actors.length][0], spots[actors.length][1]);
+    if (!hasBadge(s, s.location)) this.drawBadge(top, bottom, spots);
     this.passersby(top);
     // 时辰滤镜：晨橙、暮紫、夜蓝；夜里灯笼、营火、窗户亮起暖光
     const tint: Record<Daypart, [number, number] | null> = { dawn: [0xffe4c8, 1], day: null, dusk: [0xffccb0, 1], night: [0x5a64a8, 1] };
@@ -306,6 +310,40 @@ export class MainScene extends Phaser.Scene implements P.Host {
       a.onTap();
     }).setDepth(830);
     this.stage.add(z);
+  }
+
+  // 藏着的徽章：地上一小块暗红，隔几秒反一下光；点到就收下
+  private drawBadge(top: number, bottom: number, spots: [number, number][]): void {
+    const s = store.save;
+    const b = badgeSpot(s.location);
+    let x = Math.round(20 + b.u * (W - 40));
+    const y = Math.round(top + b.v * (bottom - top));
+    // 别和人、采集点挤在一起（点不到）
+    for (let k = 0; k < 6 && spots.some(([sx, sy]) => Math.abs(sx - x) < 34 && Math.abs(sy - y) < 40); k++) x = 20 + ((x - 20 + 70) % (W - 40));
+    const g = this.add.graphics().setDepth(y - 1);
+    g.fillStyle(0x6a1a0c, 0.7).fillRect(x - 2, y - 2, 5, 4);
+    g.fillStyle(0xb44a2a, 0.6).fillRect(x - 1, y - 2, 3, 1);
+    this.stage.add(g);
+    const glint = this.add.graphics().setDepth(y).setAlpha(0);
+    glint.fillStyle(0xffffff).fillRect(x, y - 6, 1, 9).fillRect(x - 4, y - 2, 9, 1);
+    glint.fillStyle(0xfff0a0).fillRect(x - 1, y - 3, 3, 3);
+    this.stage.add(glint);
+    this.tweens.add({ targets: glint, alpha: 1, duration: 220, yoyo: true, repeat: -1, repeatDelay: 2800 + (x % 7) * 300, delay: 600 });
+    this.stage.add(hit(this, x - 16, y - 16, 32, 30, () => {
+      const lines = findBadge(s, s.location);
+      if (!lines.length) return;
+      sfx('level');
+      for (let k = 0; k < 10; k++) {
+        const p = this.add.rectangle(x, y - 4, 2, 2, k % 2 ? 0xffe070 : 0xffffff).setDepth(900);
+        this.stage.add(p);
+        const a = (k / 10) * Math.PI * 2;
+        this.tweens.add({ targets: p, x: x + Math.cos(a) * 18, y: y - 4 + Math.sin(a) * 12, alpha: 0, duration: 500, onComplete: () => p.destroy() });
+      }
+      store.commit();
+      this.time.delayedCall(300, () => {
+        showDialog(this, lines.map((t) => ({ who: '', text: t })), [], () => this.refresh());
+      });
+    }).setDepth(829));
   }
 
   // 采集点：水边一圈涟漪 / 一块带矿脉的石头 / 一丛草药，上面闪着光；挖空了就灰掉
@@ -703,7 +741,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
       ['任务', () => P.questPanel(this), s.main.state === 'ready'], ['组队', () => X.teamPanel(this), false], ['排行', () => X.rankPanel(this), false],
       ['国战', () => G4.guozhanPanel(this), G4.guozhanPending(s)], ['福利', () => welfarePanel(this), welfarePending(s) || X.festivalPending(s)], ['擂台', () => X.arenaPanel(this), false],
       ['帮派', () => X.sectPanel(this), false], ['训练', () => X.trainingPanel(this), false], ['宝库', () => X.vaultPanel(this), false],
-      ['生活', () => lifePanel(this), false], ['攻略', () => P.helpPanel(this), false], ['退出', () => P.exitPanel(this), false],
+      ['生活', () => lifePanel(this), false], ['阵法', () => formationPanel(this), false], ['攻略', () => P.helpPanel(this), false], ['退出', () => P.exitPanel(this), false],
     ];
     const cols = 5;
     const rows = Math.ceil(items.length / cols);
@@ -739,7 +777,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
   private groupCard(gi: number, gr: MonsterGroup): void {
     const s = store.save;
     const mon = monsters[gr.monster];
-    const m = new Modal(this, groupLabel(gr), { w: 300, h: 230 });
+    const m = new Modal(this, groupLabel(gr), { w: 300, h: 296 });
     const fg = this.add.graphics();
     fg.fillStyle(0x3a2414).fillRect(m.cx, m.cy, 112, 128);
     fg.fillStyle(0x24160c).fillRect(m.cx + 2, m.cy + 2, 108, 124);
@@ -754,6 +792,26 @@ export class MainScene extends Phaser.Scene implements P.Host {
     m.inner.add(text(this, x, m.cy + 72, `职业：${classes[mon.class]?.name ?? '—'}`, { color: C.darkBrown }));
     if (gr.escort) m.inner.add(text(this, x, m.cy + 90, `带着：${monsters[gr.escort.monster].name}`, { color: C.brown }));
     if (mon.boss) m.inner.add(text(this, x, m.cy + 108, '头目', { color: C.red }));
+    // 阵法：对面列什么阵、我方克不克；能克就给个一键换阵
+    const theirs = enemyFormation(gr);
+    const mine = myFormation(s);
+    const c = clash(mine, theirs);
+    const fy = m.cy + 136;
+    m.inner.add(text(this, m.cx, fy, theirs ? `列阵：${FORMS[theirs].name}（${FORMS[theirs].desc}）` : '列阵：没有列阵', { color: theirs ? C.darkRed : C.gray }));
+    m.inner.add(text(this, m.cx, fy + 18, clashText(mine, theirs), { color: c === 1 ? C.green : c === -1 ? C.red : C.brown }));
+    const best = bestFormation(s, theirs);
+    const half = Math.floor((m.cw - 6) / 2);
+    if (best !== mine && clash(best, theirs) === 1) {
+      m.inner.add(new Button(this, m.cx, fy + 40, half, 26, `换${FORMS[best].name}`, () => {
+        toast(this, setFormation(s, best), 1400);
+        m.close();
+        this.groupCard(gi, gr);
+      }, { style: 'red' }));
+    } else m.inner.add(text(this, m.cx + half / 2, fy + 46, c === 1 ? '已经克住它了' : '暂时没有能克它的阵', { align: 'center', color: C.gray }));
+    m.inner.add(new Button(this, m.cx + half + 6, fy + 40, half, 26, '阵法…', () => {
+      m.close();
+      formationPanel(this);
+    }, { style: 'tan' }));
     m.inner.add(new Button(this, m.cx, m.py + m.ph - 40, m.cw, 28, '战斗', () => {
       m.close();
       this.fight(gi);

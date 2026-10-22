@@ -1,5 +1,6 @@
 // 存档 ↔ 战斗内核 之间的转换：开战时把主角/副将/怪物做成战斗单位，打完把结果写回存档
 import { feastBonus, feastTick } from './life';
+import { applyFormation, clash, enemyFormation, myFormation } from './formation';
 import { balance, items, locations, monsters, startLocation } from '../data';
 import type { MonsterGroup } from '../data';
 import { emptyStatus, computeRewards, createBattle } from '../core/battle';
@@ -125,7 +126,15 @@ export function startGroupBattle(s: Save, group: MonsterGroup, seed: number): Ba
   if (merc) allies.push(merc);
   const all = [group.monster, group.escort?.monster].filter(Boolean) as string[];
   const canFlee = !all.some((m) => monsters[m].noFlee || monsters[m].historic);
-  return createBattle({ seed: rng.next() * 4294967296 >>> 0, allies, reserve, enemies, items: { ...s.bag }, title: groupLabel(group), canFlee });
+  // 阵法：双方各自的加成，再加上克制
+  const mine = myFormation(s);
+  const theirs = enemyFormation(group);
+  const c = clash(mine, theirs);
+  applyFormation([...allies, ...reserve], mine, c);
+  applyFormation(enemies, theirs, (-c) as 1 | -1 | 0);
+  const b = createBattle({ seed: rng.next() * 4294967296 >>> 0, allies, reserve, enemies, items: { ...s.bag }, title: groupLabel(group), canFlee });
+  b.forms = { ally: mine, enemy: theirs, clash: c };
+  return b;
 }
 
 export interface BattleSummary {

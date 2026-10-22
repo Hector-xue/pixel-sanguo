@@ -23,6 +23,8 @@ import type { BattleSummary } from '../game/encounter';
 import { store } from '../game/store';
 import { Button, H, SAFE_TOP, W, drawBar, sfx, text, textWidth, wrap } from '../ui/widgets';
 import { PAPER, UI, paperTex, titlePlaque, vgrad, woodFrame } from '../art/chrome';
+import { FORMS, clashText } from '../game/formation';
+import type { FormId } from '../game/formation';
 
 // 版面：战场从屏幕最顶铺到指令盘（顶上状态栏、挖孔那一截只露天空），对阵栏是压在天空上的一条墨色半透明带
 const TOP_H = 30;
@@ -188,10 +190,18 @@ export class BattleScene extends Phaser.Scene {
       this.addLog('—— 战斗录像 ——');
     }
     this.addLog(`${loc.name}：遭遇${this.b.title}`);
+    const fm = this.b.forms;
+    if (fm) {
+      this.drawForms(fm.ally as FormId, fm.enemy as FormId | null, fm.clash);
+      this.addLog(clashText(fm.ally as FormId, fm.enemy as FormId | null));
+    }
     this.renderLog();
     this.cameras.main.fadeIn(220, 10, 6, 4);
     this.showBanner(`遭遇 ${this.b.title}`, 900);
-    this.time.delayedCall(700, () => this.startRound());
+    // 有克制关系的话，开打前再报一句
+    const clashLine = fm && fm.clash ? (fm.clash > 0 ? `${FORMS[fm.ally as FormId].name} 克 ${FORMS[fm.enemy as FormId].name}` : `${FORMS[fm.ally as FormId].name} 被克`) : '';
+    if (clashLine) this.time.delayedCall(900, () => this.showBanner(clashLine, 800));
+    this.time.delayedCall(clashLine ? 1500 : 700, () => this.startRound());
   }
 
   update(): void {
@@ -256,6 +266,27 @@ export class BattleScene extends Phaser.Scene {
     const pg = this.add.graphics().setDepth(251);
     titlePlaque(pg, W / 2, T + 5, 76, 20);
     this.roundText = text(this, W / 2, T + 8, '', { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 }).setDepth(252);
+  }
+
+  // 双方阵法：对阵栏下面两头各一块小牌，克住对面的那边加一枚「克」字印
+  private drawForms(ally: FormId, enemy: FormId | null, c: number): void {
+    const y = SAFE_TOP + TOP_H + 10;
+    const tag = (x: number, align: 'left' | 'right', label: string, win: boolean, side: number) => {
+      const w = textWidth(label) + 12;
+      const lx = align === 'left' ? x : x - w;
+      const g = this.add.graphics().setDepth(240);
+      g.fillStyle(0x0a0604, 0.62).fillRect(lx, y, w, 18);
+      g.fillStyle(side).fillRect(lx, y + 17, w, 1);
+      text(this, lx + w / 2, y + 2, label, { align: 'center', color: win ? 0xffe070 : 0xfbefd0, stroke: 0x000000 }).setDepth(241);
+      if (win) {
+        const sx = align === 'left' ? lx + w + 3 : lx - 21;
+        g.fillStyle(0x3a0804).fillRect(sx, y, 18, 18);
+        g.fillStyle(0xc8301c).fillRect(sx + 1, y + 1, 16, 16);
+        text(this, sx + 9, y + 2, '克', { align: 'center', color: 0xfff0c0 }).setDepth(241);
+      }
+    };
+    tag(8, 'left', enemy ? FORMS[enemy].name : '未列阵', c === -1, 0xd8402a);
+    tag(W - 8, 'right', FORMS[ally].name, c === 1, UI.gold);
   }
 
   // 行动顺序：按速度从快到慢一排头像（金框我方、红框敌方），正在出手的那个抬起来

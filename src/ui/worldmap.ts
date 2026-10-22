@@ -8,6 +8,7 @@ import { PAPER, paperTex, sealBox, titlePlaque, woodFrame } from '../art/chrome'
 import { findPath, heroVariant, questDestination } from '../game/state';
 import { store } from '../game/store';
 import { fogOf, levelRange, worldLayout, worldRoads, worldSize } from '../game/worldmap';
+import { badgeCount, badgeTotal, hasBadge } from '../game/badges';
 import { Button, H, SAFE_TOP, W, sfx, text, textWidth } from './widgets';
 
 const CW = 66;
@@ -152,6 +153,19 @@ export function worldMap(scene: Phaser.Scene, onGo: (dest: string) => void): voi
     }
     map.add(bg);
     map.add(text(scene, x, y + 10, label, { align: 'center', color: lc }));
+    // 这里的印：找到了是一枚朱红小印，没找到是一圈空框
+    if (!dim) {
+      const sg = scene.add.graphics();
+      const bx = Math.round(x - lw / 2 - 9);
+      if (hasBadge(s, id)) {
+        sg.fillStyle(0x3a0804).fillRect(bx, y + 12, 8, 8);
+        sg.fillStyle(0xc8301c).fillRect(bx + 1, y + 13, 6, 6);
+        sg.fillStyle(0xfff0c0).fillRect(bx + 3, y + 15, 2, 2);
+      } else {
+        sg.lineStyle(1, 0xb8a07c).strokeRect(bx + 0.5, y + 12.5, 7, 7);
+      }
+      map.add(sg);
+    }
     if (lv) map.add(text(scene, x, y + 24, `${lv[0]}级`, { align: 'center', color: lv[0] > s.player.level + 3 ? 0xb42c18 : 0x9a8460 }));
   }
 
@@ -200,7 +214,8 @@ export function worldMap(scene: Phaser.Scene, onGo: (dest: string) => void): voi
   sealBox(cg, W - 36, SAFE_TOP + 8, 26);
   root.add([cg, text(scene, W - 23, SAFE_TOP + 14, '×', { align: 'center', color: 0xfff0c0 })]);
   const seenN = Object.values(fog).filter((f) => f === 'seen').length;
-  root.add(text(scene, 10, SAFE_TOP + 14, `已到 ${seenN}/${Object.keys(fog).length}`, { color: 0xc8b08a }));
+  root.add(text(scene, 10, SAFE_TOP + 6, `已到 ${seenN}/${Object.keys(fog).length}`, { color: 0xc8b08a }));
+  root.add(text(scene, 10, SAFE_TOP + 22, `印 ${badgeCount(s)}/${badgeTotal()}`, { color: 0xe07050 }));
 
   // 底部：详情卡（默认显示当前位置）
   const info = scene.add.container(0, 0);
@@ -227,7 +242,8 @@ export function worldMap(scene: Phaser.Scene, onGo: (dest: string) => void): voi
     const who = f === 'seen' ? loc.npcs.map((n) => npcs[n]?.name).filter(Boolean).slice(0, 4).join('、') : '';
     const line2 = id === s.location ? '你就在这里' : f === 'near' ? '去过的地方旁边，走过去看看' : who ? `这里有：${who}` : '';
     info.add(text(scene, 18, y + 32, line2, { color: 0x6a5236 }));
-    if (id === dest) info.add(text(scene, 18, y + 50, '任务要去的地方', { color: 0xb07800 }));
+    if (f === 'seen') info.add(text(scene, 18, y + 50, hasBadge(s, id) ? '这里的印已经找到了' : '这里的印还没找到——地上留神看', { color: hasBadge(s, id) ? 0x8c1a0c : 0x9a8460 }));
+    if (id === dest) info.add(text(scene, W - 18, y + 58, '任务地点', { align: 'right', color: 0xb07800 }));
     if (id !== s.location) {
       const path = findPath(s.location, id);
       if (path) info.add(new Button(scene, W - 96, y + 22, 80, 30, `前往 ${path.length - 1}步`, () => {

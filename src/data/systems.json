@@ -403,10 +403,7 @@
   "sect": {
     "_src": "教派34级开放、按声望/活力/人数排名【实锤】；单机版加入NPC教派；四个教派的名字、职位、每天任务、加成【推定】",
     "minLevel": 34,
-    "tasksPerDay": 5,
-    "vigorCost": 10,
-    "vigorPerLevel": 3,
-    "sects": [
+                "sects": [
       {
         "id": "qinglong",
         "name": "青龙会",
@@ -468,8 +465,8 @@
       33000
     ],
     "rep": [
-      20,
-      40
+      60,
+      100
     ],
     "killCount": [
       5,

@@ -16,10 +16,14 @@ export interface P5State {
   supply: number;
   // 生活技能
   life: LifeState;
+  // 阵法
+  formation: string;
+  // 找到的徽章（地点 → 1）
+  badges: Record<string, number>;
 }
 
 export function p5Defaults(): P5State {
-  return { favor: {}, chatDay: {}, gifts: {}, tierGot: {}, journey: { cooldown: 1, seen: {} }, supply: 0, life: lifeDefaults() };
+  return { favor: {}, chatDay: {}, gifts: {}, tierGot: {}, journey: { cooldown: 1, seen: {} }, supply: 0, life: lifeDefaults(), formation: 'changshe', badges: {} };
 }
 
 export const TIERS: { at: number; name: string }[] = [
