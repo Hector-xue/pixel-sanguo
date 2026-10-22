@@ -1,10 +1,13 @@
-// 横版战斗界面：敌人在左、我方在右；七个菱形指令；"角色名-出招(60)"倒计时；战果总结
+// 横版战斗：上面是当地的真实场景（地面摆设、晨昏光色），敌人在左、我方在右，顶上一条行动顺序；
+// 下面一块宣纸指令盘——下令时是当前角色的立绘和指令，出招时滚战报；招式名用朱漆题签浮现；战果是一张盖了印的卷轴。
 import Phaser from 'phaser';
 import { setChrome, syncHeight } from '../ui/screen';
 import { C, hex } from '../art/palette';
-import { sceneTex, unitTex } from '../art/textures';
+import { avatarTex, bustTex, iconTex, propTex, sceneTex, uiIconTex, unitTex } from '../art/textures';
 import { BX, FEET_Y, UNIT_H, UNIT_W, lookFor } from '../art/units';
 import type { Pose, Weapon } from '../art/units';
+import { GLOW, OUTDOOR_DARK, daypart, layoutProps } from '../art/props';
+import type { PropKind } from '../art/props';
 import { balance, items, locations, skills } from '../data';
 import { skillMp } from '../core/formulas';
 import {
@@ -18,35 +21,38 @@ import { STATUS_NAMES } from '../core/types';
 import { finishBattle } from '../game/encounter';
 import type { BattleSummary } from '../game/encounter';
 import { store } from '../game/store';
-import { ChatBox } from '../ui/chat';
-import { Button, H, W, frame, goldFrame, hit, sfx, text } from '../ui/widgets';
-import { UI, drawDiamond, groundTex, slateTex, stoneTex, vgrad } from '../art/chrome';
+import { Button, H, SAFE_TOP, W, drawBar, sfx, text, textWidth, wrap } from '../ui/widgets';
+import { PAPER, UI, paperTex, titlePlaque, vgrad, woodFrame } from '../art/chrome';
 
-const FIELD_Y = 62;
-const BACKDROP_H = 72;
-// 原版按 640 高排；屏幕更长时多出来的高度八成给战场（人物和菱形菜单一起往下挪一半，站在沙地中间），剩下的给聊天区
-let FIELD_H = 342;
-let DY = 0;
-let BAR_Y = FIELD_Y + FIELD_H;
-let CHAT_Y = BAR_Y + 26;
+// 版面：战场从屏幕最顶铺到指令盘（顶上状态栏、挖孔那一截只露天空），对阵栏是压在天空上的一条墨色半透明带
+const TOP_H = 30;
+const FIELD_Y = 0;
+const HORIZON = 0.3;
+let PANEL_H = 160;
+let PANEL_Y = 480;
+let FIELD_H = 446;
+let G_TOP = 220;
+let G_BOT = 450;
 function layout(): void {
-  const grow = Math.round(Math.max(0, H - 640) * 0.8);
-  FIELD_H = 342 + grow;
-  DY = Math.round(grow / 2);
-  BAR_Y = FIELD_Y + FIELD_H;
-  CHAT_Y = BAR_Y + 26;
+  PANEL_H = Math.max(150, Math.min(178, Math.round(H * 0.21)));
+  PANEL_Y = H - PANEL_H;
+  FIELD_H = PANEL_Y - FIELD_Y;
+  G_TOP = Math.max(FIELD_Y + Math.round(FIELD_H * HORIZON) + 52, SAFE_TOP + TOP_H + 100);
+  G_BOT = PANEL_Y - 26;
 }
-const ENEMY_SLOTS: Record<0 | 1, [number, number][]> = {
-  0: [[96, 232], [96, 304], [96, 376]],
-  1: [[40, 268], [40, 340]],
-};
+// 站位：敌人两列（前排 x=100、后排 x=44），我方站右边；纵向按人数在地面上均匀排开
+const ROW_X: Record<0 | 1, number> = { 0: 120, 1: 50 };
+const SPREAD: Record<number, number[]> = { 1: [0.5], 2: [0.22, 0.78], 3: [0, 0.5, 1] };
 // 主角、出战副将、雇来的队友
-const ALLY_SLOTS: [number, number][] = [[306, 282], [262, 366], [270, 210]];
+const ALLY_SLOTS: [number, number][] = [[302, 0.48], [244, 0.92], [250, 0.06]];
+const gy = (v: number) => Math.round(G_TOP + v * (G_BOT - G_TOP));
 
 interface View {
   id: string;
   spr: Phaser.GameObjects.Image;
+  shadow: Phaser.GameObjects.Ellipse;
   bars: Phaser.GameObjects.Graphics;
+  plate: Phaser.GameObjects.Graphics;
   name: Phaser.GameObjects.Text;
   badge: Phaser.GameObjects.Text;
   zone: Phaser.GameObjects.Zone;
@@ -63,18 +69,20 @@ interface View {
   weapon: Weapon;
 }
 
-const MENU: { type: CommandType; label: string; x: number; y: number }[] = [
-  { type: 'attack', label: '攻击', x: 162, y: 176 },
-  { type: 'capture', label: '招降', x: 162, y: 240 },
-  { type: 'summon', label: '招将', x: 162, y: 304 },
-  { type: 'defend', label: '防御', x: 162, y: 368 },
-  { type: 'skill', label: '技能', x: 214, y: 208 },
-  { type: 'item', label: '物品', x: 214, y: 272 },
-  { type: 'flee', label: '逃跑', x: 214, y: 336 },
+// 指令盘：攻击一个大钮，其余六个小钮两行
+const SMALL: { type: CommandType; label: string; icon: string }[] = [
+  { type: 'skill', label: '技能', icon: 'scroll' },
+  { type: 'item', label: '物品', icon: 'bag' },
+  { type: 'defend', label: '防御', icon: 'helmet' },
+  { type: 'capture', label: '招降', icon: 'flag' },
+  { type: 'summon', label: '招将', icon: 'heart' },
+  { type: 'flee', label: '逃跑', icon: 'map' },
 ];
 
+// 战场上人物放大两倍（像素整倍放大，边缘还是硬的）
+const SC = 2;
 // 贴图中心和身体中线差几个像素，朝左朝右要往不同方向补
-const OFF = BX - UNIT_W / 2;
+const OFF = (BX - UNIT_W / 2) * SC;
 
 // 这几种兵器的普攻打远程，其余跑过去近身打
 const RANGED = new Set<Weapon>(['staff', 'bow', 'feather']);
@@ -82,36 +90,46 @@ const RANGED = new Set<Weapon>(['staff', 'bow', 'feather']);
 const SKILL_COLOR: Record<string, number> = {
   wulei: C.yellow, wugu: C.lime, hufeng: C.sky, yaohuo: C.orange, gujin: C.gold, andu: C.white, chenhuo: C.pink, simian: C.yellow, huadi: C.lightBrown,
 };
+// 战场上不摆的大件（挡人）
+const BIG = new Set<PropKind>(['house', 'hut', 'tent', 'stall', 'willow', 'tree', 'blossom', 'pine', 'bamboo', 'deadtree', 'banner', 'boat', 'cart', 'well', 'lion']);
 
 const wait = (scene: Phaser.Scene, ms: number) => new Promise<void>((r) => scene.time.delayedCall(ms, r));
 
-// 人物贴图按站位高度排前后（下面的盖住上面的），压在 100～199 之间：名字血条在 200，菜单在 250 以上
+// 人物贴图按站位高度排前后（下面的盖住上面的），压在 100～199 之间：名字血条在 200，指令盘在 260 以上
 function spriteDepth(hy: number): number {
-  return 100 + Math.min(99, hy / 5);
+  return 100 + Math.min(99, hy / 8);
 }
+
+type PanelMode = 'command' | 'target' | 'list' | 'log';
 
 export class BattleScene extends Phaser.Scene {
   private b!: Battle;
   private views = new Map<string, View>();
-  private banner!: Phaser.GameObjects.Text;
   private roundText!: Phaser.GameObjects.Text;
-  private prompt!: Phaser.GameObjects.Text;
-  private menu: Phaser.GameObjects.Container | null = null;
+  private banner: Phaser.GameObjects.Container | null = null;
+  private panel!: Phaser.GameObjects.Container;
   private popup: Phaser.GameObjects.Container | null = null;
+  private order!: Phaser.GameObjects.Container;
+  private marker!: Phaser.GameObjects.Graphics;
+  // 正在下令的人头顶的箭头（压在人上面）和脚下的光圈（压在人下面）
+  private cueTop!: Phaser.GameObjects.Container;
+  private cueGround!: Phaser.GameObjects.Container;
   private autoBtn!: Button;
-  private backBtn!: Button;
   private auto = false;
+  private current: BUnit | null = null;
   private queue: BUnit[] = [];
   private cmds: Command[] = [];
   private reserved: Record<string, number> = {};
   private countdown: Phaser.Time.TimerEvent | null = null;
   private seconds = 0;
+  private secText: Phaser.GameObjects.Text | null = null;
   private selecting: ((id: string) => void) | null = null;
   private candidates = new Set<string>();
   private selected: string | null = null;
-  private chat!: ChatBox;
   private lunged: View | null = null;
   private fx!: Phaser.GameObjects.Container;
+  private logLines: string[] = [];
+  private mode: PanelMode = 'log';
   // 回放录像：按录下来的随机数状态和指令重算
   private replay: ReplayRecord | null = null;
   private replayAt = 0;
@@ -128,114 +146,242 @@ export class BattleScene extends Phaser.Scene {
     this.b = data.replay ? createBattle(JSON.parse(JSON.stringify(data.replay.init))) : data.battle!;
     this.views.clear();
     this.auto = false;
-    this.menu = null;
     this.popup = null;
+    this.banner = null;
     this.lunged = null;
     this.selecting = null;
+    this.current = null;
+    this.logLines = [];
+    this.mode = 'log';
   }
 
   create(): void {
     syncHeight(this.game);
     layout();
-    setChrome('#0a0604');
+    setChrome('#160c06');
     const s = store.save;
     const loc = locations[s.location];
-    // 顶栏远景条 + 地点名（与主界面一致）
-    this.add.image(0, -36, sceneTex(this, loc.art, 180, 40, 0.62)).setOrigin(0).setScale(2).setCrop(0, 18, 180, 12);
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.35).fillRect(0, 0, W, 24);
-    // 对阵栏：原版那条青色渐变
-    g.fillStyle(0x000000).fillRect(0, 23, W, 1);
-    vgrad(g, 0, 24, W, 22, [UI.tealHi, UI.teal, UI.tealLo]);
-    g.fillStyle(0xc8f0f0).fillRect(0, 24, W, 1);
-    // 招式条：深紫渐变
-    vgrad(g, 0, 46, W, 16, [0x3a2a6a, 0x221640, 0x140c28]);
-    g.fillStyle(0x000000).fillRect(0, 61, W, 1);
-    text(this, W / 2, 5, loc.name, { align: 'center', color: UI.white, stroke: 0x000000 });
-    this.roundText = text(this, W - 6, 5, '', { align: 'right', color: UI.cream, stroke: 0x000000 });
-    text(this, 8, 29, this.b.title, { color: UI.red, stroke: 0xffffff });
-    text(this, W / 2, 29, '对阵', { align: 'center', color: 0x2850ff, stroke: 0xffffff });
-    text(this, W - 8, 29, s.player.name, { align: 'right', color: UI.red, stroke: 0xffffff });
-    this.banner = text(this, W / 2, 48, '◀══ 准备战斗 ══▶', { align: 'center', color: UI.white, stroke: 0x000000 });
-    // 战场：上面一条远景画，下面整片沙地
-    this.add.image(0, FIELD_Y, sceneTex(this, loc.art, 180, BACKDROP_H / 2, 0.86)).setOrigin(0).setScale(2);
-    this.add.image(0, FIELD_Y + BACKDROP_H - 4, groundTex(this, W, FIELD_H - BACKDROP_H + 4, loc.art.length)).setOrigin(0);
-    for (const u of this.b.units) this.makeView(u);
+    this.drawField(loc.art, s.location);
+    this.drawTopBar(s.player.name);
+    this.order = this.add.container(0, 0).setDepth(240);
+    for (const u of this.b.units) this.makeView(u, true);
     this.fx = this.add.container(0, 0).setDepth(50);
+    this.marker = this.add.graphics().setDepth(210).setVisible(false);
+    this.cueTop = this.add.container(0, 0).setDepth(210);
+    this.cueGround = this.add.container(0, 0).setDepth(60);
+    this.tweens.add({ targets: this.marker, y: 3, duration: 260, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
 
-    // 底栏：返回 / 黑底出招框 / 自动（原版都是灰色金属钮）
-    this.add.image(0, BAR_Y, slateTex(this, W, 26)).setOrigin(0);
-    const bg = this.add.graphics();
-    bg.fillStyle(0x000000).fillRect(0, BAR_Y, W, 1);
-    bg.fillStyle(0xa0a0a8).fillRect(62, BAR_Y + 3, W - 124, 20);
-    bg.fillStyle(0x16161c).fillRect(63, BAR_Y + 4, W - 126, 18);
-    this.backBtn = new Button(this, 4, BAR_Y + 3, 52, 20, '返回', () => this.back(), { style: 'steel' });
-    this.backBtn.setVisible(false);
-    this.prompt = text(this, W / 2, BAR_Y + 7, '', { align: 'center', color: UI.white });
-    this.autoBtn = new Button(this, W - 56, BAR_Y + 3, 52, 20, '自动', () => this.toggleAuto(), { style: 'steel' });
-    this.chat = new ChatBox(this, 0, CHAT_Y, W, H - CHAT_Y);
+    // 指令盘：漆木框 + 宣纸
+    const pg = this.add.graphics().setDepth(258);
+    pg.fillStyle(0x000000, 0.4).fillRect(0, PANEL_Y - 3, W, 3);
+    woodFrame(pg, 0, PANEL_Y, W, PANEL_H);
+    this.add.image(6, PANEL_Y + 6, paperTex(this, W - 12, PANEL_H - 12)).setOrigin(0).setDepth(259);
+    this.panel = this.add.container(0, 0).setDepth(260);
+    this.autoBtn = new Button(this, W - 68, H - 36, 56, 24, '自动', () => this.toggleAuto(), { style: 'tan' }).setDepth(270);
     if (this.replay) {
       this.autoBtn.setVisible(false);
-      this.prompt.setText('战斗录像');
-      new Button(this, 4, BAR_Y + 3, 52, 20, '退出', () => this.scene.start('Main'), { style: 'steel' });
-      const sp = new Button(this, W - 56, BAR_Y + 3, 52, 20, '快进', () => {
+      new Button(this, W - 132, H - 36, 56, 24, '退出', () => this.scene.start('Main'), { style: 'tan' }).setDepth(270);
+      const sp = new Button(this, W - 68, H - 36, 56, 24, '快进', () => {
         this.speed = this.speed === 1 ? 2.5 : 1;
         sp.setCaption(this.speed === 1 ? '快进' : '正常');
-      }, { style: 'steel' });
+      }, { style: 'red' }).setDepth(270);
+      this.addLog('—— 战斗录像 ——');
     }
-    this.time.delayedCall(300, () => this.startRound());
+    this.addLog(`${loc.name}：遭遇${this.b.title}`);
+    this.renderLog();
+    this.cameras.main.fadeIn(220, 10, 6, 4);
+    this.showBanner(`遭遇 ${this.b.title}`, 900);
+    this.time.delayedCall(700, () => this.startRound());
+  }
+
+  update(): void {
+    // 影子跟着人走（冲上去打、逃跑时也一样）
+    for (const v of this.views.values()) {
+      v.shadow.setPosition(v.spr.x - (v.flip ? OFF : -OFF), v.spr.y + 1);
+      v.shadow.setAlpha(v.spr.alpha * 0.3);
+    }
+  }
+
+  // ===== 场景与顶栏 =====
+  private drawField(art: string, key: string): void {
+    const sh = Math.ceil(FIELD_H / 2);
+    this.add.image(0, FIELD_Y, sceneTex(this, art, 180, sh, HORIZON)).setOrigin(0).setScale(2);
+    const hz = FIELD_Y + Math.round(FIELD_H * HORIZON);
+    // 站位附近不摆东西；大件只摆在人物后面（靠地平线），中间留给出招
+    const keep: [number, number][] = [];
+    for (const x of [ROW_X[0], ROW_X[1], 244, 302]) for (let v = 0; v <= 1; v += 0.25) keep.push([x, gy(v)]);
+    const props = layoutProps(art, key, W, hz + 6, PANEL_Y - 4, keep).filter((p) => (BIG.has(p.kind) ? p.y < G_TOP - 18 : !(p.x > 130 && p.x < 230 && p.y > G_TOP)));
+    const dp = daypart();
+    const dark = OUTDOOR_DARK.has(art);
+    const glows: [number, number][] = [];
+    for (const p of props) {
+      const img = this.add.image(p.x, p.y, propTex(this, p.kind, p.seed)).setOrigin(0.5, 1).setDepth(p.y < G_TOP ? 20 + p.y / 100 : spriteDepth(p.y));
+      if (p.x > W / 2 && p.kind !== 'sign') img.setFlipX(true);
+      const gl = GLOW[p.kind];
+      if (gl) for (const [gx0, gy0] of gl) glows.push([Math.round(p.x - img.width / 2 + (img.flipX ? img.width - gx0 : gx0)), Math.round(p.y - img.height + gy0)]);
+    }
+    // 时辰滤镜与暖光，和主界面一样
+    const tint: Record<string, number | null> = { dawn: 0xffe4c8, day: null, dusk: 0xffccb0, night: 0x6a74b0 };
+    const tt = dark ? null : tint[dp];
+    if (tt) this.add.rectangle(0, FIELD_Y, W, FIELD_H, tt).setOrigin(0).setBlendMode(Phaser.BlendModes.MULTIPLY).setDepth(205);
+    if (dark || dp === 'night' || dp === 'dusk') for (const [x, y] of glows) {
+      const c = this.add.circle(x, y, 16, 0xffa040, 0.22).setBlendMode(Phaser.BlendModes.ADD).setDepth(206);
+      this.tweens.add({ targets: c, alpha: { from: 0.6, to: 1 }, duration: 700 + Math.random() * 300, yoyo: true, repeat: -1 });
+    }
+    // 两边和下沿压暗一点，视线往中间收，也接住下面的指令盘
+    const vg = this.add.graphics().setDepth(207);
+    for (let k = 0; k < 6; k++) {
+      vg.fillStyle(0x000000, 0.06).fillRect(0, FIELD_Y, 4 + k * 4, FIELD_H).fillRect(W - 4 - k * 4, FIELD_Y, 4 + k * 4, FIELD_H);
+      vg.fillStyle(0x000000, 0.07).fillRect(0, PANEL_Y - 4 - k * 4, W, 4 + k * 4);
+    }
+  }
+
+  private drawTopBar(me: string): void {
+    const T = SAFE_TOP;
+    const g = this.add.graphics().setDepth(250);
+    // 墨色带上下两头渐淡，天空从后面透出来
+    g.fillStyle(0x0a0604, 0.5).fillRect(0, T + 2, W, TOP_H - 4);
+    g.fillStyle(0x0a0604, 0.3).fillRect(0, T, W, 2).fillRect(0, T + TOP_H - 2, W, 2);
+    g.fillStyle(UI.gold, 0.5).fillRect(0, T + TOP_H - 1, W, 1);
+    // 两边各一面小旗：敌方朱红、我方金
+    const flag = (x: number, color: number, dir: 1 | -1) => {
+      g.fillStyle(0x000000).fillRect(x - 1, T + 4, 3, 22);
+      g.fillStyle(0xc8a060).fillRect(x, T + 5, 1, 20);
+      for (let j = 0; j < 12; j++) g.fillStyle(color).fillRect(dir > 0 ? x + 2 : x - 2 - (12 - Math.abs(j - 6)), T + 6 + j, 12 - Math.abs(j - 6), 1);
+    };
+    flag(10, 0xc8301c, 1);
+    flag(W - 11, UI.gold, -1);
+    text(this, 30, T + 8, this.b.title, { color: 0xffb0a0, stroke: 0x000000 }).setDepth(251);
+    text(this, W - 30, T + 8, me, { align: 'right', color: UI.cream, stroke: 0x000000 }).setDepth(251);
+    const pg = this.add.graphics().setDepth(251);
+    titlePlaque(pg, W / 2, T + 5, 76, 20);
+    this.roundText = text(this, W / 2, T + 8, '', { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 }).setDepth(252);
+  }
+
+  // 行动顺序：按速度从快到慢一排头像（金框我方、红框敌方），正在出手的那个抬起来
+  private drawOrder(active?: string): void {
+    this.order.removeAll(true);
+    const list = predictOrder(this.b).filter((u) => u.alive);
+    const size = 24;
+    const gap = 3;
+    const total = list.length * (size + gap) - gap;
+    let x = Math.round((W - total) / 2);
+    const y = SAFE_TOP + TOP_H + 6;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0a0604, 0.55).fillRect(x - 6, y - 3, total + 12, size + 6);
+    bg.fillStyle(0x0a0604, 0.55).fillRect(x - 5, y - 4, total + 10, 1).fillRect(x - 5, y + size + 3, total + 10, 1);
+    this.order.add(bg);
+    for (const u of list) {
+      const on = u.id === active;
+      const yy = on ? y - 3 : y;
+      const fg = this.add.graphics();
+      const edge = u.side === 'ally' ? UI.gold : 0xd8402a;
+      fg.fillStyle(0x000000).fillRect(x - 1, yy - 1, size + 2, size + 2);
+      fg.fillStyle(on ? 0xfff0a0 : edge).fillRect(x, yy, size, size);
+      fg.fillStyle(u.side === 'ally' ? 0x3a2410 : 0x3a1410).fillRect(x + 1, yy + 1, size - 2, size - 2);
+      const av = this.add.image(x, yy, avatarTex(this, u.look, u.variant ?? 0)).setOrigin(0).setCrop(1, 1, 22, 22);
+      this.order.add([fg, av]);
+      if (controlOf(u)) this.order.add(this.add.rectangle(x, yy + size - 6, size, 6, 0x000000, 0.6).setOrigin(0));
+      x += size + gap;
+    }
+  }
+
+  // 招式名：朱漆题签从战场上方浮出来
+  private showBanner(label: string, hold = 0): void {
+    this.banner?.destroy();
+    const c = this.add.container(W / 2, SAFE_TOP + TOP_H + 44).setDepth(245);
+    const g = this.add.graphics();
+    const tw = Math.max(80, textWidth(label) + 34);
+    titlePlaque(g, 0, 0, tw, 22);
+    c.add([g, text(this, 0, 4, label, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
+    c.setAlpha(0).setScale(0.9, 1);
+    this.tweens.add({ targets: c, alpha: 1, scaleX: 1, duration: 120, ease: 'Quad.easeOut' });
+    this.banner = c;
+    if (hold) this.time.delayedCall(hold, () => {
+      if (this.banner !== c) return;
+      this.tweens.add({ targets: c, alpha: 0, duration: 200, onComplete: () => c.destroy() });
+      this.banner = null;
+    });
+  }
+
+  private hideBanner(): void {
+    const c = this.banner;
+    if (!c) return;
+    this.banner = null;
+    this.tweens.add({ targets: c, alpha: 0, duration: 160, onComplete: () => c.destroy() });
   }
 
   // ===== 单位显示 =====
-  private makeView(u: BUnit): View {
-    let hx: number;
-    let hy: number;
+  private slotOf(u: BUnit): [number, number] {
     if (u.side === 'enemy') {
       const same = this.b.units.filter((x) => x.side === 'enemy' && x.row === u.row);
-      [hx, hy] = ENEMY_SLOTS[u.row][Math.min(same.indexOf(u), ENEMY_SLOTS[u.row].length - 1)];
-    } else {
-      [hx, hy] = ALLY_SLOTS[u.kind === 'player' ? 0 : u.kind === 'mirror' ? 2 : 1];
+      const sp = SPREAD[Math.min(3, same.length)] ?? SPREAD[3];
+      return [ROW_X[u.row], gy(sp[Math.min(same.indexOf(u), sp.length - 1)])];
     }
-    hy += DY;
+    const [x, v] = ALLY_SLOTS[u.kind === 'player' ? 0 : u.kind === 'mirror' ? 2 : 1];
+    return [x, gy(v)];
+  }
+
+  private makeView(u: BUnit, entering = false): View {
+    const [hx, hy] = this.slotOf(u);
     const flip = u.side === 'enemy';
-    const spr = this.add.image(hx + (flip ? OFF : -OFF), hy, unitTex(this, u.look, u.variant ?? 0, u.alive ? 'idle' : 'down')).setOrigin(0.5, FEET_Y / UNIT_H).setFlipX(flip).setDepth(spriteDepth(hy));
+    const shadow = this.add.ellipse(hx, hy + 1, 46, 10, 0x000000, 0.3).setDepth(spriteDepth(hy) - 0.5);
+    const spr = this.add.image(hx + (flip ? OFF : -OFF), hy, unitTex(this, u.look, u.variant ?? 0, u.alive ? 'idle' : 'down')).setOrigin(0.5, FEET_Y / UNIT_H).setScale(SC).setFlipX(flip).setDepth(spriteDepth(hy));
     const bars = this.add.graphics().setDepth(200);
-    // 原版战场上不写名字，名字在选目标框里
-    const name = text(this, hx, hy - 7, `${u.name}`, { align: 'center', color: u.side === 'enemy' ? C.lightPaper : C.yellow, stroke: C.ink }).setDepth(200).setVisible(false);
-    const badge = text(this, hx, hy - 76, '', { align: 'center', color: C.yellow, stroke: C.ink }).setDepth(201);
-    const zone = this.add.zone(hx - 24, hy - 60, 48, 76).setOrigin(0).setInteractive().setDepth(300);
+    // 名牌：脚下一块暗色小牌，写名字和等级
+    const label = `${u.name} ${u.level}级`;
+    const nw = textWidth(label) + 10;
+    const plate = this.add.graphics().setDepth(199);
+    plate.fillStyle(0x0a0604, 0.66).fillRect(hx - nw / 2, hy + 5, nw, 14).fillRect(hx - nw / 2 + 1, hy + 4, nw - 2, 16);
+    plate.fillStyle(u.side === 'enemy' ? 0xb42c18 : UI.goldLo).fillRect(hx - nw / 2 + 1, hy + 19, nw - 2, 1);
+    const name = text(this, hx, hy + 5, label, { align: 'center', color: u.side === 'enemy' ? (u.historic ? UI.yellow : 0xfbe0d0) : UI.cream, stroke: 0x000000 }).setDepth(200);
+    const badge = text(this, hx, hy - 122, '', { align: 'center', color: C.yellow, stroke: C.ink }).setDepth(201);
+    const zone = this.add.zone(hx - 30, hy - 104, 60, 128).setOrigin(0).setInteractive().setDepth(230);
     zone.on('pointerup', () => this.selecting && this.candidates.has(u.id) && this.selecting(u.id));
-    const v: View = { id: u.id, spr, bars, name, badge, zone, hx, hy, hp: u.hp, mp: u.mp, maxHp: u.maxHp, maxMp: u.maxMp, dead: !u.alive, look: u.look, variant: u.variant ?? 0, flip, weapon: lookFor(u.look, u.variant ?? 0).weapon };
+    const v: View = { id: u.id, spr, shadow, bars, plate, name, badge, zone, hx, hy, hp: u.hp, mp: u.mp, maxHp: u.maxHp, maxMp: u.maxMp, dead: !u.alive, look: u.look, variant: u.variant ?? 0, flip, weapon: lookFor(u.look, u.variant ?? 0).weapon };
     this.views.set(u.id, v);
     if (v.dead) spr.setAlpha(0.6);
-    else this.tweens.add({ targets: spr, y: hy + 1, duration: 500 + Math.random() * 200, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [1] });
+    else {
+      // 待机：两帧交替，各人节奏不同
+      let f = false;
+      this.time.addEvent({ delay: 480 + Math.random() * 260, loop: true, callback: () => {
+        if (v.dead || this.lunged === v || !spr.active) return;
+        const k = spr.texture.key;
+        if (!k.endsWith('idle') && !k.endsWith('idle2')) return;
+        f = !f;
+        this.pose(v, f ? 'idle2' : 'idle');
+      } });
+    }
+    if (entering) {
+      // 开场：两边从画外走进来
+      const home = spr.x;
+      spr.x += flip ? -140 : 140;
+      this.tweens.add({ targets: spr, x: home, duration: 420, delay: Math.random() * 120, ease: 'Quad.easeOut' });
+    }
     this.drawBars(v);
     return v;
   }
 
   private drawBars(v: View): void {
-    v.bars.clear();
+    const g = v.bars;
+    g.clear();
     if (v.dead) return;
-    // 原版血条：白边框，上红下蓝两根
-    const x = v.hx - 21;
-    const y = v.hy - 60;
-    const g2 = v.bars;
+    // 头顶血条：墨框，上红下蓝
+    const x = v.hx - 18;
+    const y = v.hy - 106;
     const hp = Math.max(0, Math.min(1, v.hp / Math.max(1, v.maxHp)));
     const mp = Math.max(0, Math.min(1, v.mp / Math.max(1, v.maxMp)));
-    g2.fillStyle(0xffffff).fillRect(x, y, 42, 11);
-    g2.fillStyle(0x000000).fillRect(x + 1, y + 1, 40, 9);
-    g2.fillStyle(0x500808).fillRect(x + 1, y + 1, 40, 4);
-    g2.fillStyle(0xf01818).fillRect(x + 1, y + 1, Math.round(40 * hp), 4);
-    g2.fillStyle(0x0a1050).fillRect(x + 1, y + 6, 40, 4);
-    g2.fillStyle(0x2c50ff).fillRect(x + 1, y + 6, Math.round(40 * mp), 4);
+    g.fillStyle(0x0a0604, 0.9).fillRect(x - 1, y - 1, 38, 9);
+    g.fillStyle(0x4a0806).fillRect(x, y, 36, 4);
+    g.fillStyle(hp < 0.3 ? 0xff5030 : 0xe82818).fillRect(x, y, Math.round(36 * hp), 4);
+    g.fillStyle(0xffffff, 0.35).fillRect(x, y, Math.round(36 * hp), 1);
+    g.fillStyle(0x0a1050).fillRect(x, y + 5, 36, 2);
+    g.fillStyle(0x4a80ff).fillRect(x, y + 5, Math.round(36 * mp), 2);
+    // 可选的目标：脚下一圈金线；选中的：朱红圈
     if (this.selected === v.id) {
-      // 原版选中目标：旁边一枚白边红三角指着他
-      const tx = v.flip ? v.hx + 20 : v.hx - 20;
-      const d = v.flip ? -1 : 1;
-      g2.fillStyle(0xffffff).fillTriangle(tx - d * 9, v.hy - 36, tx - d * 9, v.hy - 18, tx + d * 2, v.hy - 27);
-      g2.fillStyle(0xf01010).fillTriangle(tx - d * 7, v.hy - 33, tx - d * 7, v.hy - 21, tx, v.hy - 27);
+      g.lineStyle(2, 0xf04020, 1).strokeEllipse(v.hx, v.hy + 1, 56, 14);
     } else if (this.candidates.has(v.id)) {
-      g2.fillStyle(0xffffff, 0.7).fillRect(v.hx - 12, v.hy + 2, 24, 1);
+      g.lineStyle(1, 0xffe080, 0.9).strokeEllipse(v.hx, v.hy + 1, 52, 12);
     }
   }
 
@@ -251,20 +397,63 @@ export class BattleScene extends Phaser.Scene {
     v.badge.setText(u.alive ? parts.join(' ') : '');
   }
 
+  // 飘字：先弹大再缩回、往上飘；暴击两倍大，带一下震屏
   private float(v: View, s: string, color: number, big = false): void {
-    const t = text(this, v.hx, v.hy - 72, s, { align: 'center', color, stroke: C.ink, scale: big ? 2 : 1 }).setDepth(400);
-    this.tweens.add({ targets: t, y: t.y - 18, duration: 600, ease: 'Quad.easeOut' });
-    this.tweens.add({ targets: t, alpha: 0, delay: 650, duration: 250, onComplete: () => t.destroy() });
+    const sc = big ? 3 : 2;
+    const t = text(this, v.hx, Math.max(SAFE_TOP + TOP_H + 64, v.hy - 120), s, { align: 'center', color, stroke: C.ink, scale: sc }).setDepth(400);
+    t.setScale(sc * 1.6);
+    this.tweens.add({ targets: t, scale: sc, duration: 140, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: t, y: t.y - 20, delay: 120, duration: 600, ease: 'Quad.easeOut' });
+    this.tweens.add({ targets: t, alpha: 0, delay: 700, duration: 250, onComplete: () => t.destroy() });
   }
 
   private setBanner(label: string): void {
-    this.banner.setText(`◀══ ${label} ══▶`);
+    this.showBanner(label);
+  }
+
+  // ===== 战报 =====
+  private nameOf(id?: string): string {
+    if (!id) return '';
+    return (unit(this.b, id) ?? this.b.reserve.find((r) => r.id === id))?.name ?? '';
+  }
+
+  private addLog(s: string): void {
+    this.logLines.push(s);
+    if (this.logLines.length > 60) this.logLines.shift();
+    if (this.mode === 'log') this.renderLog();
+  }
+
+  private appendLog(s: string): void {
+    if (!this.logLines.length) return this.addLog(s);
+    this.logLines[this.logLines.length - 1] += s;
+    if (this.mode === 'log') this.renderLog();
+  }
+
+  private renderLog(): void {
+    this.mode = 'log';
+    this.panel.removeAll(true);
+    const x = 16;
+    const top = PANEL_Y + 12;
+    const maxW = W - 32;
+    const room = Math.floor((H - 42 - top) / 16);
+    // 从最新一条往上排，放不下的就不显示；越旧越淡
+    const rows: string[] = [];
+    for (let i = this.logLines.length - 1; i >= 0 && rows.length < room; i--) {
+      const ls = wrap(this.logLines[i], maxW);
+      for (let k = ls.length - 1; k >= 0 && rows.length < room; k--) rows.unshift(ls[k]);
+    }
+    rows.forEach((r, i) => {
+      const age = rows.length - 1 - i;
+      this.panel.add(text(this, x, top + i * 16, r, { color: age === 0 ? PAPER.ink : age < 3 ? 0x6a5236 : 0x9a8460 }));
+    });
+    this.panel.add(text(this, 16, H - 32, this.replay ? '' : this.auto ? '自动战斗中……' : '', { color: 0xa0301c }));
   }
 
   // ===== 指令阶段 =====
   private startRound(): void {
     if (this.b.outcome) return void this.finish();
     this.roundText.setText(`第${this.b.round + 1}回合`);
+    this.drawOrder();
     this.cmds = [];
     this.reserved = {};
     if (this.replay) return void this.replayRound();
@@ -277,6 +466,7 @@ export class BattleScene extends Phaser.Scene {
   private nextCommander(): void {
     this.clearMenu();
     const u = this.queue.shift();
+    this.current = u ?? null;
     if (!u) return void this.resolve();
     if (this.auto) {
       this.cmds.push(autoCommand(this.b, u));
@@ -296,33 +486,71 @@ export class BattleScene extends Phaser.Scene {
     return Object.keys(this.b.items).filter((k) => items[k]?.cat === 'drug' && this.b.items[k] - (this.reserved[k] ?? 0) > 0);
   }
 
+  // 立绘小框：左边一块，下面写名字、血、蓝
+  private portrait(u: BUnit, x: number, y: number): void {
+    const g = this.add.graphics();
+    g.fillStyle(0x24140a).fillRect(x, y, 70, 78);
+    g.fillStyle(UI.gold).fillRect(x + 1, y + 1, 68, 76);
+    vgrad(g, x + 2, y + 2, 66, 74, u.side === 'ally' ? [0x6a4a2c, 0x3a2414] : [0x6a2c1c, 0x3a1410]);
+    this.panel.add(g);
+    const img = this.add.image(x + 3, y + 3, bustTex(this, u.look, u.variant ?? 0)).setOrigin(0);
+    if (u.side === 'enemy') img.setFlipX(true);
+    this.panel.add(img);
+    const st = controlOf(u);
+    this.panel.add(text(this, x, y + 82, u.name, { color: PAPER.ink }));
+    this.panel.add(text(this, x + 70, y + 82, `${u.level}级`, { align: 'right', color: 0x8a6a40 }));
+    const bg = this.add.graphics();
+    drawBar(bg, x, y + 98, 70, 7, u.hp / Math.max(1, u.maxHp), C.red, C.darkRed);
+    const mg = this.add.graphics();
+    drawBar(mg, x, y + 106, 70, 5, u.mp / Math.max(1, u.maxMp), C.lightBlue, C.navy);
+    this.panel.add([bg, mg]);
+    if (st) this.panel.add(text(this, x + 35, y + 60, STATUS_NAMES[st], { align: 'center', color: UI.yellow, stroke: 0x000000 }));
+  }
+
+  // 指令钮：上面小图标，下面两个字
+  private cmdButton(x: number, y: number, w: number, h: number, label: string, icon: string, enabled: boolean, fn: () => void): void {
+    const b = new Button(this, x, y, w, h, '', fn, { style: 'tan', disabled: !enabled });
+    this.panel.add(b);
+    this.panel.add(this.add.image(x + w / 2, y + 5, uiIconTex(this, icon)).setOrigin(0.5, 0).setAlpha(enabled ? 1 : 0.4));
+    this.panel.add(text(this, x + w / 2, y + 18, label, { align: 'center', color: enabled ? 0xfbefd0 : 0x6c6456 }));
+  }
+
   private showMenu(u: BUnit): void {
     this.clearMenu();
+    this.mode = 'command';
+    this.panel.removeAll(true);
     const avail = availableCommands(this.b, u);
     avail.item = this.itemsLeft().length > 0;
-    this.menu = this.add.container(0, 0).setDepth(250);
-    for (const m of MENU) {
-      const enabled = avail[m.type];
-      const d = this.diamond(m.x, m.y + DY, m.label, enabled, () => this.choose(u, m.type), m.type === 'attack');
-      this.menu.add(d);
-    }
-    // 光标：一枚橙色大箭头指着"攻击"
-    const ag = this.add.graphics();
-    const ax = MENU[0].x - 20;
-    const ay = MENU[0].y + DY + 18;
-    const arrow: [number, number][] = [[0, -14], [14, 0], [6, 0], [6, 12], [-6, 12], [-6, 0], [-14, 0]];
-    const rot = (p: [number, number]) => new Phaser.Math.Vector2(ax + (p[0] - p[1]) * 0.7071, ay + (p[0] + p[1]) * 0.7071);
-    ag.fillStyle(0x801000).fillPoints(arrow.map((p) => rot([p[0] * 1.15, p[1] * 1.15 + 1])), true);
-    ag.fillStyle(0xf06010).fillPoints(arrow.map(rot), true);
-    ag.fillStyle(0xffd040).fillPoints(arrow.map((p) => rot([p[0] * 0.6, p[1] * 0.6 - 2])), true);
-    this.menu.add(ag);
-    this.tweens.add({ targets: ag, x: -3, y: 3, duration: 280, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
+    const top = PANEL_Y + 12;
+    this.portrait(u, 14, top);
+    // 攻击：一块朱漆大钮
+    const atk = new Button(this, 92, top, 84, 74, '', () => this.choose(u, 'attack'), { style: 'red', disabled: !avail.attack });
+    this.panel.add(atk);
+    this.panel.add(this.add.image(134, top + 12, uiIconTex(this, 'sword')).setOrigin(0.5, 0).setScale(2));
+    this.panel.add(text(this, 134, top + 44, '攻击', { align: 'center', color: 0xfff0c0, stroke: 0x4a0804, scale: 2 }));
+    SMALL.forEach((m, i) => {
+      const cx = 182 + (i % 3) * 56;
+      const cy = top + Math.floor(i / 3) * 38;
+      this.cmdButton(cx, cy, 52, 36, m.label, m.icon, avail[m.type], () => this.choose(u, m.type));
+    });
+    // 倒计时：一枚圆印
     this.seconds = balance.commandSeconds;
-    this.updatePrompt(u);
+    const sg = this.add.graphics();
+    sg.fillStyle(0x3a0804).fillCircle(78, top + 6, 11);
+    sg.fillStyle(0xb42c18).fillCircle(78, top + 6, 10);
+    sg.lineStyle(1, 0xfff0c0, 0.9).strokeCircle(78, top + 6, 8);
+    this.panel.add(sg);
+    this.secText = text(this, 78, top, `${this.seconds}`, { align: 'center', color: 0xfff0c0 });
+    this.panel.add(this.secText);
+    const last = this.b.lastCmd[u.id];
+    const hint = last?.skill ? `上回合：${skills[last.skill]?.name ?? ''}` : '';
+    this.panel.add(text(this, 92, top + 84, `${u.name}，请下令`, { color: PAPER.ink }));
+    if (hint) this.panel.add(text(this, 92, top + 100, hint, { color: 0x9a8460 }));
     this.countdown = this.time.addEvent({
       delay: 1000, loop: true, callback: () => {
         this.seconds--;
-        this.updatePrompt(u);
+        this.secText?.setText(`${Math.max(0, this.seconds)}`);
+        if (this.seconds <= 5) this.secText?.setColor('#ffe040');
         if (this.seconds <= 0) {
           this.clearSelect();
           this.issue(defaultCommand(this.b, u));
@@ -330,71 +558,45 @@ export class BattleScene extends Phaser.Scene {
       },
     });
     this.highlightActor(u);
+    this.drawOrder(u.id);
   }
 
   private highlightActor(u: BUnit): void {
     const v = this.views.get(u.id);
     if (!v) return;
-    const arrow = text(this, v.hx, v.hy - 88, '▼', { align: 'center', color: C.yellow, stroke: C.ink });
-    this.menu?.add(arrow);
-    this.tweens.add({ targets: arrow, y: arrow.y + 3, duration: 250, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
-  }
-
-  private updatePrompt(u: BUnit): void {
-    this.prompt.setText(`${u.name}-出招(${Math.max(0, this.seconds)})`);
-  }
-
-  private diamond(x: number, y: number, label: string, enabled: boolean, fn: () => void, focus = false): Phaser.GameObjects.Container {
-    const c = this.add.container(x, y);
+    // 正在下令的人：头顶一枚金箭头，脚下一圈光
     const g = this.add.graphics();
-    const r = 26;
-    const draw = (down: boolean) => {
-      g.clear();
-      drawDiamond(g, r, enabled, down);
-    };
-    draw(false);
-    // 原版：普通是黑字，光标停的那个是白边红字
-    const t = text(this, 0, -7, label, { align: 'center', raw: true, color: !enabled ? 0x505058 : focus ? 0xe81000 : 0x100800, stroke: enabled ? 0xffffff : undefined });
-    const z = this.add.zone(-r, -r, r * 2, r * 2).setOrigin(0).setInteractive({ useHandCursor: true });
-    let down = false;
-    z.on('pointerdown', () => {
-      if (!enabled) return;
-      down = true;
-      draw(true);
-    });
-    z.on('pointerout', () => {
-      down = false;
-      draw(false);
-    });
-    z.on('pointerup', () => {
-      if (!down) return;
-      down = false;
-      draw(false);
-      sfx('click');
-      fn();
-    });
-    c.add([g, t, z]);
-    return c;
+    g.fillStyle(0x3a2004).fillTriangle(v.hx - 7, v.hy - 128, v.hx + 7, v.hy - 128, v.hx, v.hy - 118);
+    g.fillStyle(0xffd040).fillTriangle(v.hx - 5, v.hy - 127, v.hx + 5, v.hy - 127, v.hx, v.hy - 120);
+    const ring = this.add.ellipse(v.hx, v.hy + 1, 56, 14).setStrokeStyle(1, 0xffe080, 0.9);
+    this.cueTop.add(g);
+    this.cueGround.add(ring);
+    this.tweens.add({ targets: g, y: 3, duration: 260, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
+    this.tweens.add({ targets: ring, scaleX: 1.15, scaleY: 1.15, alpha: 0.5, duration: 500, yoyo: true, repeat: -1 });
   }
 
   private clearMenu(): void {
-    this.menu?.destroy();
-    this.menu = null;
+    this.cueTop?.removeAll(true);
+    this.cueGround?.removeAll(true);
     this.popup?.destroy();
     this.popup = null;
     this.countdown?.remove();
     this.countdown = null;
+    this.secText = null;
     this.clearSelect();
-    this.backBtn.setVisible(false);
-    this.prompt.setText(this.auto ? '自动战斗中' : '');
   }
 
   private back(): void {
     this.popup?.destroy();
     this.popup = null;
     this.clearSelect();
-    this.menu?.setVisible(true);
-    this.backBtn.setVisible(false);
+    const u = this.current;
+    if (!u) return;
+    // 回到指令盘，倒计时接着走
+    const left = this.seconds;
+    this.showMenu(u);
+    this.seconds = left;
+    this.secText?.setText(`${left}`);
   }
 
   private choose(u: BUnit, type: CommandType): void {
@@ -407,90 +609,117 @@ export class BattleScene extends Phaser.Scene {
       case 'flee':
         return this.issue({ actor: u.id, type });
       case 'skill':
-        return this.listPopup(u, u.skills.map((st) => {
+        return this.listPopup('技能', u.skills.map((st) => {
           const def = skills[st.id];
           const cost = skillMp(def.mp, st.level);
-          return { label: `${def.name} ${st.level}级`, right: `精力${cost}`, enabled: canCast(u, st.id), fn: () => {
+          return { label: `${def.name}`, sub: `${st.level}级`, right: `精力${cost}`, desc: def.desc, enabled: canCast(u, st.id), fn: () => {
             if (def.target === 'enemy') this.pickTarget(u, def.name, foesOf(this.b, u), (t) => this.issue({ actor: u.id, type, skill: st.id, target: t }));
             else this.issue({ actor: u.id, type, skill: st.id });
           } };
         }));
       case 'item':
-        return this.listPopup(u, this.itemsLeft().map((id) => ({
-          label: items[id].name, right: `×${this.b.items[id] - (this.reserved[id] ?? 0)}`, enabled: true,
+        return this.listPopup('物品', this.itemsLeft().map((id) => ({
+          label: items[id].name, sub: '', right: `×${this.b.items[id] - (this.reserved[id] ?? 0)}`, desc: items[id].desc ?? [items[id].hp ? `回复气血${items[id].hp}` : '', items[id].mp ? `回复精力${items[id].mp}` : ''].filter(Boolean).join('，'), enabled: true, icon: id,
           fn: () => this.pickTarget(u, items[id].name, friendsOf(this.b, u), (t) => this.issue({ actor: u.id, type, item: id, target: t })),
         })));
       case 'summon':
-        return this.listPopup(u, this.b.reserve.map((r) => ({
-          label: `（${r.level}）${r.name}`, right: `${r.hp}/${r.maxHp}`, enabled: r.hp > 0,
+        return this.listPopup('招将', this.b.reserve.map((r) => ({
+          label: r.name, sub: `${r.level}级`, right: `${r.hp}/${r.maxHp}`, desc: r.hp > 0 ? '换他上场' : '已经没力气了', enabled: r.hp > 0, look: r.look,
           fn: () => this.issue({ actor: u.id, type, summon: r.id }),
         })));
     }
   }
 
-  private listPopup(_u: BUnit, rows: { label: string; right: string; enabled: boolean; fn: () => void }[]): void {
-    this.menu?.setVisible(false);
-    this.backBtn.setVisible(true);
+  // 指令盘上半变成一张列表卡（技能、物品、招将），指令盘只留一个返回
+  private listPopup(title: string, rows: { label: string; sub: string; right: string; desc: string; enabled: boolean; fn: () => void; icon?: string; look?: string }[]): void {
     this.popup?.destroy();
+    this.mode = 'list';
+    // 倒计时还在走，只是指令盘上那枚圆印被换掉了
+    this.secText = null;
+    this.panel.removeAll(true);
     const c = this.add.container(0, 0).setDepth(320);
-    const w = 220;
-    const h = 30 + rows.length * 30;
-    const x = (W - w) / 2;
-    const y = FIELD_Y + 40;
+    const rh = 40;
+    const w = W - 24;
+    const h = 40 + Math.max(1, rows.length) * rh;
+    const x = 12;
+    const y = Math.max(SAFE_TOP + TOP_H + 40, PANEL_Y + PANEL_H - 50 - h);
     const g = this.add.graphics();
-    frame(g, x, y, w, h, 'ink');
-    c.add([this.add.zone(x, y, w, h).setOrigin(0).setInteractive(), g]);
-    c.add(text(this, x + w / 2, y + 7, rows.length ? '请选择' : '没有可用的', { align: 'center', color: UI.white }));
+    woodFrame(g, x, y, w, h);
+    c.add([this.add.zone(x, y, w, h).setOrigin(0).setInteractive(), g, this.add.image(x + 6, y + 6, paperTex(this, w - 12, h - 12)).setOrigin(0)]);
+    const tg = this.add.graphics();
+    titlePlaque(tg, W / 2, y - 6, 72, 18);
+    c.add([tg, text(this, W / 2, y - 4, title, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
+    if (!rows.length) c.add(text(this, W / 2, y + 22, '没有可用的', { align: 'center', color: 0x9a8460 }));
     rows.forEach((r, i) => {
-      const b = new Button(this, x + 8, y + 26 + i * 30, w - 16, 26, '', () => r.fn(), { disabled: !r.enabled });
-      c.add(b);
-      c.add(text(this, x + 16, y + 32 + i * 30, r.label, { color: r.enabled ? C.darkBrown : C.gray }));
-      c.add(text(this, x + w - 16, y + 32 + i * 30, r.right, { align: 'right', color: r.enabled ? C.blue : C.gray }));
+      const ry = y + 18 + i * rh;
+      c.add(new Button(this, x + 10, ry, w - 20, rh - 4, '', () => r.fn(), { disabled: !r.enabled }));
+      let tx = x + 18;
+      if (r.icon) {
+        c.add(this.add.image(tx, ry + 18, iconTex(this, r.icon)).setOrigin(0, 0.5));
+        tx += 22;
+      } else if (r.look) {
+        c.add(this.add.image(tx, ry + 2, avatarTex(this, r.look)).setOrigin(0).setCrop(1, 1, 22, 30));
+        tx += 28;
+      }
+      const ink = r.enabled ? PAPER.ink : 0xa89a80;
+      c.add(text(this, tx, ry + 3, r.label, { color: ink }));
+      if (r.sub) c.add(text(this, tx + textWidth(r.label) + 6, ry + 3, r.sub, { color: r.enabled ? 0x8a6a40 : 0xb8aa90 }));
+      c.add(text(this, x + w - 20, ry + 3, r.right, { align: 'right', color: r.enabled ? 0x2c50b0 : 0xa89a80 }));
+      const d = wrap(r.desc, w - 40 - (tx - x - 18))[0] ?? '';
+      c.add(text(this, tx, ry + 19, d, { color: r.enabled ? 0x8a7458 : 0xb8aa90 }));
     });
     this.popup = c;
+    c.setAlpha(0).setY(8);
+    this.tweens.add({ targets: c, alpha: 1, y: 0, duration: 140, ease: 'Quad.easeOut' });
+    this.panel.add(text(this, 16, H - 32, `选择${title}`, { color: PAPER.ink }));
+    this.panel.add(new Button(this, W - 132, H - 36, 56, 24, '返回', () => this.back(), { style: 'tan' }));
   }
 
-  // 选目标：点单位切换目标，再点一次或点"确定"出招
+  // 选目标：点场上的人切换目标，再点一次或点"出手"出招；指令盘上显示目标的立绘和血量
   private pickTarget(u: BUnit, label: string, pool: BUnit[], done: (id: string) => void): void {
     if (!pool.length) return;
-    this.menu?.setVisible(false);
     this.popup?.destroy();
     this.popup = null;
-    this.backBtn.setVisible(true);
+    this.mode = 'target';
     this.candidates = new Set(pool.map((p) => p.id));
     const lastTarget = this.b.lastCmd[u.id]?.target;
     this.selected = pool.find((p) => p.id === lastTarget)?.id ?? pool[0].id;
-    const box = this.add.container(0, 0).setDepth(320);
-    this.popup = box;
     const render = () => {
-      box.removeAll(true);
+      this.secText = null;
+      this.panel.removeAll(true);
       const t = unit(this.b, this.selected!)!;
       const order = predictOrder(this.b).findIndex((x) => x.id === t.id) + 1;
-      const w = 172;
-      const x = (W - w) / 2;
-      const y = FIELD_Y + 4;
-      const g = this.add.graphics();
-      // 原版选目标框：黑底，招式名一条、目标名白条，下面红蓝紫三行
-      frame(g, x, y, w, 80, 'ink');
-      g.fillStyle(0xe8e8f0).fillRect(x + 4, y + 22, w - 8, 16);
-      box.add(g);
-      box.add(text(this, x + w / 2, y + 5, label, { align: 'center', color: UI.cream }));
-      box.add(text(this, x + 8, y + 24, `${t.name}（${t.level}级）`, { raw: true, color: 0x101030 }));
-      box.add(text(this, x + 8, y + 41, `■ ${t.hp}/${t.maxHp}`, { color: 0xff3020 }));
-      box.add(text(this, x + 8, y + 56, `■ ${t.mp}`, { color: 0x4a70ff }));
-      box.add(text(this, x + 80, y + 56, `速度第${order}`, { color: UI.magenta }));
-      box.add(new Button(this, x + w - 56, y + 41, 48, 22, '确定', () => {
+      const top = PANEL_Y + 12;
+      this.portrait(t, 14, top);
+      const tg = this.add.graphics();
+      titlePlaque(tg, 152, top, 100, 18);
+      this.panel.add([tg, text(this, 152, top + 2, label, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
+      this.panel.add(text(this, 96, top + 26, `目标：${t.name}`, { color: PAPER.ink }));
+      this.panel.add(text(this, 96, top + 44, `气血 ${t.hp}/${t.maxHp}`, { color: 0xb42c18 }));
+      this.panel.add(text(this, 96, top + 60, `精力 ${t.mp}/${t.maxMp}`, { color: 0x2c50b0 }));
+      this.panel.add(text(this, 96, top + 76, `出手顺序 第${order}`, { color: 0x8a5aa0 }));
+      this.panel.add(text(this, 96, top + 96, '点场上的人换目标', { color: 0x9a8460 }));
+      this.panel.add(new Button(this, W - 100, top + 22, 86, 40, '出手', () => {
         const id = this.selected!;
         this.clearSelect();
         done(id);
       }, { style: 'red' }));
-      for (const v of this.views.values()) this.drawBars(v);
+      this.panel.add(new Button(this, W - 132, H - 36, 56, 24, '返回', () => this.back(), { style: 'tan' }));
+      // 选中的人头顶一枚朱红箭头
+      const v = this.views.get(t.id);
+      if (v) {
+        this.marker.clear().setVisible(true);
+        this.marker.fillStyle(0x3a0804).fillTriangle(v.hx - 8, v.hy - 130, v.hx + 8, v.hy - 130, v.hx, v.hy - 118);
+        this.marker.fillStyle(0xf04424).fillTriangle(v.hx - 6, v.hy - 129, v.hx + 6, v.hy - 129, v.hx, v.hy - 121);
+      }
+      for (const vv of this.views.values()) this.drawBars(vv);
     };
     this.selecting = (id) => {
       if (id === this.selected) {
         this.clearSelect();
         done(id);
       } else {
+        sfx('click');
         this.selected = id;
         render();
       }
@@ -502,35 +731,38 @@ export class BattleScene extends Phaser.Scene {
     this.selecting = null;
     this.candidates.clear();
     this.selected = null;
+    this.marker?.setVisible(false);
     for (const v of this.views.values()) this.drawBars(v);
   }
 
   private toggleAuto(): void {
     this.auto = !this.auto;
-    this.autoBtn.setCaption(this.auto ? '取消' : '自动');
+    this.autoBtn.setCaption(this.auto ? '手动' : '自动');
     this.autoBtn.setStyle(this.auto ? 'red' : 'tan');
-    if (this.auto && this.menu) {
+    if (this.auto && this.current && this.mode !== 'log') {
       // 正在等指令的这个人也交给自动
-      const pending = this.prompt.text.split('-出招')[0];
-      const u = living(this.b, 'ally').find((x) => x.name === pending && !this.cmds.some((c) => c.actor === x.id));
+      const u = this.current;
       this.clearMenu();
-      if (u) this.cmds.push(autoCommand(this.b, u));
+      this.cmds.push(autoCommand(this.b, u));
       this.nextCommander();
-    }
+    } else if (this.mode === 'log') this.renderLog();
   }
 
   // ===== 结算与动画 =====
   private async resolve(): Promise<void> {
     this.clearMenu();
-    this.prompt.setText('');
+    this.current = null;
+    this.renderLog();
     if (!this.replay) {
       for (const e of living(this.b, 'enemy')) if (needsCommand(e)) this.cmds.push(aiCommand(this.b, e));
       for (const a of living(this.b, 'ally')) if (a.kind === 'mirror' && needsCommand(a)) this.cmds.push(aiCommand(this.b, a));
     }
+    this.addLog(`—— 第${this.b.round + 1}回合 ——`);
     const before = new Map(this.b.units.map((u) => [u.id, u.mp]));
     const events = resolveRound(this.b, this.cmds);
     await this.play(events);
     this.returnHome();
+    this.hideBanner();
     // 精力变化不在事件里，回合结束统一同步
     for (const u of [...this.b.units, ...this.b.reserve]) {
       const v = this.views.get(u.id);
@@ -552,7 +784,7 @@ export class BattleScene extends Phaser.Scene {
     const v = this.lunged;
     if (!v) return;
     this.lunged = null;
-    this.tweens.add({ targets: v.spr, x: v.hx + (v.flip ? OFF : -OFF), duration: 120, onComplete: () => v.spr.setDepth(spriteDepth(v.hy)) });
+    this.tweens.add({ targets: v.spr, x: v.hx + (v.flip ? OFF : -OFF), y: v.hy, duration: 140, onComplete: () => v.spr.setDepth(spriteDepth(v.hy)) });
     if (!v.dead) this.pose(v, 'idle');
   }
 
@@ -569,6 +801,8 @@ export class BattleScene extends Phaser.Scene {
           const a = this.views.get(e.actor);
           const t = e.target ? this.views.get(e.target) : undefined;
           this.setBanner(e.label);
+          this.drawOrder(e.actor);
+          this.addLog(`${this.nameOf(e.actor)}：${e.label}${e.target && e.target !== e.actor && e.kind !== 'cast' ? ` → ${this.nameOf(e.target)}` : ''}`);
           if (!a) break;
           if (e.kind === 'melee' && t && t !== a && !e.skill && RANGED.has(a.weapon)) {
             // 拿法杖、弓、羽扇的普攻站在原地打远程：法球 / 箭 / 风刃飞过去
@@ -576,25 +810,25 @@ export class BattleScene extends Phaser.Scene {
             this.lunged = a;
           } else if (e.kind === 'melee' && t && t !== a) {
             const dir = a.flip ? -1 : 1;
-            const tx = t.hx + (t.flip ? 34 : -34) * 1 + (a.flip === t.flip ? -dir * 10 : 0);
+            const tx = t.hx + (t.flip ? 52 : -52) + (a.flip === t.flip ? -dir * 14 : 0);
             if (e.skill === 'sheming') await this.bloodAura(a, ms);
             this.pose(a, 'atk');
             a.spr.setDepth(spriteDepth(t.hy) + 0.5);
-            await new Promise<void>((r) => this.tweens.add({ targets: a.spr, x: tx, duration: ms(180), ease: 'Quad.easeOut', onComplete: () => r() }));
+            await new Promise<void>((r) => this.tweens.add({ targets: a.spr, x: tx, y: t.hy + 2, duration: ms(180), ease: 'Quad.easeOut', onComplete: () => r() }));
             this.lunged = a;
             if (e.skill) this.slash(a, t, e.skill === 'sheming' ? C.red : C.white, e.skill !== 'sheming');
           } else if (e.kind === 'cast') {
             this.pose(a, 'cast');
             sfx('magic');
             const color = e.skill ? SKILL_COLOR[e.skill] ?? C.yellow : C.yellow;
-            const ring = this.add.circle(a.hx, a.hy - 30, 6, hex(color), 0.5).setDepth(390);
-            this.tweens.add({ targets: ring, radius: 30, alpha: 0, duration: ms(350), onComplete: () => ring.destroy() });
+            const ring = this.add.circle(a.hx, a.hy - 50, 8, hex(color), 0.5).setDepth(390);
+            this.tweens.add({ targets: ring, radius: 46, alpha: 0, duration: ms(350), onComplete: () => ring.destroy() });
             await wait(this, ms(260));
             await this.skillFx(e.skill, a, t, ms);
             this.lunged = a;
             a.spr.x = a.hx + (a.flip ? OFF : -OFF);
           } else {
-            this.tweens.add({ targets: a.spr, y: a.hy - 6, duration: ms(100), yoyo: true });
+            this.tweens.add({ targets: a.spr, y: a.hy - 10, duration: ms(100), yoyo: true });
             await wait(this, ms(220));
           }
           break;
@@ -613,6 +847,9 @@ export class BattleScene extends Phaser.Scene {
           v.spr.setTint(0xffffff);
           this.time.delayedCall(80, () => v.spr.clearTint());
           const label = e.t === 'poison' ? `毒-${e.amount}` : `${e.crit ? '暴击 ' : e.fatal ? '致命 ' : ''}-${e.amount}`;
+          if (crit) this.cameras.main.shake(110, 0.006);
+          if (e.t === 'poison') this.addLog(`${this.nameOf(e.target)}毒发 -${e.amount}`);
+          else this.appendLog(`，${this.nameOf(e.target)}${e.crit ? '（暴击）' : e.fatal ? '（致命）' : ''}-${e.amount}`);
           this.float(v, label, e.t === 'poison' ? C.lilac : crit ? C.red : C.orange, crit);
           if (e.t === 'damage' && e.mp) this.time.delayedCall(200, () => this.float(v, `精力-${e.mp}`, C.lightBlue));
           this.drawBars(v);
@@ -622,6 +859,7 @@ export class BattleScene extends Phaser.Scene {
         case 'miss': {
           const v = this.views.get(e.target);
           if (v) this.float(v, '未中', C.lightPaper);
+          this.appendLog(`，${this.nameOf(e.target)}闪开了`);
           sfx('miss');
           await wait(this, ms(260));
           break;
@@ -633,6 +871,7 @@ export class BattleScene extends Phaser.Scene {
           v.mp = Math.min(v.maxMp, v.mp + e.mp);
           sfx('heal');
           this.float(v, e.hp ? `+${e.hp}` : `精力+${e.mp}`, C.lime);
+          this.appendLog(`，${this.nameOf(e.target)}${e.hp ? `气血+${e.hp}` : `精力+${e.mp}`}`);
           this.spark(v, C.lime);
           this.drawBars(v);
           await wait(this, ms(320));
@@ -644,6 +883,7 @@ export class BattleScene extends Phaser.Scene {
           if (v && e.ok) this.statusFx(v, e.status, ms);
           if (v) this.float(v, e.ok ? `中计·${STATUS_NAMES[e.status]}` : '抵抗', e.ok ? C.yellow : C.lightPaper);
           if (u && e.ok) v?.badge.setText(STATUS_NAMES[e.status]);
+          this.appendLog(e.ok ? `，${this.nameOf(e.target)}中了「${STATUS_NAMES[e.status]}」` : `，${this.nameOf(e.target)}抵抗住了`);
           await wait(this, ms(300));
           break;
         }
@@ -652,6 +892,7 @@ export class BattleScene extends Phaser.Scene {
           if (v) {
             this.pillar(v, C.white, ms);
             this.float(v, '清醒', C.lime);
+            this.addLog(`${this.nameOf(e.target)}清醒过来`);
             v.badge.setText('');
           }
           await wait(this, ms(220));
@@ -672,6 +913,8 @@ export class BattleScene extends Phaser.Scene {
           if (!v) break;
           v.dead = true;
           v.hp = 0;
+          this.addLog(`${this.nameOf(e.target)}倒下了`);
+          this.tweens.add({ targets: [v.plate, v.name], alpha: 0.4, duration: 300 });
           this.tweens.killTweensOf(v.spr);
           this.pose(v, 'down');
           v.spr.setPosition(v.hx + (v.flip ? OFF : -OFF), v.hy);
@@ -690,10 +933,12 @@ export class BattleScene extends Phaser.Scene {
             v.dead = true;
             this.tweens.killTweensOf(v.spr);
             this.float(v, '招降成功', C.yellow, true);
+            this.addLog(`${this.nameOf(e.target)}愿意归顺！`);
             this.drawBars(v);
-            await new Promise<void>((r) => this.tweens.add({ targets: [v.spr, v.name], alpha: 0, duration: ms(500), onComplete: () => r() }));
+            await new Promise<void>((r) => this.tweens.add({ targets: [v.spr, v.name, v.plate], alpha: 0, duration: ms(500), onComplete: () => r() }));
           } else {
             this.float(v, '招降失败', C.lightPaper);
+            this.addLog(`${this.nameOf(e.target)}不肯归顺`);
             await wait(this, ms(320));
           }
           break;
@@ -703,8 +948,10 @@ export class BattleScene extends Phaser.Scene {
             const o = this.views.get(e.out);
             if (o) {
               this.tweens.killTweensOf(o.spr);
-              await new Promise<void>((r) => this.tweens.add({ targets: [o.spr, o.name, o.bars, o.badge], alpha: 0, duration: ms(250), onComplete: () => r() }));
+              await new Promise<void>((r) => this.tweens.add({ targets: [o.spr, o.name, o.bars, o.badge, o.plate], alpha: 0, duration: ms(250), onComplete: () => r() }));
               o.spr.destroy();
+              o.shadow.destroy();
+              o.plate.destroy();
               o.name.destroy();
               o.bars.destroy();
               o.badge.destroy();
@@ -718,6 +965,7 @@ export class BattleScene extends Phaser.Scene {
             v.spr.setAlpha(0);
             this.tweens.add({ targets: v.spr, alpha: 1, duration: ms(250) });
             this.float(v, '上场', C.yellow);
+            this.addLog(`${u.name}上场`);
           }
           await wait(this, ms(300));
           break;
@@ -725,10 +973,12 @@ export class BattleScene extends Phaser.Scene {
         case 'flee': {
           if (e.ok) {
             sfx('step');
+            this.addLog('撤出了战斗');
             const allies = [...this.views.values()].filter((v) => !v.flip && !v.dead);
             await new Promise<void>((r) => this.tweens.add({ targets: allies.map((v) => v.spr), x: W + 40, duration: ms(450), onComplete: () => r() }));
           } else {
             this.setBanner('逃跑失败');
+            this.addLog('没跑掉');
             await wait(this, ms(300));
           }
           break;
@@ -742,6 +992,7 @@ export class BattleScene extends Phaser.Scene {
         }
         case 'text':
           this.setBanner(e.text);
+          this.addLog(e.text);
           await wait(this, ms(500));
           break;
         case 'end':
@@ -785,13 +1036,13 @@ export class BattleScene extends Phaser.Scene {
 
   private async shoot(a: View, t: View, ms: (n: number) => number): Promise<void> {
     const dir = a.flip ? 1 : -1;
-    const ex = t.hx - dir * 8;
-    const ey = t.hy - 30;
+    const ex = t.hx - dir * 16;
+    const ey = t.hy - 60;
     if (a.weapon === 'bow') {
       this.pose(a, 'atk');
       sfx('step');
-      const sx = a.hx + dir * 14;
-      const sy = a.hy - 30;
+      const sx = a.hx + dir * 28;
+      const sy = a.hy - 60;
       const g = this.add.graphics().setDepth(391);
       // 箭朝 +x 画，再转到飞行方向
       g.fillStyle(hex(C.lightBrown)).fillRect(-12, -1, 18, 2);
@@ -806,7 +1057,7 @@ export class BattleScene extends Phaser.Scene {
     this.pose(a, 'cast');
     sfx('magic');
     const wind = a.weapon === 'feather';
-    const sx = a.hx + dir * 10;
+    const sx = a.hx + dir * 20;
     const sy = a.hy - (wind ? 34 : 46);
     await wait(this, ms(140));
     if (wind) {
@@ -847,11 +1098,11 @@ export class BattleScene extends Phaser.Scene {
           const g = this.add.graphics().setDepth(392);
           const pts: Phaser.Math.Vector2[] = [];
           let x = t.hx + (Math.random() - 0.5) * 16;
-          for (let y = FIELD_Y + 2; y < t.hy - 40; y += 12) {
+          for (let y = FIELD_Y + 2; y < t.hy - 80; y += 12) {
             pts.push(new Phaser.Math.Vector2(Math.round(x), y));
             x += (Math.random() - 0.5) * 18;
           }
-          pts.push(new Phaser.Math.Vector2(t.hx, t.hy - 40));
+          pts.push(new Phaser.Math.Vector2(t.hx, t.hy - 80));
           g.lineStyle(10, hex(C.yellow), 0.35).strokePoints(pts);
           g.lineStyle(5, hex(C.yellow)).strokePoints(pts);
           g.lineStyle(2, hex(C.white)).strokePoints(pts);
@@ -865,14 +1116,14 @@ export class BattleScene extends Phaser.Scene {
           flash.destroy();
           await wait(this, ms(50));
         }
-        this.burst(t.hx, t.hy - 36, C.yellow, 12);
-        this.burst(t.hx, t.hy - 4, C.white, 8);
+        this.burst(t.hx, t.hy - 72, C.yellow, 12);
+        this.burst(t.hx, t.hy - 8, C.white, 8);
         this.scorch(t, ms);
         return;
       }
       case 'wugu': {
         if (!t) return;
-        await this.fly(this.orb(a.hx + dir * 10, a.hy - 46, C.lime, C.purple), t.hx, t.hy - 30, ms(280), C.green);
+        await this.fly(this.orb(a.hx + dir * 20, a.hy - 92, C.lime, C.purple), t.hx, t.hy - 60, ms(280), C.green);
         this.bubbles(t, ms);
         await wait(this, ms(160));
         return;
@@ -895,7 +1146,7 @@ export class BattleScene extends Phaser.Scene {
       case 'huadi': {
         if (!t) return;
         // 文人计策：一卷竹简似的光飞过去，中计与否在 status 事件里再画
-        await this.fly(this.orb(a.hx + dir * 10, a.hy - 36, C.white, SKILL_COLOR[id]), t.hx, t.hy - 36, ms(240), SKILL_COLOR[id]);
+        await this.fly(this.orb(a.hx + dir * 20, a.hy - 72, C.white, SKILL_COLOR[id]), t.hx, t.hy - 72, ms(240), SKILL_COLOR[id]);
         return;
       }
       case 'gujin':
@@ -911,11 +1162,11 @@ export class BattleScene extends Phaser.Scene {
   private slash(a: View, t: View, color: number, vertical: boolean): void {
     const g = this.add.graphics().setDepth(392);
     const cx = t.hx;
-    const cy = t.hy - 30;
-    g.lineStyle(8, hex(color), 0.45).beginPath().arc(0, 0, 26, -1.2, 1.2).strokePath();
-    g.lineStyle(3, hex(C.white)).beginPath().arc(0, 0, 24, -1.0, 1.0).strokePath();
+    const cy = t.hy - 60;
+    g.lineStyle(8, hex(color), 0.45).beginPath().arc(0, 0, 40, -1.2, 1.2).strokePath();
+    g.lineStyle(3, hex(C.white)).beginPath().arc(0, 0, 37, -1.0, 1.0).strokePath();
     const dir = a.flip ? 1 : -1;
-    g.setPosition(cx - dir * 10, cy).setRotation(vertical ? (dir > 0 ? 0.3 : Math.PI - 0.3) : dir > 0 ? 0 : Math.PI);
+    g.setPosition(cx - dir * 20, cy).setRotation(vertical ? (dir > 0 ? 0.3 : Math.PI - 0.3) : dir > 0 ? 0 : Math.PI);
     if (vertical) this.cameras.main.shake(120, 0.005);
     this.tweens.add({ targets: g, alpha: 0, scale: 1.3, duration: 260, onComplete: () => g.destroy() });
   }
@@ -923,7 +1174,7 @@ export class BattleScene extends Phaser.Scene {
   private async bloodAura(a: View, ms: (n: number) => number): Promise<void> {
     a.spr.setTint(0xff6060);
     for (let i = 0; i < 10; i++) {
-      const p = this.px(a.hx - 14 + Math.random() * 28, a.hy - 4 - Math.random() * 40, 2, 3, i % 2 ? C.red : C.darkRed);
+      const p = this.px(a.hx - 14 + Math.random() * 28, a.hy - 8 - Math.random() * 40, 2, 3, i % 2 ? C.red : C.darkRed);
       this.tweens.add({ targets: p, y: p.y - 16, alpha: 0, duration: 380, delay: i * 20, onComplete: () => p.destroy() });
     }
     await wait(this, ms(240));
@@ -932,7 +1183,7 @@ export class BattleScene extends Phaser.Scene {
 
   // 雷劈完脚下一圈焦黑和火星
   private scorch(v: View, ms: (n: number) => number): void {
-    const e = this.add.ellipse(v.hx, v.hy, 40, 10, 0x201810, 0.6).setDepth(389);
+    const e = this.add.ellipse(v.hx, v.hy, 56, 14, 0x201810, 0.6).setDepth(389);
     this.fx.add(e);
     this.tweens.add({ targets: e, alpha: 0, delay: ms(300), duration: ms(300), onComplete: () => e.destroy() });
   }
@@ -940,14 +1191,14 @@ export class BattleScene extends Phaser.Scene {
   private bubbles(v: View, ms: (n: number) => number): void {
     // 一团紫绿毒雾罩住，再冒一串泡
     const cloud = this.add.graphics().setDepth(391);
-    cloud.fillStyle(hex(C.purple), 0.45).fillEllipse(0, 0, 44, 30).fillEllipse(-12, 8, 24, 18).fillEllipse(12, 8, 24, 18);
-    cloud.fillStyle(hex(C.lime), 0.35).fillEllipse(0, 4, 30, 18);
-    cloud.setPosition(v.hx, v.hy - 30).setScale(0.4);
+    cloud.fillStyle(hex(C.purple), 0.45).fillEllipse(0, 0, 66, 46).fillEllipse(-18, 12, 36, 26).fillEllipse(18, 12, 36, 26);
+    cloud.fillStyle(hex(C.lime), 0.35).fillEllipse(0, 6, 46, 26);
+    cloud.setPosition(v.hx, v.hy - 60).setScale(0.4);
     this.tweens.add({ targets: cloud, scale: 1, duration: ms(200), ease: 'Quad.easeOut' });
     this.tweens.add({ targets: cloud, alpha: 0, delay: ms(420), duration: ms(240), onComplete: () => cloud.destroy() });
     for (let i = 0; i < 16; i++) {
       const sz = 3 + (i % 3);
-      const p = this.px(v.hx - 16 + Math.random() * 32, v.hy - 8 - Math.random() * 40, sz, sz, i % 3 ? C.lime : C.lilac, 0.95);
+      const p = this.px(v.hx - 16 + Math.random() * 32, v.hy - 16 - Math.random() * 40, sz, sz, i % 3 ? C.lime : C.lilac, 0.95);
       this.tweens.add({ targets: p, y: p.y - 18 - Math.random() * 14, alpha: 0, duration: ms(560), delay: ms(i * 26), onComplete: () => p.destroy() });
     }
   }
@@ -956,11 +1207,11 @@ export class BattleScene extends Phaser.Scene {
   private tornado(v: View, ms: (n: number) => number): void {
     const g = this.add.graphics().setDepth(392);
     for (let i = 0; i < 8; i++) {
-      const w = 10 + i * 6;
-      g.lineStyle(3, hex(C.sky), 0.5).strokeEllipse((i % 2 ? 2 : -2), -i * 9, w, 8);
-      g.lineStyle(1, hex(C.white)).strokeEllipse((i % 2 ? 2 : -2), -i * 9, w, 8);
+      const w = 14 + i * 9;
+      g.lineStyle(3, hex(C.sky), 0.5).strokeEllipse((i % 2 ? 2 : -2), -i * 14, w, 10);
+      g.lineStyle(1, hex(C.white)).strokeEllipse((i % 2 ? 2 : -2), -i * 14, w, 10);
     }
-    g.setPosition(v.hx, v.hy - 2).setAlpha(0);
+    g.setPosition(v.hx, v.hy - 4).setAlpha(0);
     this.tweens.add({ targets: g, alpha: 1, duration: ms(120) });
     this.tweens.add({ targets: g, x: v.hx + 4, duration: ms(90), yoyo: true, repeat: 3 });
     this.tweens.add({ targets: g, alpha: 0, delay: ms(480), duration: ms(160), onComplete: () => g.destroy() });
@@ -977,13 +1228,13 @@ export class BattleScene extends Phaser.Scene {
 
   // 妖火燎原：脚下一圈火光，火苗一团团往上蹿
   private flames(v: View, ms: (n: number) => number): void {
-    const glow = this.add.ellipse(v.hx, v.hy, 56, 14, hex(C.orange), 0.55).setDepth(389);
+    const glow = this.add.ellipse(v.hx, v.hy, 76, 18, hex(C.orange), 0.55).setDepth(389);
     this.fx.add(glow);
     this.tweens.add({ targets: glow, alpha: 0, delay: ms(300), duration: ms(240), onComplete: () => glow.destroy() });
     const cols = [C.yellow, C.orange, C.red, C.orange];
     for (let i = 0; i < 28; i++) {
       const sz = 4 + (i % 4);
-      const p = this.px(v.hx - 20 + Math.random() * 40, v.hy - 6 - Math.random() * 14, sz, sz + 2, cols[i % 4]);
+      const p = this.px(v.hx - 28 + Math.random() * 56, v.hy - 12 - Math.random() * 30, sz, sz + 2, cols[i % 4]);
       this.tweens.add({ targets: p, y: p.y - 24 - Math.random() * 30, scaleX: 0.3, scaleY: 0.3, alpha: 0, duration: ms(460), delay: ms(i * 12), onComplete: () => p.destroy() });
     }
   }
@@ -991,21 +1242,21 @@ export class BattleScene extends Phaser.Scene {
   // 固若金汤：一层金色护罩
   private shield(v: View, ms: (n: number) => number): void {
     const g = this.add.graphics().setDepth(392);
-    g.fillStyle(hex(C.yellow), 0.18).fillEllipse(0, 0, 44, 66);
-    g.lineStyle(3, hex(C.gold)).strokeEllipse(0, 0, 44, 66);
-    g.lineStyle(1, hex(C.yellow), 0.6).strokeEllipse(0, 0, 34, 56);
-    g.setPosition(v.hx, v.hy - 28).setScale(0.6);
+    g.fillStyle(hex(C.yellow), 0.18).fillEllipse(0, 0, 70, 110);
+    g.lineStyle(3, hex(C.gold)).strokeEllipse(0, 0, 70, 110);
+    g.lineStyle(1, hex(C.yellow), 0.6).strokeEllipse(0, 0, 58, 98);
+    g.setPosition(v.hx, v.hy - 56).setScale(0.6);
     this.tweens.add({ targets: g, scale: 1, duration: ms(180), ease: 'Back.easeOut' });
     this.tweens.add({ targets: g, alpha: 0, delay: ms(380), duration: ms(200), onComplete: () => g.destroy() });
     for (let i = 0; i < 5; i++) {
-      const p = this.px(v.hx - 14 + i * 7, v.hy - 4, 2, 2, C.yellow);
+      const p = this.px(v.hx - 14 + i * 7, v.hy - 8, 2, 2, C.yellow);
       this.tweens.add({ targets: p, y: p.y - 40, alpha: 0, duration: ms(460), delay: ms(i * 40), onComplete: () => p.destroy() });
     }
   }
 
   // 暗渡陈仓解开计策：一道白光从天而降
   private pillar(v: View, color: number, ms: (n: number) => number): void {
-    const r = this.px(v.hx - 10, FIELD_Y, 20, v.hy - FIELD_Y, color, 0.5);
+    const r = this.px(v.hx - 14, FIELD_Y, 28, v.hy - FIELD_Y, color, 0.5);
     const c = this.px(v.hx - 3, FIELD_Y, 6, v.hy - FIELD_Y, C.white, 0.8);
     this.tweens.add({ targets: [r, c], alpha: 0, scaleX: 0.2, x: v.hx, duration: ms(420), onComplete: () => {
       r.destroy();
@@ -1017,7 +1268,7 @@ export class BattleScene extends Phaser.Scene {
   private statusFx(v: View, st: string, ms: (n: number) => number): void {
     if (st === 'chaos') {
       const stars = [0, 1, 2].map(() => {
-        const c = this.add.container(v.hx, v.hy - 50).setDepth(392);
+        const c = this.add.container(v.hx, v.hy - 100).setDepth(392);
         c.add(this.add.rectangle(-1, -4, 3, 9, hex(C.yellow)).setOrigin(0));
         c.add(this.add.rectangle(-4, -1, 9, 3, hex(C.yellow)).setOrigin(0));
         c.add(this.add.rectangle(0, 0, 1, 1, hex(C.white)).setOrigin(0));
@@ -1026,7 +1277,7 @@ export class BattleScene extends Phaser.Scene {
       const o = { a: 0 };
       this.tweens.add({
         targets: o, a: Math.PI * 4, duration: ms(900),
-        onUpdate: () => stars.forEach((c, i) => c.setPosition(Math.round(v.hx + Math.cos(o.a + i * 2.1) * 16), Math.round(v.hy - 50 + Math.sin(o.a + i * 2.1) * 5))),
+        onUpdate: () => stars.forEach((c, i) => c.setPosition(Math.round(v.hx + Math.cos(o.a + i * 2.1) * 16), Math.round(v.hy - 100 + Math.sin(o.a + i * 2.1) * 5))),
         onComplete: () => stars.forEach((c) => c.destroy()),
       });
     } else if (st === 'seal') {
@@ -1034,12 +1285,12 @@ export class BattleScene extends Phaser.Scene {
       g.fillStyle(hex(C.darkBrown)).fillRect(-8, -13, 16, 26);
       g.fillStyle(hex(C.yellow)).fillRect(-7, -12, 14, 24);
       g.fillStyle(hex(C.red)).fillRect(-1, -10, 3, 20).fillRect(-5, -6, 11, 2).fillRect(-5, 1, 11, 2).fillRect(-4, 6, 9, 2);
-      g.setPosition(v.hx, v.hy - 90);
-      this.tweens.add({ targets: g, y: v.hy - 46, duration: ms(180), ease: 'Quad.easeIn' });
+      g.setPosition(v.hx, v.hy - 180);
+      this.tweens.add({ targets: g, y: v.hy - 92, duration: ms(180), ease: 'Quad.easeIn' });
       const chain = this.add.graphics().setDepth(391);
       for (let i = -16; i <= 16; i += 4) {
-        chain.fillStyle(hex(C.darkGray)).fillRect(v.hx + i - 1, v.hy - 30 + i * 0.6 - 1, 5, 4).fillRect(v.hx + i - 1, v.hy - 30 - i * 0.6 - 1, 5, 4);
-        chain.fillStyle(hex(C.lightGray)).fillRect(v.hx + i, v.hy - 30 + i * 0.6, 3, 2).fillRect(v.hx + i, v.hy - 30 - i * 0.6, 3, 2);
+        chain.fillStyle(hex(C.darkGray)).fillRect(v.hx + i - 1, v.hy - 60 + i * 0.6 - 1, 5, 4).fillRect(v.hx + i - 1, v.hy - 60 - i * 0.6 - 1, 5, 4);
+        chain.fillStyle(hex(C.lightGray)).fillRect(v.hx + i, v.hy - 60 + i * 0.6, 3, 2).fillRect(v.hx + i, v.hy - 60 - i * 0.6, 3, 2);
       }
       chain.setAlpha(0);
       this.tweens.add({ targets: chain, alpha: 1, delay: ms(160), duration: ms(100) });
@@ -1049,9 +1300,9 @@ export class BattleScene extends Phaser.Scene {
       } });
     } else if (st === 'trap') {
       const g = this.add.graphics().setDepth(392);
-      g.lineStyle(2, hex(C.gold)).strokeEllipse(v.hx, v.hy, 50, 14);
-      for (let i = -20; i <= 20; i += 8) g.fillStyle(hex(C.darkBrown)).fillRect(v.hx + i - 1, v.hy - 58, 4, 58).fillStyle(hex(C.lightBrown)).fillRect(v.hx + i, v.hy - 58, 2, 58);
-      g.fillStyle(hex(C.lightBrown)).fillRect(v.hx - 22, v.hy - 58, 46, 2);
+      g.lineStyle(2, hex(C.gold)).strokeEllipse(v.hx, v.hy, 64, 16);
+      for (let i = -28; i <= 28; i += 8) g.fillStyle(hex(C.darkBrown)).fillRect(v.hx + i - 1, v.hy - 116, 4, 58).fillStyle(hex(C.lightBrown)).fillRect(v.hx + i, v.hy - 116, 2, 58);
+      g.fillStyle(hex(C.lightBrown)).fillRect(v.hx - 30, v.hy - 116, 62, 2);
       g.setScale(1, 0);
       g.y = v.hy;
       this.tweens.add({ targets: g, scaleY: 1, y: 0, duration: ms(200), ease: 'Quad.easeOut' });
@@ -1061,7 +1312,7 @@ export class BattleScene extends Phaser.Scene {
 
   private spark(v: View, color: number): void {
     for (let i = 0; i < 6; i++) {
-      const p = this.add.rectangle(v.hx + (Math.random() - 0.5) * 30, v.hy - 30 + (Math.random() - 0.5) * 30, 2, 2, hex(color)).setDepth(390);
+      const p = this.add.rectangle(v.hx + (Math.random() - 0.5) * 44, v.hy - 60 + (Math.random() - 0.5) * 50, 2, 2, hex(color)).setDepth(390);
       this.fx.add(p);
       this.tweens.add({ targets: p, y: p.y - 12, alpha: 0, duration: 400 + Math.random() * 200, onComplete: () => p.destroy() });
     }
@@ -1070,7 +1321,7 @@ export class BattleScene extends Phaser.Scene {
   // ===== 录像回放 =====
   private replayRound(): void {
     const rp = this.replay!;
-    this.roundText.setText(`录像 第${Math.min(this.replayAt + 1, rp.rounds.length)}/${rp.rounds.length}回合`);
+    this.roundText.setText(`录像 ${Math.min(this.replayAt + 1, rp.rounds.length)}/${rp.rounds.length}`);
     const r = rp.rounds[this.replayAt++];
     if (!r) return this.replayEnd();
     this.b.rng.state = r.s;
@@ -1079,76 +1330,120 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private replayEnd(): void {
-    const c = this.add.container(0, 0).setDepth(600);
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.5).fillRect(0, 0, W, CHAT_Y);
-    c.add([this.add.zone(0, 0, W, H).setOrigin(0).setInteractive(), g]);
     const out = this.b.outcome === 'win' ? '胜利' : this.b.outcome === 'lose' ? '失败' : '结束';
-    c.add(text(this, W / 2, 180, `录像播完了（${out}）`, { align: 'center', color: UI.yellow, stroke: 0x000000, scale: 2 }));
-    c.add(new Button(this, W / 2 - 50, 230, 100, 26, '返回', () => this.scene.start('Main'), { style: 'red' }));
+    const c = this.scroll(220, '录像');
+    const y = this.scrollY(220);
+    c.add(text(this, W / 2, y + 60, `录像播完了（${out}）`, { align: 'center', color: PAPER.ink, scale: 2 }));
+    c.add(new Button(this, W / 2 - 50, y + 220 - 56, 100, 28, '返回', () => this.scene.start('Main'), { style: 'red' }));
   }
 
   // ===== 战果总结 =====
   private finish(): void {
     this.clearMenu();
+    this.hideBanner();
     if (this.replay) return this.replayEnd();
     const sum = finishBattle(store.save, this.b);
     store.flush();
     sfx(sum.outcome === 'win' ? 'win' : sum.outcome === 'lose' ? 'lose' : 'step');
     if (sum.lines.some((l) => l.includes('升到'))) this.time.delayedCall(700, () => sfx('level'));
-    this.showSummary(sum);
+    // 胜利：活着的我方举起兵器
+    if (sum.outcome === 'win') for (const v of this.views.values()) if (!v.flip && !v.dead) this.pose(v, 'cast');
+    this.time.delayedCall(sum.outcome === 'win' ? 500 : 200, () => this.showSummary(sum));
+  }
+
+  private scrollY(h: number): number {
+    return Math.max(24, Math.floor((H - h) / 2) - 10);
+  }
+
+  // 卷轴：压暗整屏，漆木框宣纸，题签写标题
+  private scroll(h: number, title: string): Phaser.GameObjects.Container {
+    const c = this.add.container(0, 0).setDepth(600);
+    const w = 320;
+    const x = (W - w) / 2;
+    const y = this.scrollY(h);
+    const dim = this.add.graphics();
+    dim.fillStyle(0x0a0604, 0.62).fillRect(0, 0, W, H);
+    c.add([this.add.zone(0, 0, W, H).setOrigin(0).setInteractive(), dim]);
+    const g = this.add.graphics();
+    woodFrame(g, x, y, w, h);
+    c.add([g, this.add.image(x + 6, y + 6, paperTex(this, w - 12, h - 12)).setOrigin(0)]);
+    const tg = this.add.graphics();
+    titlePlaque(tg, W / 2, y - 8, 96, 20);
+    c.add([tg, text(this, W / 2, y - 5, title, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
+    c.setAlpha(0).setY(10);
+    this.tweens.add({ targets: c, alpha: 1, y: 0, duration: 180, ease: 'Quad.easeOut' });
+    return c;
   }
 
   private showSummary(sum: BattleSummary): void {
-    const c = this.add.container(0, 0).setDepth(600);
-    const w = 320;
+    const win = sum.outcome === 'win';
     const lines = sum.lines;
-    const rowsH = sum.rows.length * 30;
-    const h = Math.min(CHAT_Y - 40, 176 + rowsH + (sum.drops.length ? 20 : 0) + lines.length * 16);
+    const w = 320;
     const x = (W - w) / 2;
-    const y = Math.max(24, Math.floor((CHAT_Y - h) / 2));
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.5).fillRect(0, 0, W, CHAT_Y);
-    c.add([this.add.zone(0, 0, W, H).setOrigin(0).setInteractive(), g]);
-    // 原版：灰石牌头"战果总结"，金边橙底，中间一块红漆"胜利"牌
-    c.add(this.add.image(x, y, stoneTex(this, w, 34)).setOrigin(0));
-    const fg = this.add.graphics();
-    fg.fillStyle(0x000000).fillRect(x, y + 33, w, 1);
-    goldFrame(fg, x + 6, y + 34, w - 12, h - 34, null);
-    vgrad(fg, x + 10, y + 38, w - 20, h - 42, [0xf8c860, 0xe8a040, 0xd08028]);
-    c.add(fg);
-    c.add(text(this, W / 2, y + 5, '战果总结', { align: 'center', color: 0xffe8a0, stroke: 0x5a2800, scale: 2 }));
-    const title = sum.outcome === 'win' ? '胜利' : sum.outcome === 'lose' ? '失败' : '逃跑成功';
-    const pg = this.add.graphics();
-    const pw = 200;
-    pg.fillStyle(0x3a0800).fillRect(W / 2 - pw / 2, y + 46, pw, 52);
-    pg.fillStyle(UI.gold).fillRect(W / 2 - pw / 2 + 2, y + 48, pw - 4, 48);
-    vgrad(pg, W / 2 - pw / 2 + 5, y + 51, pw - 10, 42, [0xb01810, 0x801008, 0x600804]);
-    c.add(pg);
-    c.add(text(this, W / 2, y + 54, title, { align: 'center', color: sum.outcome === 'win' ? 0xffd040 : 0xd8d8e0, stroke: 0x401000, scale: title.length > 2 ? 2 : 3 }));
-    let yy = y + 108;
+    const dropH = sum.drops.length ? 44 : 0;
+    const linesH = lines.reduce((a, l) => a + wrap(l, w - 40).length * 16, 0);
+    const h = Math.min(H - 60, 124 + sum.rows.length * 34 + dropH + linesH + 50);
+    const c = this.scroll(h, '战果');
+    const y = this.scrollY(h);
+    // 一枚大印：胜 / 败 / 走，从上面盖下来
+    const seal = this.add.container(W / 2, y + 52);
+    const sg = this.add.graphics();
+    const col = win ? [0xd4442a, 0xa8240e] : sum.outcome === 'lose' ? [0x6a6258, 0x4a443c] : [0x8a6a40, 0x6a4a28];
+    sg.fillStyle(0x2a0402).fillRect(-30, -30, 60, 60);
+    vgrad(sg, -29, -29, 58, 58, col);
+    sg.fillStyle(0xfff0c0, 0.9).fillRect(-26, -26, 52, 2).fillRect(-26, 24, 52, 2).fillRect(-26, -26, 2, 52).fillRect(24, -26, 2, 52);
+    // 印泥不匀：几个缺口
+    sg.fillStyle(PAPER.base, 0.55).fillRect(-29, 10, 3, 5).fillRect(20, -29, 6, 2).fillRect(26, 18, 3, 4);
+    const ch = win ? '胜' : sum.outcome === 'lose' ? '败' : '走';
+    seal.add([sg, text(this, 0, -19, ch, { align: 'center', color: 0xfff0c0, scale: 3 })]);
+    seal.setAngle(-6).setScale(2.4).setAlpha(0);
+    c.add(seal);
+    this.tweens.add({ targets: seal, scale: 1, alpha: 1, duration: 220, delay: 200, ease: 'Quad.easeIn', onComplete: () => this.cameras.main.shake(120, 0.004) });
+    const caption = win ? '大获全胜' : sum.outcome === 'lose' ? '败下阵来' : '全身而退';
+    c.add(text(this, W / 2, y + 90, caption, { align: 'center', color: win ? 0xa8240e : 0x6a5236 }));
+    let yy = y + 112;
     for (const r of sum.rows) {
       const rg = this.add.graphics();
-      rg.fillStyle(0x6a3000).fillRect(x + 16, yy, w - 32, 26);
-      vgrad(rg, x + 17, yy + 1, w - 34, 24, [0xffc850, 0xf09020, 0xd06810]);
+      rg.fillStyle(0xa88a5c).fillRect(x + 16, yy, w - 32, 30);
+      rg.fillStyle(0xe8d6ae).fillRect(x + 17, yy + 1, w - 34, 28);
       c.add(rg);
-      c.add(text(this, x + 30, yy + 7, r.name, { raw: true, color: 0xffffff, stroke: 0x6a2000 }));
-      c.add(text(this, x + w - 112, yy + 1, `经验+${r.exp}`, { raw: true, color: 0xfff0a0, stroke: 0x6a2000 }));
-      c.add(text(this, x + w - 112, yy + 13, r.silver ? `银两+${r.silver}` : '', { raw: true, color: 0xffffff, stroke: 0x6a2000 }));
-      yy += 30;
+      c.add(text(this, x + 26, yy + 8, r.name, { color: PAPER.ink }));
+      c.add(this.add.image(x + w - 150, yy + 9, uiIconTex(this, 'scroll')).setOrigin(0));
+      c.add(text(this, x + w - 134, yy + 8, `经验+${r.exp}`, { color: 0x8a5a10 }));
+      if (r.silver) {
+        c.add(this.add.image(x + w - 70, yy + 9, uiIconTex(this, 'coin')).setOrigin(0));
+        c.add(text(this, x + w - 56, yy + 8, `${r.silver}`, { color: 0x5a5a6a }));
+      }
+      yy += 34;
     }
     if (sum.drops.length) {
-      c.add(text(this, x + 18, yy, `获得：${sum.drops.map((d) => `${d.name}×${d.n}`).join('、')}`, { raw: true, color: 0x1a2a90, wrap: w - 36 }));
-      yy += 20;
+      c.add(text(this, x + 18, yy, '缴获', { color: 0x8a6a40 }));
+      let dx = x + 50;
+      for (const d of sum.drops) {
+        const id = Object.keys(items).find((k) => items[k].name === d.name);
+        const label = `${d.name}×${d.n}`;
+        const iw = (id ? 20 : 0) + textWidth(label) + 10;
+        if (dx + iw > x + w - 16) break;
+        if (id) c.add(this.add.image(dx, yy + 7, iconTex(this, id)).setOrigin(0, 0.5));
+        c.add(text(this, dx + (id ? 20 : 0), yy, label, { color: 0x1a3a90 }));
+        dx += iw;
+      }
+      yy += dropH;
     }
     for (const l of lines) {
-      c.add(text(this, x + 18, yy, l, { raw: true, color: l.includes('升到') ? 0xb00800 : 0x3a1400, wrap: w - 36 }));
-      yy += 16;
+      for (const ln of wrap(l, w - 40)) {
+        if (yy > y + h - 66) break;
+        c.add(text(this, x + 20, yy, ln, { color: l.includes('升到') ? 0xb00800 : 0x5a4028 }));
+        yy += 16;
+      }
     }
-    c.add(text(this, W / 2, y + h - 52, '点击任意处继续', { align: 'center', raw: true, color: 0xc01000 }));
-    c.add(new Button(this, W / 2 - 50, y + h - 34, 100, 24, '确定', () => this.scene.start('Main'), { style: 'red' }));
-    c.add(this.add.zone(0, 0, W, CHAT_Y).setOrigin(0).setInteractive().on('pointerup', () => this.time.delayedCall(0, () => this.scene.isActive() && this.scene.start('Main'))));
-    this.chat.refresh();
-    hit(this, 0, 0, 1, 1, () => {});
+    const done = () => this.time.delayedCall(0, () => {
+      if (!this.scene.isActive()) return;
+      this.cameras.main.fadeOut(180, 10, 6, 4);
+      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Main'));
+    });
+    c.add(new Button(this, W / 2 - 54, y + h - 40, 108, 28, '收兵', done, { style: 'red' }));
+    c.add(this.add.zone(0, 0, W, y).setOrigin(0).setInteractive().on('pointerup', done));
+    c.add(this.add.zone(0, y + h, W, H - y - h).setOrigin(0).setInteractive().on('pointerup', done));
   }
 }

@@ -1,7 +1,7 @@
 // 全屏与系统栏：网页在安卓上点一下就进全屏（盖住状态栏和导航条），各场景把浏览器顶栏染成自己的颜色
 import type Phaser from 'phaser';
 import { isApp } from '../game/cloud';
-import { H, W, calcH, setH } from './widgets';
+import { H, W, calcH, setH, setSafeTop } from './widgets';
 
 // 铺满屏幕（宽固定 360、高随屏幕比例伸缩，所以基本没有空边）；画布用 pixelated 放大，像素和点阵字仍是硬边
 export function fitZoom(): number {
@@ -17,7 +17,24 @@ export function syncHeight(game: Phaser.Game): boolean {
     game.scale.resize(W, H);
   }
   game.scale.setZoom(fitZoom());
+  setSafeTop(safeTop());
   return changed;
+}
+
+// 顶部安全区：系统报的刘海/挖孔高度；全屏、App、主屏幕模式下系统不报也至少让出一条状态栏的高度
+let probe: HTMLDivElement | null = null;
+function safeTop(): number {
+  // 开发时可以在控制台设 window.__safeTop 模拟挖孔屏
+  const dev = (window as unknown as { __safeTop?: number }).__safeTop;
+  if (import.meta.env.DEV && dev !== undefined) return dev;
+  if (!probe) {
+    probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none';
+    document.body.appendChild(probe);
+  }
+  let css = probe.offsetHeight;
+  if (isFullscreen() || standalone() || isApp()) css = Math.max(css, 28);
+  return Math.round(css / fitZoom());
 }
 
 const ua = navigator.userAgent;

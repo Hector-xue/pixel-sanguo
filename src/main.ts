@@ -15,6 +15,13 @@ async function boot(): Promise<void> {
     // 字体没加载成功也继续，会用系统字体顶上
   }
   document.getElementById('boot')?.remove();
+  // 东西删掉时把它身上的补间也停掉：舞台、对话、弹窗里有不少无限循环的小动画（气泡跳、灯火闪、立绘呼吸），
+  // 不停的话每重画一次就多一批在后台空转，走得越久越卡，最后像卡死、点不动
+  const destroy = Phaser.GameObjects.GameObject.prototype.destroy;
+  Phaser.GameObjects.GameObject.prototype.destroy = function (this: Phaser.GameObjects.GameObject, fromScene?: boolean) {
+    if (this.scene && !fromScene) this.scene.tweens?.killTweensOf(this);
+    destroy.call(this, fromScene);
+  };
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',

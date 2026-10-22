@@ -39,9 +39,10 @@ npx vite-node scripts/make-icons.ts   # 重新生成主屏图标（改了头像�
 - `server/` 云存档服务和它的接口测试
 - `src/art/title.ts` 标题页背景（全彩分层远景、桃花、飘云飞鸟落花）、金色招牌字、标题页小图标
 - `src/ui/screen.ts` 全屏（安卓网页第一次点屏幕自动进全屏、标题页左上角开关）、进出全屏后按新高度重排、浏览器顶栏随场景换色；App 的沉浸模式在 `scripts/android/MainActivity.java`（CI 打包时替换模板）
-- `src/art/chrome.ts` 界面质感层：宣纸面板、漆木框金角花、朱漆题签、印章钮、木色/朱漆按钮，战斗的菱形指令和沙地
+- `src/art/chrome.ts` 界面质感层：宣纸面板、漆木框金角花、朱漆题签、印章钮、木色/朱漆按钮
 - `src/art/bust.ts` 半身立绘（对话、人物卡、图标）：按人物外观逐项画脸型、眼眉、胡子、发型头饰、交领铠甲
-- `src/art/props.ts` 场景舞台的地面摆设（屋舍、树、货摊、帐篷、营火……），每种地点一套摆放规则
+- `src/art/props.ts` 场景舞台的地面摆设（屋舍、树、货摊、帐篷、营火……），每种地点一套摆放规则（主界面和战场共用，晨昏夜也在这里算）
+- `src/scenes/BattleScene.ts` 战斗：当地场景做战场、行动顺序条、宣纸指令盘（立绘+指令 / 战报）、朱漆题签报招式名、盖印的战果卷轴
 - `src/game/bond.ts` NPC 好感（闲聊、送礼、按档回赠谢礼）；`src/game/journey.ts` 野外奇遇（几个选项，后果各不相同）
 - `src/sim/autoplay.ts` 自动通关模拟（1 级打到汉中篇结束），调数值后跑 `npm test` 看节奏
 - `artpreview.html` 美术预览页（开发服务器下打开）

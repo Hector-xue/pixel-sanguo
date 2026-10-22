@@ -501,3 +501,15 @@ export function layoutProps(art: string, key: string, w: number, top: number, bo
   }
   return out;
 }
+
+// 按手机的真实时间分晨、昼、昏、夜（主界面舞台和战场共用）
+export type Daypart = 'dawn' | 'day' | 'dusk' | 'night';
+export function daypart(d = new Date()): Daypart {
+  const h = d.getHours() + d.getMinutes() / 60;
+  if (h >= 5 && h < 7) return 'dawn';
+  if (h >= 7 && h < 17) return 'day';
+  if (h >= 17 && h < 19) return 'dusk';
+  return 'night';
+}
+// 洞里、墓里不分昼夜，常年暗
+export const OUTDOOR_DARK = new Set(['cave', 'tomb']);

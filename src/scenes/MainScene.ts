@@ -5,7 +5,8 @@ import { setChrome, syncHeight } from '../ui/screen';
 import { C } from '../art/palette';
 import { avatarTex, bustTex, heroLookKey, propTex, sceneTex, uiIconTex, unitTex } from '../art/textures';
 import { FEET_Y, UNIT_H, UNIT_W, BX } from '../art/units';
-import { GLOW, layoutProps } from '../art/props';
+import { GLOW, OUTDOOR_DARK, daypart, layoutProps } from '../art/props';
+import type { Daypart } from '../art/props';
 import { classes, locations, monsters, npcs } from '../data';
 import type { MonsterGroup } from '../data';
 import { randomSeed } from '../core/rng';
@@ -25,7 +26,7 @@ import * as F from '../ui/fun';
 import * as R from '../ui/role';
 import { store } from '../game/store';
 import { ChatBox } from '../ui/chat';
-import { Button, H, Modal, W, bar, hit, sfx, text, textWidth, toast } from '../ui/widgets';
+import { Button, H, Modal, SAFE_TOP, W, bar, hit, sfx, text, textWidth, toast } from '../ui/widgets';
 import { UI, sealBox, titlePlaque, vgrad } from '../art/chrome';
 import { showDialog } from '../ui/dialog';
 import * as P from '../ui/panels';
@@ -53,19 +54,10 @@ function layout(): void {
 const HORIZON = 0.34;
 const OFF = BX - UNIT_W / 2;
 
-type Daypart = 'dawn' | 'day' | 'dusk' | 'night';
-function daypart(d = new Date()): Daypart {
-  const h = d.getHours() + d.getMinutes() / 60;
-  if (h >= 5 && h < 7) return 'dawn';
-  if (h >= 7 && h < 17) return 'day';
-  if (h >= 17 && h < 19) return 'dusk';
-  return 'night';
-}
 const SHICHEN = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 function shichen(d = new Date()): string {
   return `${SHICHEN[Math.floor(((d.getHours() + 1) % 24) / 2)]}时`;
 }
-const OUTDOOR_DARK = new Set(['cave', 'tomb']);
 
 interface Actor {
   kind: 'npc' | 'group' | 'treasure' | 'passer';
@@ -84,6 +76,8 @@ export class MainScene extends Phaser.Scene implements P.Host {
   private layer!: Phaser.GameObjects.Container;
   private stage!: Phaser.GameObjects.Container;
   private ambient: Phaser.Time.TimerEvent[] = [];
+  // 每帧跟着走的小事（侠客的点击区跟着人挪）；舞台重建时清空
+  private followers: (() => void)[] = [];
   chat!: ChatBox;
   private walking = false;
   private stageKey = '';
@@ -102,6 +96,10 @@ export class MainScene extends Phaser.Scene implements P.Host {
       return;
     }
     this.stageKey = '';
+    this.followers = [];
+    const tick = () => this.followers.forEach((f) => f());
+    this.events.on('update', tick);
+    this.events.once('shutdown', () => this.events.off('update', tick));
     this.stage = this.add.container(0, 0);
     this.layer = this.add.container(0, 0).setDepth(10);
     this.chat = new ChatBox(this, 0, STAGE_H + HUD_H, W, CHAT_H, { compact: true, onTap: () => this.chatSheet() });
@@ -161,6 +159,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
   private drawStage(): void {
     for (const t of this.ambient) t.remove();
     this.ambient = [];
+    this.followers = [];
     this.stage.removeAll(true);
     const s = store.save;
     const loc = locations[s.location];
@@ -333,7 +332,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
       this.ambient.push(this.time.delayedCall(800 + i * 1200, walk));
       const z = hit(this, x - 14, y - 50, 28, 56, () => P.playerDetail(this, pl)).setDepth(829);
       this.stage.add(z);
-      this.events.on('update', () => z.active && z.setX(img.x - 14));
+      this.followers.push(() => z.active && z.setX(img.x - 14));
     });
   }
 
@@ -406,17 +405,19 @@ export class MainScene extends Phaser.Scene implements P.Host {
   private drawStageHud(): void {
     const s = store.save;
     const loc = locations[s.location];
+    // 顶上让出状态栏、挖孔的高度（那一截只露天空），字从下面开始
+    const T = SAFE_TOP;
     const g = this.add.graphics();
-    vgrad(g, 0, 0, W, 30, [0x000000, 0x000000]);
-    g.setAlpha(0.32);
+    vgrad(g, 0, T, W, 30, [0x000000, 0x000000]);
+    g.setAlpha(0.26);
     this.layer.add(g);
     const pg = this.add.graphics();
     const tw = Math.max(80, textWidth(loc.name) + 32);
-    titlePlaque(pg, W / 2, 5, tw, 20);
-    this.layer.add([pg, text(this, W / 2, 8, loc.name, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
+    titlePlaque(pg, W / 2, T + 5, tw, 20);
+    this.layer.add([pg, text(this, W / 2, T + 8, loc.name, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
     const dp = daypart();
     const dpName: Record<Daypart, string> = { dawn: '清晨', day: '白昼', dusk: '黄昏', night: '夜' };
-    this.layer.add(text(this, W - 6, 8, `${shichen()}·${dpName[dp]}`, { align: 'right', color: 0xfbefd0, stroke: 0x000000 }));
+    this.layer.add(text(this, W - 6, T + 8, `${shichen()}·${dpName[dp]}`, { align: 'right', color: 0xfbefd0, stroke: 0x000000 }));
     this.drawTracker();
     // 右上快捷：福利、国战（有事时亮红点）
     const quick: [string, string, () => void, boolean][] = [
@@ -425,7 +426,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     ];
     quick.forEach(([icon, label, fn, dot], i) => {
       const x = W - 34;
-      const y = 36 + i * 46;
+      const y = T + 36 + i * 46;
       const qg = this.add.graphics();
       qg.fillStyle(0x000000, 0.45).fillRect(x - 1, y - 1, 30, 30);
       sealBox(qg, x, y, 28);
@@ -443,7 +444,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const q = currentQuest(s);
     if (!q) return;
     const x = 6;
-    const y = 32;
+    const y = SAFE_TOP + 34;
     const w = 196;
     const ready = s.main.state === 'ready';
     const body = s.main.state === 'available' ? `去找${npcs[q.giver]?.name ?? ''}接任务` : questProgressText(s);

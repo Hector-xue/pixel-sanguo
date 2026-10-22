@@ -15,6 +15,11 @@ export let H = calcH();
 export function setH(v: number): void {
   H = v;
 }
+// 屏幕顶上被状态栏、挖孔摄像头盖住的高度（画布像素）。背景（天空、场景）照样铺到最顶，字和按钮从这下面开始
+export let SAFE_TOP = 0;
+export function setSafeTop(v: number): void {
+  SAFE_TOP = v;
+}
 export const FONT = 'FusionPixel';
 
 export type FrameStyle = 'paper' | 'tan' | 'dark' | 'red' | 'pressed' | 'disabled' | 'ink' | 'blue' | 'magenta' | 'orange' | 'steel' | 'row';
