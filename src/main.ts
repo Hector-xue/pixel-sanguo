@@ -4,13 +4,9 @@ import { TitleScene } from './scenes/TitleScene';
 import { MainScene } from './scenes/MainScene';
 import { BattleScene } from './scenes/BattleScene';
 import { H, W } from './ui/widgets';
+import { autoFullscreen, fitZoom, syncHeight } from './ui/screen';
 import { store } from './game/store';
 import { onlineTick } from './game/welfare';
-
-// 铺满屏幕（宽固定 360、高随屏幕比例伸缩，所以基本没有空边）；画布用 pixelated 放大，像素和点阵字仍是硬边
-function fitZoom(): number {
-  return Math.min(window.innerWidth / W, window.innerHeight / H);
-}
 
 async function boot(): Promise<void> {
   try {
@@ -31,7 +27,19 @@ async function boot(): Promise<void> {
     input: { activePointers: 2 },
     scene: [BootScene, TitleScene, MainScene, BattleScene],
   });
-  window.addEventListener('resize', () => game.scale.setZoom(fitZoom()));
+  // 进出全屏、转屏后屏幕比例变了：标题页和主界面按新高度重排；战斗中只缩放，打完下一场再按新高度
+  let relayout = 0;
+  const onResize = () => {
+    game.scale.setZoom(fitZoom());
+    window.clearTimeout(relayout);
+    relayout = window.setTimeout(() => {
+      if (game.scene.isActive('Battle') || !syncHeight(game)) return;
+      for (const key of ['Title', 'Main']) if (game.scene.isActive(key)) game.scene.getScene(key).scene.restart({ relayout: true });
+    }, 250);
+  };
+  window.addEventListener('resize', onResize);
+  document.addEventListener('fullscreenchange', onResize);
+  autoFullscreen();
   // 在线奖励按当天在线时长算：页面在前台时每 10 秒记一次
   setInterval(() => {
     if (!document.hidden && store.has()) onlineTick(store.save, 10);

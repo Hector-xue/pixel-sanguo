@@ -347,15 +347,16 @@ function drawNear(L: Layout): Px {
     p.set(x, y, c);
     if (i % 3 === 0) p.set(x + 1, y, c);
   }
-  // 左下一株桃树
-  const tx = 18;
-  const ty = Math.round(hz + (h - hz) * 0.68);
-  branch(p, [[tx - 8, h + 2], [tx - 2, ty + 28], [tx + 5, ty + 8], [tx + 3, ty - 14]], 5, 2);
-  branch(p, [[tx + 5, ty + 14], [tx + 18, ty - 2]], 1.6, 0.8);
-  branch(p, [[tx + 1, ty + 4], [tx - 10, ty - 8]], 1.5, 0.8);
-  for (const [bx, by, r] of [[tx - 10, ty - 10, 9], [tx + 17, ty - 5, 9], [tx + 3, ty - 18, 11], [tx + 8, ty, 7], [tx - 4, ty + 6, 6], [tx + 24, ty + 4, 5]] as [number, number, number][]) blossom(p, bx, by, r, rnd);
-  // 落在草上的花瓣
-  for (let i = 0; i < 30; i++) p.set(tx + (rnd() - 0.2) * 44, ty + 26 + rnd() * 20, rnd() < 0.5 ? 0xf8b4c8 : 0xffe0ea);
+  // 左边田野中段一株桃树（不压底下的按钮和字）
+  const tx = 14;
+  const ty = Math.round(hz + (h - hz) * 0.36);
+  branch(p, [[tx - 3, ty + 34], [tx - 1, ty + 22], [tx + 4, ty + 6], [tx + 2, ty - 10]], 3.2, 1.4);
+  branch(p, [[tx + 3, ty + 10], [tx + 14, ty - 1]], 1.3, 0.7);
+  branch(p, [[tx + 1, ty + 4], [tx - 8, ty - 6]], 1.2, 0.7);
+  for (const [bx, by, r] of [[tx - 8, ty - 7, 7], [tx + 13, ty - 3, 7], [tx + 2, ty - 13, 9], [tx + 6, ty + 1, 6], [tx - 3, ty + 5, 5], [tx + 19, ty + 3, 4]] as [number, number, number][]) blossom(p, bx, by, r, rnd);
+  // 树根和落在草上的花瓣
+  for (let i = -3; i <= 2; i++) p.set(tx - 3 + i, ty + 35, 0x3f7f34);
+  for (let i = 0; i < 26; i++) p.set(tx + (rnd() - 0.3) * 34, ty + 30 + rnd() * 10, rnd() < 0.5 ? 0xf8b4c8 : 0xffe0ea);
   // 右上角斜进来一枝桃花，框住画面
   branch(p, [[w + 4, 4], [w - 16, 14], [w - 34, 20], [w - 46, 30]], 2.4, 0.8);
   branch(p, [[w - 22, 16], [w - 30, 6]], 1.1, 0.6);
@@ -520,4 +521,112 @@ export function logoTex(scene: Phaser.Scene, str: string): string {
   }
   scene.textures.addCanvas(key, p.toCanvas());
   return key;
+}
+
+// 标题页的小图标：12×12 点阵，# 描边，其余字母见 ICON_COLORS
+const ICON_COLORS: Record<string, number> = {
+  '#': 0x2a1406, g: 0xffd84c, y: 0xfff4a8, o: 0xe0901c, w: 0xffffff, b: 0x7ab0ff, n: 0x3456d2, p: 0xf3e3c0, t: 0xc8a868, r: 0xe04a30, s: 0xf2c9a0, k: 0x3a2a20,
+};
+const ICONS: Record<string, string[]> = {
+  // 往下的箭头落进匣子：导入存档
+  import: [
+    '....####....',
+    '....#yg#....',
+    '....#gg#....',
+    '..###gg###..',
+    '..#yggggo#..',
+    '...#yggo#...',
+    '#...#go#...#',
+    '#p...##...p#',
+    '#pp......pp#',
+    '#tpppppppppt',
+    '#tttttttttt#',
+    '############',
+  ],
+  // 白云 + 蓝色上传箭头：云存档
+  cloud: [
+    '............',
+    '....####....',
+    '...#wwww#...',
+    '.###wwwww##.',
+    '#wwwwwbwwww#',
+    '#wwwwbbbwww#',
+    '#wwwbbbbbww#',
+    '.#wwwwbwww#.',
+    '..####b###..',
+    '......b.....',
+    '.....nbn....',
+    '............',
+  ],
+  // 手机：安卓版
+  phone: [
+    '...######...',
+    '..#kkkkkk#..',
+    '..#bbbbbb#..',
+    '..#bwbbbb#..',
+    '..#bbwbbb#..',
+    '..#bbbbbb#..',
+    '..#bbbbbb#..',
+    '..#bbbbbb#..',
+    '..#kkkkkk#..',
+    '..#kkggkk#..',
+    '..#kkkkkk#..',
+    '...######...',
+  ],
+  // 小人 + 加号：新角色
+  newrole: [
+    '...####.....',
+    '..#kkkk#....',
+    '..#ssss#....',
+    '..#ssss#....',
+    '...####.....',
+    '..#rrrr#.##.',
+    '.#rrrrrr##g#',
+    '.#rrrrr#ggg#',
+    '.#rrrrr##g#.',
+    '.#rrrrrr###.',
+    '..#k##k#....',
+    '..##..##....',
+  ],
+  // 四角往外撑：全屏
+  full: [
+    '####....####',
+    '#ww#....#ww#',
+    '#w#......#w#',
+    '##........##',
+    '............',
+    '............',
+    '............',
+    '............',
+    '##........##',
+    '#w#......#w#',
+    '#ww#....#ww#',
+    '####....####',
+  ],
+  // 四角往里收：退出全屏
+  unfull: [
+    '..#w#..#w#..',
+    '..#w#..#w#..',
+    '###w#..#w###',
+    'wwww#..#wwww',
+    '#####..#####',
+    '............',
+    '............',
+    '#####..#####',
+    'wwww#..#wwww',
+    '###w#..#w###',
+    '..#w#..#w#..',
+    '..#w#..#w#..',
+  ],
+};
+
+export function iconTitleTex(scene: Phaser.Scene, name: string): string {
+  return tex(scene, `tt:icon:${name}`, () => {
+    const rows = ICONS[name];
+    const p = new Px(12, 12);
+    rows.forEach((row, y) => [...row].forEach((ch, x) => {
+      if (ch !== '.') p.set(x, y, ICON_COLORS[ch]);
+    }));
+    return p;
+  });
 }

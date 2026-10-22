@@ -6,10 +6,15 @@ import type { Face } from '../art/chrome';
 
 export const W = 360;
 // 高度随手机屏幕比例伸缩（640～860，覆盖到 21:9 的长屏），多出来的给聊天区；宽度固定 360
-export const H = (() => {
+export function calcH(): number {
   const ratio = window.innerHeight / Math.max(1, window.innerWidth);
   return Math.max(640, Math.min(860, Math.round(W * ratio)));
-})();
+}
+// 进出全屏后屏幕比例变了，由 main.ts 改它并重排当前场景（ES 模块导出是活绑定，各处读到的都是新值）
+export let H = calcH();
+export function setH(v: number): void {
+  H = v;
+}
 export const FONT = 'FusionPixel';
 
 export type FrameStyle = 'paper' | 'tan' | 'dark' | 'red' | 'pressed' | 'disabled' | 'ink' | 'blue' | 'magenta' | 'orange' | 'steel' | 'row';

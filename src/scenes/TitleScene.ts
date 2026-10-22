@@ -15,7 +15,9 @@ import { cloudPanel } from '../ui/cloud';
 import { isApp } from '../game/cloud';
 import { Button, H, W, confirm, frame, goldFrame, hit, text, toast } from '../ui/widgets';
 import { UI } from '../art/chrome';
-import { logoTex, titleBackdrop } from '../art/title';
+import { iconTitleTex, logoTex, titleBackdrop } from '../art/title';
+import { vgrad } from '../art/chrome';
+import { enterFullscreen, exitFullscreen, fullscreenSupported, isFullscreen, setChrome } from '../ui/screen';
 
 const SERVERS = ['许昌', '洛阳', '长安', '邺城', '建业', '成都', '襄阳', '下邳', '宛城', '汝南', '北海', '陈留', '濮阳', '庐江', '江陵'];
 const CLASS_TRAIT: Record<ClassId, string> = {
@@ -26,15 +28,60 @@ const CLASS_TRAIT: Record<ClassId, string> = {
 
 export class TitleScene extends Phaser.Scene {
   private page: Phaser.GameObjects.Container | null = null;
+  // 进出全屏后要按新高度重排：记住当前在哪一页，重排完回到这一页
+  private current: () => void = () => this.showHome();
 
   constructor() {
     super('Title');
   }
 
-  create(): void {
+  create(data?: { relayout?: boolean }): void {
+    this.page = null;
+    setChrome('#4a8fd8');
     titleBackdrop(this, W, H);
-    this.showHome();
+    if (data?.relayout) this.current();
+    else this.showHome();
   }
+
+  // 方形图标按钮（深蓝半透明底 + 金边），字在下面
+  private iconButton(x: number, y: number, icon: string, label: string, onTap: () => void, size = 44): Phaser.GameObjects.Container {
+    const c = this.add.container(x, y);
+    const g = this.add.graphics();
+    const draw = (down: boolean) => {
+      g.clear();
+      g.fillStyle(0x000000, 0.35).fillRect(1, 2, size, size);
+      g.fillStyle(UI.goldLo).fillRect(1, 0, size - 2, size).fillRect(0, 1, size, size - 2);
+      g.fillStyle(down ? 0x262c78 : 0x0c0e44, 0.82).fillRect(1, 1, size - 2, size - 2);
+      g.fillStyle(UI.gold).fillRect(2, 1, size - 4, 1);
+      g.fillStyle(UI.navyHi, 0.6).fillRect(2, 2, size - 4, 1);
+    };
+    draw(false);
+    const k = size >= 40 ? 2 : 2;
+    const img = this.add.image(size / 2, size / 2, iconTitleTex(this, icon)).setScale(k);
+    c.add([g, img]);
+    if (label) c.add(text(this, size / 2, size + 3, label, { align: 'center', color: UI.white, stroke: 0x1a2440 }));
+    const z = this.add.zone(0, 0, size, size).setOrigin(0).setInteractive({ useHandCursor: true });
+    let down = false;
+    z.on('pointerdown', () => {
+      down = true;
+      draw(true);
+      img.y = size / 2 + 1;
+    });
+    z.on('pointerout', () => {
+      down = false;
+      draw(false);
+      img.y = size / 2;
+    });
+    z.on('pointerup', () => {
+      draw(false);
+      img.y = size / 2;
+      if (down) onTap();
+      down = false;
+    });
+    c.add(z);
+    return c;
+  }
+
 
   private newPage(): Phaser.GameObjects.Container {
     this.page?.destroy();
@@ -43,32 +90,73 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private showHome(): void {
+    this.current = () => this.showHome();
     const p = this.newPage();
-    // 招牌字直接立在天上，不再压深色框
+    // 招牌字直接立在天上，下面一条红绸带
     p.add(this.add.image(W / 2, 112, logoTex(this, '像素三国')).setScale(2));
     const rg = this.add.graphics();
-    rg.fillStyle(0x2a3a66, 0.32).fillRect(70, 152, 220, 38);
-    rg.fillStyle(0xffffff, 0.35).fillRect(70, 152, 220, 1).fillRect(70, 189, 220, 1);
+    const ry = 152;
+    const rh = 22;
+    // 绸带两头的燕尾（每行一段矩形，像素干净）
+    for (let j = 0; j < rh; j++) {
+      const notch = Math.max(0, 7 - Math.abs(j - (rh - 1) / 2));
+      rg.fillStyle(j < 2 ? 0xb02418 : 0x7a1008).fillRect(46 + Math.round(notch), ry + 5 + j, 24 - Math.round(notch), 1);
+      rg.fillStyle(j < 2 ? 0xb02418 : 0x7a1008).fillRect(290, ry + 5 + j, 24 - Math.round(notch), 1);
+    }
+    rg.fillStyle(0x4a0000).fillRect(62, ry + 5, 8, rh).fillRect(290, ry + 5, 8, rh);
+    rg.fillStyle(0x4a0000).fillRect(62, ry - 1, 236, rh + 2);
+    vgrad(rg, 63, ry, 234, rh, [0xf06040, 0xd03420, 0xa81a0e, 0x8a1008]);
+    rg.fillStyle(0xff9a78).fillRect(63, ry, 234, 1);
+    rg.fillStyle(UI.gold).fillRect(66, ry + 3, 228, 1).fillRect(66, ry + rh - 4, 228, 1);
     p.add(rg);
-    p.add(text(this, W / 2, 156, '回合制 · 三国像素单机', { align: 'center', color: UI.white, stroke: 0x2a3a66 }));
-    p.add(text(this, W / 2, 173, '单机版 P4 · 天下', { align: 'center', color: UI.cream, stroke: 0x2a3a66 }));
-    let y = 360;
-    if (store.has()) {
+    p.add(text(this, W / 2, ry + 4, '回合制 · 三国像素单机', { align: 'center', color: UI.white, stroke: 0x4a0000 }));
+    p.add(text(this, W / 2, ry + rh + 8, '单机版 P4 · 天下', { align: 'center', color: UI.cream, stroke: 0x3a2a10 }));
+
+    // 右上角留给桃花，左上角是全屏开关
+    if (fullscreenSupported()) {
+      p.add(this.iconButton(8, 8, isFullscreen() ? 'unfull' : 'full', '', () => void (isFullscreen() ? exitFullscreen() : enterFullscreen()), 30));
+    }
+
+    // 底部压暗一点，健康游戏忠告和署名才看得清
+    const bg = this.add.graphics();
+    for (let k = 0; k < 6; k++) bg.fillStyle(0x0a1a08, 0.07 * (k + 1)).fillRect(0, H - 72 + k * 12, W, 12);
+    p.add(bg);
+
+    // 主按钮：有存档就继续，没有就开始；下面一排小图标是次要功能
+    const has = store.has();
+    const by = H - 206;
+    if (has) {
       const s = store.save;
-      p.add(new Button(this, 90, y, 180, 32, `继续游戏`, () => this.scene.start('Main'), { style: 'red' }));
-      p.add(text(this, W / 2, y + 36, `${s.server} · ${s.player.name} · ${s.player.level}级${classes[s.player.classId].name}`, { align: 'center', color: C.lightPaper, stroke: C.ink }));
-      y += 64;
+      const pill = this.add.graphics();
+      const info = `${s.server} · ${s.player.name} · ${s.player.level}级${classes[s.player.classId].name}`;
+      pill.fillStyle(0x0c0e44, 0.6).fillRect(60, by - 30, 240, 22);
+      pill.fillStyle(0xffffff, 0.25).fillRect(60, by - 30, 240, 1);
+      p.add(pill);
+      p.add(text(this, W / 2, by - 26, info, { align: 'center', color: UI.cream }));
     }
-    p.add(new Button(this, 90, y, 180, 32, '创建角色', () => {
-      if (store.has()) confirm(this, '创建新角色会覆盖现在的存档。建议先在游戏里「功能 → 退出」导出存档。', () => this.showServers(0), '覆盖');
-      else this.showServers(0);
-    }));
-    p.add(new Button(this, 90, y + 44, 180, 32, '导入存档', () => this.importSave()));
-    p.add(new Button(this, 90, y + 88, 180, 32, '云存档', () => cloudPanel(this, false, () => this.showHome())));
-    if (!isApp() && /Android/i.test(navigator.userAgent)) {
-      p.add(new Button(this, 90, y + 132, 180, 28, '下载安卓版', () => window.open('./download/pixel-sanguo.apk', '_blank'), { style: 'blue' }));
+    const glow = this.add.graphics();
+    glow.fillStyle(0xfff0a0, 1).fillRect(76, by - 4, 208, 54).fillRect(74, by - 2, 212, 50);
+    glow.setAlpha(0);
+    p.add(glow);
+    this.tweens.add({ targets: glow, alpha: { from: 0, to: 0.45 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    const start = () => (has ? this.scene.start('Main') : this.showServers(0));
+    p.add(new Button(this, 80, by, 200, 46, '', start, { style: 'tan' }));
+    p.add(text(this, W / 2, by + 9, has ? '继续游戏' : '开始游戏', { align: 'center', color: 0x401400, scale: 2 }));
+
+    const icons: [string, string, () => void][] = [];
+    if (has) {
+      icons.push(['newrole', '新角色', () => confirm(this, '创建新角色会覆盖现在的存档。建议先在游戏里「功能 → 退出」导出存档。', () => this.showServers(0), '覆盖')]);
     }
-    p.add(text(this, W / 2, H - 24, '画面、剧情为原创；字体 Fusion Pixel（OFL）', { align: 'center', color: C.lightPaper, stroke: C.ink }));
+    icons.push(['import', '导入存档', () => this.importSave()]);
+    icons.push(['cloud', '云存档', () => cloudPanel(this, false, () => this.showHome())]);
+    if (!isApp() && /Android/i.test(navigator.userAgent)) icons.push(['phone', '安卓版', () => window.open('./download/pixel-sanguo.apk', '_blank')]);
+    const gap = 30;
+    const x0 = Math.round((W - (icons.length * 44 + (icons.length - 1) * gap)) / 2);
+    icons.forEach(([ic, label, fn], i) => p.add(this.iconButton(x0 + i * (44 + gap), H - 132, ic, label, fn)));
+
+    p.add(text(this, W / 2, H - 56, '抵制不良游戏，拒绝盗版游戏。注意自我保护，谨防受骗上当。', { align: 'center', color: 0xe8f0e0, stroke: 0x1a2a10 }));
+    p.add(text(this, W / 2, H - 40, '适度游戏益脑，沉迷游戏伤身。合理安排时间，享受健康生活。', { align: 'center', color: 0xe8f0e0, stroke: 0x1a2a10 }));
+    p.add(text(this, W / 2, H - 20, '画面、剧情为原创 · 字体 Fusion Pixel（OFL）', { align: 'center', color: 0xa8b8a0, stroke: 0x1a2a10 }));
   }
 
   private importSave(): void {
@@ -90,6 +178,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private showServers(pageNo: number): void {
+    this.current = () => this.showServers(pageNo);
     const p = this.newPage();
     const g = this.add.graphics();
     frame(g, 20, 60, 320, 380, 'paper');
@@ -114,6 +203,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private showCreate(server: string): void {
+    this.current = () => this.showCreate(server);
     const rng = new Rng(randomSeed());
     const st = { gender: 'male' as Gender, classId: 'warrior' as ClassId, avatar: 0 };
     const p = this.newPage();

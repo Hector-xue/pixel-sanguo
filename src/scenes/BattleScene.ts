@@ -1,5 +1,6 @@
 // 横版战斗界面：敌人在左、我方在右；七个菱形指令；"角色名-出招(60)"倒计时；战果总结
 import Phaser from 'phaser';
+import { setChrome, syncHeight } from '../ui/screen';
 import { C, hex } from '../art/palette';
 import { sceneTex, unitTex } from '../art/textures';
 import { BX, FEET_Y, UNIT_H, UNIT_W } from '../art/units';
@@ -117,6 +118,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(): void {
+    syncHeight(this.game);
+    setChrome('#0a0604');
     const s = store.save;
     const loc = locations[s.location];
     // 顶栏远景条 + 地点名（与主界面一致）

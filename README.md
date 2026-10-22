@@ -37,7 +37,8 @@ npx vite-node scripts/make-icons.ts   # 重新生成主屏图标（改了头像�
 - `src/game/` 里 P4 的系统：`guozhan`（国战沙盘：城池、AI 回合、出征驻守、守将、战功官职、赛季）、`contest`（军团争霸、跨区大战）、`cloud`（云存档客户端）
 - `scripts/gen-p3.py` 生成 P3 的地图、怪物、NPC、主线、6～16 级装备档；`scripts/gen-p4.py` 生成国战的城池、兵种、守将和争霸、跨区的配置（改了脚本重新跑一遍，可重复运行）
 - `server/` 云存档服务和它的接口测试
-- `src/art/title.ts` 标题页背景（全彩分层远景、桃花、飘云飞鸟落花）和金色招牌字
+- `src/art/title.ts` 标题页背景（全彩分层远景、桃花、飘云飞鸟落花）、金色招牌字、标题页小图标
+- `src/ui/screen.ts` 全屏（安卓网页第一次点屏幕自动进全屏、标题页左上角开关）、进出全屏后按新高度重排、浏览器顶栏随场景换色；App 的沉浸模式在 `scripts/android/MainActivity.java`（CI 打包时替换模板）
 - `src/art/chrome.ts` 界面质感层（照原版老版：石纹边框、深蓝面板、金黄渐变按钮、火焰底、菱形指令、沙地战场）
 - `src/sim/autoplay.ts` 自动通关模拟（1 级打到汉中篇结束），调数值后跑 `npm test` 看节奏
 - `artpreview.html` 美术预览页（开发服务器下打开）

@@ -58,6 +58,9 @@ jobs:
       - name: 生成安卓工程
         run: |
           npx cap add android
+          # 沉浸式全屏：用自己的 MainActivity 替换模板（藏状态栏和导航条）
+          MA=$(find android/app/src/main/java -name MainActivity.java)
+          test -n "$MA" && cp scripts/android/MainActivity.java "$MA"
           # 图标用网页那套；去掉自适应图标（前景会被裁）
           for d in android/app/src/main/res/mipmap-*dpi; do
             cp public/icon-192.png "$d/ic_launcher.png"

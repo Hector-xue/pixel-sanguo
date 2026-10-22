@@ -1,5 +1,6 @@
 // 主界面：顶部地点名 + 场景图；左边状态栏；右边 人物/设施/移动/功能 四个分页；下面此地玩家条和聊天区
 import Phaser from 'phaser';
+import { setChrome, syncHeight } from '../ui/screen';
 import { C } from '../art/palette';
 import { avatarTex, heroLookKey, sceneTex } from '../art/textures';
 import { classes, locations, monsters, npcs } from '../data';
@@ -53,6 +54,9 @@ export class MainScene extends Phaser.Scene implements P.Host {
   }
 
   create(): void {
+    // 战斗中进出过全屏：回到主界面时按新高度排
+    syncHeight(this.game);
+    setChrome('#0a0604');
     if (!store.has()) {
       this.scene.start('Title');
       return;
