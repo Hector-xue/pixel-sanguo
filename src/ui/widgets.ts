@@ -1,7 +1,7 @@
 // 像素界面小部件：全部用整数坐标的实心矩形画，保证放大后边缘干净
 import Phaser from 'phaser';
 import { C, css, hex } from '../art/palette';
-import { UI, drawFace, faceText, stoneTex } from '../art/chrome';
+import { PAPER, UI, drawFace, faceText, paperTex, sealBox, titlePlaque, woodFrame } from '../art/chrome';
 import type { Face } from '../art/chrome';
 
 export const W = 360;
@@ -19,20 +19,20 @@ export const FONT = 'FusionPixel';
 
 export type FrameStyle = 'paper' | 'tan' | 'dark' | 'red' | 'pressed' | 'disabled' | 'ink' | 'blue' | 'magenta' | 'orange' | 'steel' | 'row';
 
-// 面板配色照原版老版：深蓝底、细亮边；文字一律浅色（见 uiColor）
+// 面板配色：宣纸面板、浅黄卡片、木色描边（文字用调色板原色：墨、褐、朱）
 const STYLES: Record<FrameStyle, { fill: number; border: number; hi: number; lo: number }> = {
-  paper: { fill: UI.navy, border: UI.navyEdge, hi: UI.navyHi, lo: UI.navyLo },
-  tan: { fill: UI.row, border: UI.navyEdge, hi: UI.rowHi, lo: UI.rowLo },
-  pressed: { fill: 0x262c78, border: UI.navyEdge, hi: 0x4a52a0, lo: UI.rowLo },
-  disabled: { fill: 0x24242e, border: 0x0c0c12, hi: 0x3c3c4a, lo: 0x18181e },
+  paper: { fill: PAPER.base, border: 0x3a2414, hi: PAPER.hi, lo: PAPER.edge },
+  tan: { fill: 0xe8d6ae, border: 0xa88a5c, hi: 0xf7ecd2, lo: 0xcbb184 },
+  pressed: { fill: 0xd6bf8e, border: 0x8a6c40, hi: 0xe6d2a8, lo: 0xb89c6c },
+  disabled: { fill: 0xd8cfbc, border: 0xa89c86, hi: 0xe6dfd0, lo: 0xc0b6a2 },
   red: { fill: 0x8c1410, border: 0x300000, hi: 0xff7050, lo: 0x5a0804 },
   blue: { fill: 0x2440b0, border: 0x060c40, hi: 0x6c98ff, lo: 0x162878 },
   magenta: { fill: 0x8a1aa0, border: 0x28042e, hi: 0xe070ff, lo: 0x5a0c6a },
   orange: { fill: 0xb05008, border: 0x401400, hi: 0xffb040, lo: 0x6a2804 },
-  dark: { fill: UI.black, border: UI.goldLo, hi: UI.gold, lo: 0x000000 },
+  dark: { fill: 0x2a1a10, border: UI.goldLo, hi: UI.gold, lo: 0x000000 },
   steel: { fill: 0x50505a, border: 0x101014, hi: 0x9090a0, lo: 0x303038 },
-  row: { fill: UI.row, border: UI.navyEdge, hi: UI.rowHi, lo: UI.rowLo },
-  ink: { fill: 0x02020c, border: 0x000000, hi: 0x7080c0, lo: 0x202040 },
+  row: { fill: 0xe8d6ae, border: 0xa88a5c, hi: 0xf7ecd2, lo: 0xcbb184 },
+  ink: { fill: 0x1c120c, border: 0x000000, hi: 0x6a4a2c, lo: 0x0c0604 },
 };
 
 // 按钮用亮色渐变面（原版的金黄按钮、红按钮、蓝按钮、紫按钮）
@@ -40,17 +40,10 @@ const FACE_OF: Record<FrameStyle, Face> = {
   paper: 'gold', tan: 'gold', pressed: 'gold', disabled: 'gray', red: 'red', blue: 'blue', magenta: 'magenta', orange: 'orange', dark: 'sel', ink: 'dark', steel: 'steel', row: 'gold',
 };
 
-// 原来按浅色宣纸配的字色，换到深色底上逐个映射成浅色；大于 31 的当作原始色值
-const TEXT_MAP: Partial<Record<number, number>> = {
-  [C.darkBrown]: UI.white, [C.ink]: UI.white, [C.brown]: UI.cream, [C.lightBrown]: UI.cream, [C.sand]: UI.cream, [C.tan]: 0xc8a868,
-  [C.gray]: UI.dim, [C.darkGray]: UI.dim, [C.lightGray]: 0xc8c8d0, [C.darkRed]: UI.yellow, [C.red]: UI.red,
-  [C.navy]: UI.sky, [C.blue]: UI.blue, [C.green]: UI.green, [C.darkGreen]: UI.green, [C.purple]: UI.magenta, [C.darkPurple]: UI.magenta,
-};
-
+// 调色板里的字色本来就是按宣纸配的（墨、褐、朱、绿），直接用；大于 31 的当作原始色值
 export function uiColor(c: number): string {
   if (c > 31) return '#' + c.toString(16).padStart(6, '0');
-  const m = TEXT_MAP[c];
-  return m !== undefined ? '#' + m.toString(16).padStart(6, '0') : css(c);
+  return css(c);
 }
 
 function rawColor(c: number): string {
@@ -345,8 +338,8 @@ export class ScrollArea implements Clip {
     if (max > 0) {
       const bh = Math.max(12, Math.round((this.h * this.h) / this.contentH));
       const by = this.y + Math.round(((this.h - bh) * this.scroll) / max);
-      rect(this.bar, this.x + this.w - 3, this.y, 2, this.h, 0x1a1c40);
-      rect(this.bar, this.x + this.w - 3, by, 2, bh, UI.gold);
+      rect(this.bar, this.x + this.w - 3, this.y, 2, this.h, 0xd8c294);
+      rect(this.bar, this.x + this.w - 3, by, 2, bh, 0x8a5c32);
     }
   }
 
@@ -378,24 +371,59 @@ export class Modal extends Phaser.GameObjects.Container {
     this.py = opts.y ?? Math.round((H - this.ph) / 2);
     const block = scene.add.zone(0, 0, W, H).setOrigin(0).setInteractive();
     const g = scene.add.graphics();
-    // 整页的面板照原版：四周露出灰石云纹边；小弹窗只压暗
-    const page = this.pw >= W - 40 && this.ph >= H - 200;
-    if (page) this.add(scene.add.image(0, 0, stoneTex(scene, W, H)).setOrigin(0));
-    else if (opts.dim !== false) g.fillStyle(0x000000, 0.55).fillRect(0, 0, W, H);
-    frame(g, this.px, this.py, this.pw, this.ph, 'paper');
-    if (title) g.fillStyle(UI.goldLo).fillRect(this.px + 8, this.py + 24, this.pw - 16, 1);
-    this.add([block, g]);
-    if (title) this.add(text(scene, this.px + this.pw / 2, this.py + 7, title, { align: 'center', color: UI.red, stroke: 0x000000 }));
+    // 底下压暗；面板是漆木框 + 宣纸，标题写在朱漆题签上
+    if (opts.dim !== false) g.fillStyle(0x0a0604, 0.62).fillRect(0, 0, W, H);
+    woodFrame(g, this.px - 2, this.py - 2, this.pw + 4, this.ph + 4);
+    this.add([block, g, scene.add.image(this.px + 4, this.py + 4, paperTex(scene, this.pw - 8, this.ph - 8)).setOrigin(0)]);
+    const deco = scene.add.graphics();
+    if (title) {
+      const tw = Math.max(64, textWidth(title) + 28);
+      titlePlaque(deco, this.px + this.pw / 2, this.py + 5, tw);
+      // 题签两侧一道淡墨线
+      deco.fillStyle(PAPER.edge).fillRect(this.px + 10, this.py + 14, this.pw / 2 - tw / 2 - 22, 1).fillRect(this.px + this.pw / 2 + tw / 2 + 12, this.py + 14, this.pw / 2 - tw / 2 - 22, 1);
+    }
+    this.add(deco);
+    if (title) this.add(text(scene, this.px + this.pw / 2, this.py + 7, title, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 }));
     this.inner = scene.add.container(0, 0);
     this.add(this.inner);
     if (opts.close !== null) {
-      this.add(new Button(scene, this.px + this.pw - 48, this.py + 4, 42, 18, opts.close ?? '返回', () => {
+      const close = () => {
         this.close();
         opts.onClose?.();
-      }, { color: 0xc00c00 }));
+      };
+      if (opts.close) {
+        this.add(new Button(scene, this.px + this.pw - 48, this.py + 4, 42, 18, opts.close, close, { style: 'red' }));
+      } else {
+        // 印章式关闭钮：朱红方块里一个 ×
+        const sx = this.px + this.pw - 24;
+        const sy = this.py + 4;
+        const cg = scene.add.graphics();
+        const draw = (down: boolean) => {
+          cg.clear();
+          sealBox(cg, sx, sy, 18, down);
+          cg.fillStyle(0xfff0c0);
+          for (let k = 0; k < 8; k++) {
+            cg.fillRect(sx + 5 + k, sy + 5 + k, 2, 1);
+            cg.fillRect(sx + 12 - k, sy + 5 + k, 2, 1);
+          }
+        };
+        draw(false);
+        const z = scene.add.zone(sx - 6, sy - 4, 30, 26).setOrigin(0).setInteractive({ useHandCursor: true });
+        z.on('pointerdown', () => draw(true));
+        z.on('pointerout', () => draw(false));
+        z.on('pointerup', () => {
+          draw(false);
+          sfx('click');
+          close();
+        });
+        this.add([cg, z]);
+      }
     }
     this.setDepth(100 + modalDepth++);
     scene.add.existing(this);
+    // 淡入 + 轻轻上浮
+    this.setAlpha(0).setY(6);
+    scene.tweens.add({ targets: this, alpha: 1, y: 0, duration: 140, ease: 'Quad.easeOut' });
   }
 
   // 内容区左上角
@@ -421,14 +449,19 @@ let lastToast: Phaser.GameObjects.Container | null = null;
 export function toast(scene: Phaser.Scene, msg: string, ms = 1600): void {
   if (lastToast?.active) lastToast.destroy();
   const lines = wrap(msg, 240);
-  const w = Math.min(260, Math.max(...lines.map(textWidth)) + 20);
-  const h = lines.length * 15 + 12;
-  const c = scene.add.container(Math.round((W - w) / 2), 250).setDepth(1000);
+  const w = Math.min(268, Math.max(...lines.map(textWidth)) + 28);
+  const h = lines.length * 15 + 14;
+  const c = scene.add.container(Math.round((W - w) / 2), Math.round(H * 0.3)).setDepth(1000);
   const g = scene.add.graphics();
-  g.fillStyle(0x000000, 0.85).fillRect(0, 0, w, h);
-  g.fillStyle(UI.gold).fillRect(0, 0, w, 1).fillRect(0, h - 1, w, 1);
-  c.add([g, text(scene, w / 2, 6, lines.join('\n'), { align: 'center', color: UI.white })]);
+  // 墨色底，上下两道金线，两端各一个小菱形
+  g.fillStyle(0x000000, 0.35).fillRect(2, 3, w, h);
+  g.fillStyle(0x140c08, 0.92).fillRect(1, 0, w - 2, h).fillRect(0, 1, w, h - 2);
+  g.fillStyle(UI.gold).fillRect(6, 2, w - 12, 1).fillRect(6, h - 3, w - 12, 1);
+  for (const x of [3, w - 4]) g.fillStyle(UI.goldHi).fillRect(x, 1, 1, 3).fillRect(x - 1, 2, 3, 1).fillRect(x, h - 4, 1, 3).fillRect(x - 1, h - 3, 3, 1);
+  c.add([g, text(scene, w / 2, 7, lines.join('\n'), { align: 'center', color: 0xfbefd0 })]);
   lastToast = c;
+  c.setAlpha(0).setY(c.y + 6);
+  scene.tweens.add({ targets: c, alpha: 1, y: c.y - 6, duration: 140, ease: 'Quad.easeOut' });
   scene.tweens.add({ targets: c, alpha: 0, delay: ms, duration: 300, onComplete: () => c.destroy() });
 }
 

@@ -474,7 +474,7 @@ function robed(L: Look): boolean {
 }
 
 // 肤色和它的暗面
-function skinOf(L: Look): [number, number] {
+export function skinOf(L: Look): [number, number] {
   switch (L.skin) {
     case 'pale':
       return [blend(C.skin, C.white, 0.5), C.skin];

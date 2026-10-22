@@ -19,7 +19,6 @@ import { iconTitleTex, logoTex, titleBackdrop } from '../art/title';
 import { vgrad } from '../art/chrome';
 import { enterFullscreen, exitFullscreen, fullscreenSupported, isFullscreen, setChrome } from '../ui/screen';
 
-const SERVERS = ['许昌', '洛阳', '长安', '邺城', '建业', '成都', '襄阳', '下邳', '宛城', '汝南', '北海', '陈留', '濮阳', '庐江', '江陵'];
 const CLASS_TRAIT: Record<ClassId, string> = {
   warrior: '近身肉搏，天生20点抗物理，血厚能扛。',
   scholar: '控场辅助，让敌人中计：乱、封、围。',
@@ -117,7 +116,7 @@ export class TitleScene extends Phaser.Scene {
       p.add(this.iconButton(8, 8, isFullscreen() ? 'unfull' : 'full', '', () => void (isFullscreen() ? exitFullscreen() : enterFullscreen()), 30));
     }
 
-    // 底部压暗一点，健康游戏忠告和署名才看得清
+    // 底部压暗一点，署名才看得清
     const bg = this.add.graphics();
     for (let k = 0; k < 6; k++) bg.fillStyle(0x0a1a08, 0.07 * (k + 1)).fillRect(0, H - 72 + k * 12, W, 12);
     p.add(bg);
@@ -128,7 +127,7 @@ export class TitleScene extends Phaser.Scene {
     if (has) {
       const s = store.save;
       const pill = this.add.graphics();
-      const info = `${s.server} · ${s.player.name} · ${s.player.level}级${classes[s.player.classId].name}`;
+      const info = `${s.player.name} · ${s.player.level}级${classes[s.player.classId].name}`;
       pill.fillStyle(0x0c0e44, 0.6).fillRect(60, by - 30, 240, 22);
       pill.fillStyle(0xffffff, 0.25).fillRect(60, by - 30, 240, 1);
       p.add(pill);
@@ -139,13 +138,13 @@ export class TitleScene extends Phaser.Scene {
     glow.setAlpha(0);
     p.add(glow);
     this.tweens.add({ targets: glow, alpha: { from: 0, to: 0.45 }, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    const start = () => (has ? this.scene.start('Main') : this.showServers(0));
-    p.add(new Button(this, 80, by, 200, 46, '', start, { style: 'tan' }));
-    p.add(text(this, W / 2, by + 9, has ? '继续游戏' : '开始游戏', { align: 'center', color: 0x401400, scale: 2 }));
+    const start = () => (has ? this.scene.start('Main') : this.showCreate());
+    p.add(new Button(this, 80, by, 200, 46, '', start, { style: 'red' }));
+    p.add(text(this, W / 2, by + 9, has ? '继续游戏' : '开始游戏', { align: 'center', color: 0xfff0c0, stroke: 0x4a0804, scale: 2 }));
 
     const icons: [string, string, () => void][] = [];
     if (has) {
-      icons.push(['newrole', '新角色', () => confirm(this, '创建新角色会覆盖现在的存档。建议先在游戏里「功能 → 退出」导出存档。', () => this.showServers(0), '覆盖')]);
+      icons.push(['newrole', '新角色', () => confirm(this, '创建新角色会覆盖现在的存档。建议先在游戏里「功能 → 退出」导出存档。', () => this.showCreate(), '覆盖')]);
     }
     icons.push(['import', '导入存档', () => this.importSave()]);
     icons.push(['cloud', '云存档', () => cloudPanel(this, false, () => this.showHome())]);
@@ -154,8 +153,6 @@ export class TitleScene extends Phaser.Scene {
     const x0 = Math.round((W - (icons.length * 44 + (icons.length - 1) * gap)) / 2);
     icons.forEach(([ic, label, fn], i) => p.add(this.iconButton(x0 + i * (44 + gap), H - 132, ic, label, fn)));
 
-    p.add(text(this, W / 2, H - 56, '抵制不良游戏，拒绝盗版游戏。注意自我保护，谨防受骗上当。', { align: 'center', color: 0xe8f0e0, stroke: 0x1a2a10 }));
-    p.add(text(this, W / 2, H - 40, '适度游戏益脑，沉迷游戏伤身。合理安排时间，享受健康生活。', { align: 'center', color: 0xe8f0e0, stroke: 0x1a2a10 }));
     p.add(text(this, W / 2, H - 20, '画面、剧情为原创 · 字体 Fusion Pixel（OFL）', { align: 'center', color: 0xa8b8a0, stroke: 0x1a2a10 }));
   }
 
@@ -177,33 +174,8 @@ export class TitleScene extends Phaser.Scene {
     el.click();
   }
 
-  private showServers(pageNo: number): void {
-    this.current = () => this.showServers(pageNo);
-    const p = this.newPage();
-    const g = this.add.graphics();
-    frame(g, 20, 60, 320, 380, 'paper');
-    frame(g, 24, 64, 312, 22, 'dark');
-    p.add(g);
-    p.add(text(this, W / 2, 69, '选择分区', { align: 'center', color: C.paper }));
-    const per = 5;
-    const pages = Math.ceil(SERVERS.length / per);
-    SERVERS.slice(pageNo * per, pageNo * per + per).forEach((name, i) => {
-      const no = pageNo * per + i + 1;
-      const y = 100 + i * 54;
-      const label = `${no}区 ${name}`;
-      p.add(new Button(this, 40, y, 280, 44, '', () => this.showCreate(label)));
-      p.add(text(this, 56, y + 15, label, { color: C.darkBrown }));
-      const hot = no <= 2 ? '火爆' : no === SERVERS.length ? '新区' : '流畅';
-      p.add(text(this, 304, y + 15, hot, { align: 'right', color: hot === '火爆' ? C.red : hot === '新区' ? C.blue : C.green }));
-    });
-    p.add(text(this, W / 2, 378, `第 ${pageNo + 1}/${pages} 页`, { align: 'center', color: C.brown }));
-    p.add(new Button(this, 40, 400, 80, 26, '上一页', () => this.showServers(pageNo - 1), { disabled: pageNo === 0 }));
-    p.add(new Button(this, 140, 400, 80, 26, '返回', () => this.showHome()));
-    p.add(new Button(this, 240, 400, 80, 26, '下一页', () => this.showServers(pageNo + 1), { disabled: pageNo >= pages - 1 }));
-  }
-
-  private showCreate(server: string): void {
-    this.current = () => this.showCreate(server);
+  private showCreate(): void {
+    this.current = () => this.showCreate();
     const rng = new Rng(randomSeed());
     const st = { gender: 'male' as Gender, classId: 'warrior' as ClassId, avatar: 0 };
     const p = this.newPage();
@@ -211,7 +183,7 @@ export class TitleScene extends Phaser.Scene {
     frame(g, 10, 30, 340, 590, 'paper');
     frame(g, 14, 34, 332, 22, 'dark');
     p.add(g);
-    p.add(text(this, W / 2, 39, `创建角色 · ${server}`, { align: 'center', color: C.paper }));
+    p.add(text(this, W / 2, 39, '创建角色', { align: 'center', color: C.paper }));
     p.add(text(this, 24, 72, '名称', { color: C.brown }));
     const g2 = this.add.graphics();
     frame(g2, 70, 66, 180, 24, 'ink');
@@ -264,15 +236,15 @@ export class TitleScene extends Phaser.Scene {
 
     p.add(new Button(this, 30, 560, 120, 32, '返回', () => {
       input.remove();
-      this.showServers(0);
+      this.showHome();
     }));
     p.add(new Button(this, 210, 560, 120, 32, '进入游戏', () => {
       const name = input.value.trim();
       if (!name) return toast(this, '请输入名称');
       if (name.length > 6) return toast(this, '名称最多6个字');
       input.remove();
-      const s = newSave({ server, name, gender: st.gender, classId: st.classId, avatar: st.avatar, seed: randomSeed() });
-      log(s, `欢迎来到${server}！`);
+      const s = newSave({ server: '豫州', name, gender: st.gender, classId: st.classId, avatar: st.avatar, seed: randomSeed() });
+      log(s, `${name}踏上了江湖路。`);
       store.set(s);
       this.newPage();
       showDialog(this, opening, [], () => {

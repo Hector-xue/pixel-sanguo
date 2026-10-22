@@ -251,7 +251,7 @@ describe('军团争霸、跨区大战', () => {
     expect(v.scores.length).toBe(3);
     kuaquView(s, MON + 7 * 24 * HOUR);
     expect(s.p4.kuaqu.claim?.points).toBe(v.points);
-    expect(claimKuaqu(s, MON + 7 * 24 * HOUR)[0]).toContain('跨区大战');
+    expect(claimKuaqu(s, MON + 7 * 24 * HOUR)[0]).toContain('诸州会武');
   });
 
   it('老存档补上 P4 字段', () => {

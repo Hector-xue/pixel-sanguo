@@ -75,7 +75,7 @@ let picked: string | null = null;
 export function guozhanPanel(h: Host, tab?: number): void {
   const s = store.save;
   if (s.player.level < G.minLevel) {
-    toast(h, `国战${G.minLevel}级开放。军团争霸要先入教派，跨区大战${systems.kuaqu.minLevel}级开放。`, 2400);
+    toast(h, `国战${G.minLevel}级开放。军团争霸要先入教派，诸州会武${systems.kuaqu.minLevel}级开放。`, 2400);
     return;
   }
   if (!s.p4.nation) return joinPanel(h, () => guozhanPanel(h, 0));
@@ -85,7 +85,7 @@ export function guozhanPanel(h: Host, tab?: number): void {
   m.inner.add(dyn);
   const render = () => {
     dyn.removeAll(true);
-    tabs(h, m, dyn, ['沙盘', '战报', '战功', '争霸', '跨区'], gzTab, (i) => {
+    tabs(h, m, dyn, ['沙盘', '战报', '战功', '争霸', '会武'], gzTab, (i) => {
       gzTab = i;
       render();
     });
@@ -304,7 +304,7 @@ function kuaquTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: numbe
   const K = systems.kuaqu;
   const claim = s.p4.kuaqu.claim;
   if (claim) {
-    dyn.add(new Button(h, m.cx, y, m.cw, 24, `领上周跨区奖励（第${claim.rank}名）`, () => {
+    dyn.add(new Button(h, m.cx, y, m.cw, 24, `领上周会武奖励（第${claim.rank}名）`, () => {
       toast(h, claimKuaqu(s).join('\n'), 2600);
       sfx('level');
       h.refresh();
@@ -313,7 +313,7 @@ function kuaquTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: numbe
     y += 30;
   }
   const why = kuaquReason(s);
-  dyn.add(text(h, m.cx, y, why || `周末两天，和别区高手过招，每赢一场给本区加分。今天还能打${K.fightsPerDay - v.fought.length}场，你共拿${v.points}分。`, { wrap: m.cw, color: why ? C.red : C.darkRed }));
+  dyn.add(text(h, m.cx, y, why || `周末两天，和别州高手过招，每赢一场给本州加分。今天还能打${K.fightsPerDay - v.fought.length}场，你共拿${v.points}分。`, { wrap: m.cw, color: why ? C.red : C.darkRed }));
   y += 36;
   dyn.add(text(h, m.cx, y, '各区积分', { color: C.darkRed }));
   y += 18;

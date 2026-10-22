@@ -378,7 +378,7 @@ export function templePanel(h: Host): void {
     sfx('level');
     done(h, r);
   }, { style: 'red', disabled: s.player.level < T.graduateLevel }));
-  m.inner.add(text(h, m.cx, by - 40, '原版是拜玩家为师，单机版改成拜孔庙夫子。', { wrap: m.cw, color: C.gray }));
+  m.inner.add(text(h, m.cx, by - 40, '夫子门下弟子众多，学成出师还有谢师礼。', { wrap: m.cw, color: C.gray }));
 }
 
 // ===== 军马场 =====

@@ -1137,14 +1137,14 @@
     },
     {
       "id": "kuaquChamp",
-      "name": "跨区之王",
-      "desc": "本区拿下跨区大战第一",
+      "name": "会武魁首",
+      "desc": "本州拿下诸州会武第一",
       "key": "kuaquChamps",
       "need": 1,
       "reward": {
         "gold": 30
       },
-      "title": "跨区之王",
+      "title": "会武魁首",
       "p4": true
     }
   ],
@@ -2262,8 +2262,8 @@
     "minLevel": 80,
     "fightsPerDay": 5,
     "servers": [
-      "二区·烽火连城",
-      "五区·逐鹿中原"
+      "兖州",
+      "徐州"
     ],
     "base": 900,
     "spread": 0.15,
@@ -2294,6 +2294,6 @@
         }
       }
     ],
-    "title": "跨区之王"
+    "title": "会武魁首"
   }
 }

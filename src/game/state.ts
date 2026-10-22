@@ -1,5 +1,7 @@
 // 存档与游戏规则（纯逻辑，可测）。界面只调这里的函数，不直接改存档字段。
 import { balance, bountyOptions, classSkills, classes, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation, systems } from '../data';
+import { p5Defaults } from './bond';
+import type { P5State } from './bond';
 import type { Dir, NationId, QuestDef } from '../data';
 import { deriveStats, expToNext, monsterAttrs, playerAttrsAt } from '../core/formulas';
 import { addBonus, applyBonus, emptyBonus, gearsBonus, mountBonus } from '../core/gear';
@@ -126,6 +128,8 @@ export interface Save {
   p3: P3State;
   // ===== P4 =====
   p4: P4State;
+  // ===== 精品化：好感、奇遇 =====
+  p5: P5State;
 }
 
 export interface ReplayRecord {
@@ -354,6 +358,7 @@ export function newSave(o: NewGameOpts): Save {
     ...p2Defaults(),
     p3: p3Defaults(),
     p4: p4Defaults(),
+    p5: p5Defaults(),
   };
   const st = playerStats(s);
   s.player.hp = st.maxHp;
@@ -1047,6 +1052,9 @@ export function deserialize(text: string): Save {
   for (const [k, v] of Object.entries(d)) if ((s as unknown as Record<string, unknown>)[k] === undefined) (s as unknown as Record<string, unknown>)[k] = v;
   s.p3 = { ...p3Defaults(), ...(s.p3 ?? {}) };
   s.p4 = { ...p4Defaults(), ...(s.p4 ?? {}) };
+  s.p5 = { ...p5Defaults(), ...(s.p5 ?? {}) };
+  // 单机化：以前的「1区 许昌」这类分区名统一成本州
+  if (!s.server || /区/.test(s.server)) s.server = '豫州';
   // 主线加长了：之前停在「全部完成」的存档接着往下走
   if (s.main.state === 'done' && mainQuests[s.main.step]) s.main.state = 'available';
   // P1 的副将存的是当前属性，换算成"起点属性 + 成长"后数值不变

@@ -37,15 +37,18 @@ export function vgrad(g: Phaser.GameObjects.Graphics, x: number, y: number, w: n
 // 按钮面：圆角 1 像素 + 深色描边 + 渐变 + 顶部高光
 export type Face = 'gold' | 'red' | 'blue' | 'magenta' | 'gray' | 'dark' | 'orange' | 'sel' | 'steel';
 const FACES: Record<Face, { stops: number[]; edge: number; hi: number; text: number }> = {
-  gold: { stops: [0xfff4a8, 0xffd84c, 0xf2a818, 0xd27a08], edge: 0x5a2800, hi: 0xffffe0, text: 0x401400 },
+  // 默认按钮：胡桃木面，奶油色字（宣纸面板上最稳）
+  gold: { stops: [0xa8784a, 0x8a5c32, 0x6e4422, 0x553218], edge: 0x24140a, hi: 0xd8aa78, text: 0xfbefd0 },
   orange: { stops: [0xffe070, 0xffb030, 0xe87010, 0xb04808], edge: 0x501800, hi: 0xfff0b0, text: 0xfff8e8 },
-  red: { stops: [0xff9060, 0xf04428, 0xcc1c10, 0x980c06], edge: 0x420000, hi: 0xffc0a0, text: 0xfff8e8 },
+  // 主按钮：朱漆，金色字
+  red: { stops: [0xe8603e, 0xcc3a22, 0xa82414, 0x84160a], edge: 0x3a0804, hi: 0xffa888, text: 0xfff0c0 },
   blue: { stops: [0x9cc4ff, 0x5482f2, 0x3456d2, 0x2238a0], edge: 0x0a1450, hi: 0xd0e4ff, text: 0xffffff },
   magenta: { stops: [0xf8a0ff, 0xd050e8, 0xa828c0, 0x7a1490], edge: 0x30063c, hi: 0xffd8ff, text: 0xffffff },
-  gray: { stops: [0xb8b8c0, 0x9090a0, 0x707080, 0x585866], edge: 0x202028, hi: 0xd8d8e0, text: 0x30303a },
+  gray: { stops: [0xcfc6b4, 0xbdb3a0, 0xaa9f8a, 0x978c78], edge: 0x6a6052, hi: 0xe6dece, text: 0x6c6456 },
   dark: { stops: [0x3a2414, 0x24140a, 0x180c06], edge: 0xb07820, hi: 0x6a4a28, text: 0xffe040 },
   steel: { stops: [0xa8a8b4, 0x7c7c8a, 0x5c5c68, 0x44444e], edge: 0x101014, hi: 0xd0d0dc, text: 0xffffff },
-  sel: { stops: [0xffffff, 0xfff2c0, 0xffd068, 0xf0a030], edge: 0x6a3000, hi: 0xffffff, text: 0xb01000 },
+  // 选中的分页：朱红书签
+  sel: { stops: [0xd04a2e, 0xb4301c, 0x92200e], edge: 0x3a0804, hi: 0xff9a7a, text: 0xfff0c0 },
 };
 
 export function faceText(f: Face): number {
@@ -253,4 +256,86 @@ export function groundTex(scene: Phaser.Scene, w: number, h: number, seed: numbe
       px(ctx, fx - 1, fy, 0xf0a010);
     }
   }
+}
+
+// ===== 精品化界面材质：宣纸、漆木框、金角花、题签、印章钮 =====
+export const PAPER = { base: 0xf0e2c0, hi: 0xf8eed6, lo: 0xe2cfa4, fiber: 0xd8c294, edge: 0xc9ae80, ink: 0x3b2a1a };
+
+// 宣纸：底色 + 细纤维 + 稀疏杂点 + 四周微微泛黄
+export function paperTex(scene: Phaser.Scene, w: number, h: number): string {
+  return canvasTex(scene, `ui_paper_${w}x${h}`, w, h, (ctx) => {
+    ctx.fillStyle = hexCss(PAPER.base);
+    ctx.fillRect(0, 0, w, h);
+    let s = w * 31 + h * 17;
+    const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    for (let i = 0; i < (w * h) / 14; i++) px(ctx, rnd() * w, rnd() * h, rnd() < 0.5 ? PAPER.hi : PAPER.lo);
+    // 横向纤维：一段段短线
+    for (let i = 0; i < (w * h) / 160; i++) {
+      const x = rnd() * w;
+      const y = rnd() * h;
+      const len = 3 + rnd() * 9;
+      for (let k = 0; k < len; k++) px(ctx, x + k, y + (k > len / 2 && rnd() < 0.3 ? 1 : 0), PAPER.fiber);
+    }
+    // 四边泛黄（抖动着过渡，不画渐变）
+    for (let d = 0; d < 6; d++) {
+      const c = mix(PAPER.base, PAPER.edge, 1 - d / 6);
+      for (let x = 0; x < w; x++) {
+        if ((x + d) % (d + 1) === 0) {
+          px(ctx, x, d, c);
+          px(ctx, x, h - 1 - d, c);
+        }
+      }
+      for (let y = 0; y < h; y++) {
+        if ((y + d) % (d + 1) === 0) {
+          px(ctx, d, y, c);
+          px(ctx, w - 1 - d, y, c);
+        }
+      }
+    }
+  });
+}
+
+// 漆木框：外圈深木 4 像素（带木纹和高光），里面一道金线，四角金色云头
+export function woodFrame(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number): void {
+  g.fillStyle(0x160c06).fillRect(x, y, w, h);
+  g.fillStyle(0x3a2212).fillRect(x + 1, y + 1, w - 2, h - 2);
+  g.fillStyle(0x5a3820).fillRect(x + 1, y + 1, w - 2, 1).fillRect(x + 1, y + 1, 1, h - 2);
+  g.fillStyle(0x24140a).fillRect(x + 1, y + h - 2, w - 2, 1).fillRect(x + w - 2, y + 1, 1, h - 2);
+  // 木纹
+  for (let i = 6; i < w - 6; i += 7) g.fillStyle(0x4a2c16).fillRect(x + i, y + 2, 3, 1).fillRect(x + i + 2, y + h - 3, 3, 1);
+  g.fillStyle(0x0c0604).fillRect(x + 4, y + 4, w - 8, h - 8);
+  g.fillStyle(UI.gold).fillRect(x + 5, y + 5, w - 10, h - 10);
+  g.fillStyle(0x0c0604, 0).fillRect(x, y, 1, 1);
+  for (const [cx, cy, sx, sy] of [[x + 5, y + 5, 1, 1], [x + w - 6, y + 5, -1, 1], [x + 5, y + h - 6, 1, -1], [x + w - 6, y + h - 6, -1, -1]]) cornerCloud(g, cx, cy, sx, sy);
+}
+
+// 金色云头角花：L 形回纹
+export function cornerCloud(g: Phaser.GameObjects.Graphics, x: number, y: number, sx: number, sy: number): void {
+  const pts: [number, number, number][] = [
+    [0, 0, UI.goldHi], [1, 0, UI.goldHi], [2, 0, UI.gold], [3, 0, UI.gold], [4, 0, UI.goldLo], [5, 0, UI.goldLo],
+    [0, 1, UI.goldHi], [0, 2, UI.gold], [0, 3, UI.gold], [0, 4, UI.goldLo], [0, 5, UI.goldLo],
+    [2, 2, UI.goldHi], [3, 2, UI.gold], [2, 3, UI.gold], [4, 3, UI.goldLo], [3, 4, UI.goldLo],
+  ];
+  for (const [dx, dy, c] of pts) g.fillStyle(c).fillRect(x + dx * sx - (sx < 0 ? 0 : 0), y + dy * sy, 1, 1);
+}
+
+// 朱漆题签：两端燕尾，金边，标题写在中间
+export function titlePlaque(g: Phaser.GameObjects.Graphics, cx: number, y: number, w: number, h = 18): void {
+  const x = Math.round(cx - w / 2);
+  for (let j = 0; j < h; j++) {
+    const notch = Math.max(0, 5 - Math.abs(j - (h - 1) / 2));
+    g.fillStyle(0x5a0c06).fillRect(x - 9 + Math.round(notch), y + j, 12 - Math.round(notch), 1);
+    g.fillStyle(0x5a0c06).fillRect(x + w - 3, y + j, 12 - Math.round(notch), 1);
+  }
+  g.fillStyle(0x2a0402).fillRect(x - 1, y - 1, w + 2, h + 2);
+  vgrad(g, x, y, w, h, [0xd8482c, 0xb42c18, 0x8c1a0c]);
+  g.fillStyle(0xff9a78).fillRect(x, y, w, 1);
+  g.fillStyle(UI.gold).fillRect(x + 2, y + 2, w - 4, 1).fillRect(x + 2, y + h - 3, w - 4, 1);
+}
+
+// 印章式小方钮（关闭、角标）：朱红方块，奶油色描边
+export function sealBox(g: Phaser.GameObjects.Graphics, x: number, y: number, s: number, pressed = false): void {
+  g.fillStyle(0x3a0804).fillRect(x, y, s, s);
+  vgrad(g, x + 1, y + 1, s - 2, s - 2, pressed ? [0x8c1a0c, 0x6a1006] : [0xd4442a, 0xa8240e]);
+  g.fillStyle(0xfff0c0, 0.9).fillRect(x + 2, y + 2, s - 4, 1).fillRect(x + 2, y + s - 3, s - 4, 1).fillRect(x + 2, y + 2, 1, s - 4).fillRect(x + s - 3, y + 2, 1, s - 4);
 }

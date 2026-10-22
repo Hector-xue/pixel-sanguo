@@ -1,17 +1,23 @@
-// 主界面：顶部地点名 + 场景图；左边状态栏；右边 人物/设施/移动/功能 四个分页；下面此地玩家条和聊天区
+// 主界面：上半屏是当前地点的场景舞台（NPC、怪物、游荡的侠客都站在场景里，点人就能交互），
+// 按真实时间分晨昏夜，有飘叶炊烟萤火；下面是状态栏、聊天条、底部五个导航（设施 / 地图 / 行囊 / 副将 / 功能）。
 import Phaser from 'phaser';
 import { setChrome, syncHeight } from '../ui/screen';
 import { C } from '../art/palette';
-import { avatarTex, heroLookKey, sceneTex } from '../art/textures';
+import { avatarTex, bustTex, heroLookKey, propTex, sceneTex, uiIconTex, unitTex } from '../art/textures';
+import { FEET_Y, UNIT_H, UNIT_W, BX } from '../art/units';
+import { GLOW, layoutProps } from '../art/props';
 import { classes, locations, monsters, npcs } from '../data';
+import type { MonsterGroup } from '../data';
 import { randomSeed } from '../core/rng';
 import { expToNext } from '../core/formulas';
-import { chatterTick, playersAt } from '../game/chatter';
-import { groupLabel, startBattle } from '../game/encounter';
+import { playersAt } from '../game/chatter';
+import { groupLabel, startBattle, startGroupBattle } from '../game/encounter';
 import {
   arrive, currentQuest, exitsOf, findPath, generalStats, moneyText, moveTo, npcMark, playerStats, questDestination, questProgressText, heroVariant,
 } from '../game/state';
 import { dailyTick, welfarePending } from '../game/welfare';
+import { rollJourney } from '../game/journey';
+import type { JourneyEvent } from '../game/journey';
 import { welfarePanel } from '../ui/fun';
 import { FACILITIES } from '../ui/town';
 import * as T from '../ui/town';
@@ -19,8 +25,9 @@ import * as F from '../ui/fun';
 import * as R from '../ui/role';
 import { store } from '../game/store';
 import { ChatBox } from '../ui/chat';
-import { Button, H, ScrollArea, W, bar, goldFrame, hit, sfx, text, toast } from '../ui/widgets';
-import { UI, drawFace, fireTex, vgrad } from '../art/chrome';
+import { Button, H, Modal, W, bar, hit, sfx, text, textWidth, toast } from '../ui/widgets';
+import { UI, sealBox, titlePlaque, vgrad } from '../art/chrome';
+import { showDialog } from '../ui/dialog';
 import * as P from '../ui/panels';
 import * as X from '../ui/p3';
 import * as G4 from '../ui/p4';
@@ -30,31 +37,56 @@ import { checkAchievements } from '../game/achv';
 import { treasureNow } from '../game/events';
 import { log } from '../game/state';
 
-type Tab = 'people' | 'facility' | 'move' | 'func';
-const TABS: [Tab, string][] = [['people', '人物'], ['facility', '设施'], ['move', '移动'], ['func', '功能']];
 const DIR_ARROW: Record<string, string> = { up: '↑', down: '↓', left: '←', right: '→' };
+const DIR_NAME: Record<string, string> = { up: '北', down: '南', left: '西', right: '东' };
 
-const TOP = 24;
-const MID_Y = TOP;
-// 原版按 640 高排；屏幕更长时多出来的高度七成给上半区（人物列表、状态栏），剩下的给聊天区，不让内容全挤在顶上
-let MID_H = 292;
-let TAB_Y = MID_Y + MID_H;
-let PLAYERS_Y = TAB_Y + 32;
-let CHAT_Y = PLAYERS_Y + 28;
+// 版面：舞台占满上面，底下依次是状态栏、聊天条、导航；屏幕越长舞台越大
+const HUD_H = 58;
+const NAV_H = 54;
+let CHAT_H = 96;
+let STAGE_H = 432;
 function layout(): void {
-  MID_H = 292 + Math.round(Math.max(0, H - 640) * 0.7);
-  TAB_Y = MID_Y + MID_H;
-  PLAYERS_Y = TAB_Y + 32;
-  CHAT_Y = PLAYERS_Y + 28;
+  CHAT_H = Math.max(84, Math.min(124, Math.round(H * 0.14)));
+  STAGE_H = H - HUD_H - NAV_H - CHAT_H;
 }
-const LEFT_W = 132;
+// 舞台里地平线的位置（场景图的 horizon 比例）
+const HORIZON = 0.34;
+const OFF = BX - UNIT_W / 2;
 
-let tab: Tab = 'people';
+type Daypart = 'dawn' | 'day' | 'dusk' | 'night';
+function daypart(d = new Date()): Daypart {
+  const h = d.getHours() + d.getMinutes() / 60;
+  if (h >= 5 && h < 7) return 'dawn';
+  if (h >= 7 && h < 17) return 'day';
+  if (h >= 17 && h < 19) return 'dusk';
+  return 'night';
+}
+const SHICHEN = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+function shichen(d = new Date()): string {
+  return `${SHICHEN[Math.floor(((d.getHours() + 1) % 24) / 2)]}时`;
+}
+const OUTDOOR_DARK = new Set(['cave', 'tomb']);
+
+interface Actor {
+  kind: 'npc' | 'group' | 'treasure' | 'passer';
+  id: string;
+  look: string;
+  variant: number;
+  name: string;
+  color: number;
+  mark?: string;
+  target?: boolean;
+  count?: number;
+  onTap: () => void;
+}
 
 export class MainScene extends Phaser.Scene implements P.Host {
   private layer!: Phaser.GameObjects.Container;
+  private stage!: Phaser.GameObjects.Container;
+  private ambient: Phaser.Time.TimerEvent[] = [];
   chat!: ChatBox;
   private walking = false;
+  private stageKey = '';
 
   constructor() {
     super('Main');
@@ -69,321 +101,608 @@ export class MainScene extends Phaser.Scene implements P.Host {
       this.scene.start('Title');
       return;
     }
-    this.layer = this.add.container(0, 0);
-    this.chat = new ChatBox(this, 0, CHAT_Y, W, H - CHAT_Y);
-    this.time.addEvent({
-      delay: 9000, loop: true, callback: () => {
-        if (Math.random() < 0.6) {
-          chatterTick();
-          this.chat.refresh();
-        }
-      },
-    });
+    this.stageKey = '';
+    this.stage = this.add.container(0, 0);
+    this.layer = this.add.container(0, 0).setDepth(10);
+    this.chat = new ChatBox(this, 0, STAGE_H + HUD_H, W, CHAT_H, { compact: true, onTap: () => this.chatSheet() });
+    this.chat.root.setDepth(10);
     // 抢宝开场时在系统频道公告一次
     this.time.addEvent({ delay: 15000, loop: true, callback: () => this.announceTreasure() });
     // 国战大事（城池易主）进公告
     this.time.addEvent({ delay: 60000, loop: true, callback: () => {
       announce(store.save);
+      this.chat.refresh();
+    } });
     // 云存档自动同步：每分钟看一眼，有变化且离上次满 5 分钟就传；切到后台时不等
     const sync = (due: boolean) => void autoTick(store.save, due).then((msg) => msg && toast(this, msg, 3200));
     this.time.addEvent({ delay: 60000, loop: true, callback: () => sync(false) });
     const onHide = () => document.visibilityState === 'hidden' && sync(true);
     document.addEventListener('visibilitychange', onHide);
     this.events.once('shutdown', () => document.removeEventListener('visibilitychange', onHide));
-      this.chat.refresh();
+    // 换时辰的时候重画一下舞台（晨昏夜）
+    this.time.addEvent({ delay: 60000, loop: true, callback: () => {
+      const k = this.stageSignature();
+      if (k !== this.stageKey) this.refresh();
     } });
     announce(store.save);
     this.announceTreasure();
     const daily = dailyTick(store.save);
     this.refresh();
+    this.cameras.main.fadeIn(260, 10, 6, 4);
     if (daily.length) toast(this, daily.join('\n'), 2600);
     if (import.meta.env.DEV) Object.assign(window, { __P: P, __T: T, __F: F, __R: R, __X: X, __G4: G4, __store: store, __main: this });
   }
 
-  // 存档变了就整页重画，简单可靠
+  // 存档变了就整页重画，简单可靠；舞台只在地点、时辰、人物变了才重建（不然动画会一直重来）
   refresh(): void {
     const got = checkAchievements(store.save);
     if (got.length) this.time.delayedCall(300, () => toast(this, got.join('\n'), 2800));
     store.commit();
+    const sig = this.stageSignature();
+    if (sig !== this.stageKey) {
+      this.stageKey = sig;
+      this.drawStage();
+    }
     this.layer.removeAll(true);
-    this.drawTop();
-    this.drawStatus();
-    this.drawTabs();
-    this.drawPlayers();
-    this.drawTabContent();
+    this.drawStageHud();
+    this.drawHud();
+    this.drawNav();
     this.chat.refresh();
   }
 
-  // 顶栏：一条远景画 + 地点名（原版顶上那条山水）
-  private drawTop(): void {
+  private stageSignature(): string {
     const s = store.save;
     const loc = locations[s.location];
-    this.layer.add(this.add.image(0, -36, sceneTex(this, loc.art, 180, 40, 0.62)).setOrigin(0).setScale(2).setCrop(0, 18, 180, 12));
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.35).fillRect(0, 0, W, TOP);
-    g.fillStyle(0x000000).fillRect(0, TOP - 1, W, 1);
-    g.fillStyle(UI.stoneHi).fillRect(0, TOP - 2, W, 1);
-    this.layer.add(g);
-    this.layer.add(text(this, W / 2, 5, loc.name, { align: 'center', color: UI.white, stroke: 0x000000 }));
-    this.layer.add(text(this, 6, 5, s.server, { color: UI.cream, stroke: 0x000000 }));
+    const marks = loc.npcs.map((n) => npcMark(s, n) ?? '').join('');
+    return `${s.location}|${daypart()}|${marks}|${s.main.step}:${s.main.state}|${X.treasureHere(s) ? 1 : 0}|${H}`;
   }
 
-  private drawStatus(): void {
+  // ===== 舞台 =====
+  private drawStage(): void {
+    for (const t of this.ambient) t.remove();
+    this.ambient = [];
+    this.stage.removeAll(true);
     const s = store.save;
-    const p = s.player;
-    const st = playerStats(s);
-    const x = 0;
-    const y = MID_Y;
-    const w = LEFT_W;
-    const g = this.add.graphics();
-    goldFrame(g, x, y, w, MID_H, 0x0c0806);
-    // 头像圈
-    g.fillStyle(UI.goldLo).fillRect(x + 6, y + 6, 50, 50);
-    g.fillStyle(UI.gold).fillRect(x + 7, y + 7, 48, 48);
-    g.fillStyle(0x10204a).fillRect(x + 8, y + 8, 46, 46);
-    this.layer.add(g);
-    this.layer.add(this.add.image(x + 7, y + 7, avatarTex(this, heroLookKey(p.classId, p.gender), heroVariant(s))).setOrigin(0).setScale(2));
-    this.layer.add(hit(this, x + 6, y + 6, 50, 50, () => P.statusPanel(this)));
-    this.layer.add(text(this, x + 60, y + 9, p.name, { color: UI.white }));
-    this.layer.add(text(this, x + 60, y + 25, `${p.level}级${classes[p.classId].name}`, { color: UI.cream }));
-    this.layer.add(text(this, x + 60, y + 41, p.gender === 'male' ? '男' : '女', { color: UI.dim }));
-
-    // 血条精力条：原版是两根饱和的红蓝长条，数字压在条上
-    const by = y + 62;
-    this.layer.add(bar(this, x + 6, by, w - 12, 13, p.hp / st.maxHp, C.red, C.darkRed));
-    this.layer.add(text(this, x + w / 2, by, `${p.hp}/${st.maxHp}`, { align: 'center', color: UI.white, stroke: 0x000000 }));
-    this.layer.add(bar(this, x + 6, by + 16, w - 12, 13, p.mp / st.maxMp, C.lightBlue, C.navy));
-    this.layer.add(text(this, x + w / 2, by + 16, `${p.mp}/${st.maxMp}`, { align: 'center', color: UI.white, stroke: 0x000000 }));
-
-    // 随行副将三格（原版是一排灰色"将"字圆槽）
-    const gy = by + 36;
-    const sg = this.add.graphics();
-    sg.fillStyle(0x000000).fillRect(x + 5, gy - 1, w - 10, 40);
-    vgrad(sg, x + 6, gy, w - 12, 38, [0x5a4a44, 0x3a2c28, 0x2a1e1a]);
-    this.layer.add(sg);
-    for (let i = 0; i < 3; i++) {
-      const gx = x + 9 + i * 39;
-      const gen = s.generals[i];
-      const fg = this.add.graphics();
-      const active = gen && gen.uid === s.activeGeneral;
-      fg.fillStyle(active ? UI.goldHi : 0x8a8a90).fillRect(gx, gy + 2, 36, 34);
-      fg.fillStyle(active ? 0x7a2a10 : 0x2c2a30).fillRect(gx + 1, gy + 3, 34, 32);
-      this.layer.add(fg);
-      if (gen) {
-        this.layer.add(this.add.image(gx + 6, gy + 4, avatarTex(this, gen.look)).setOrigin(0));
-        const gs = generalStats(gen);
-        this.layer.add(bar(this, gx + 4, gy + 29, 28, 4, gen.hp / gs.maxHp, C.red, C.darkRed));
-        this.layer.add(hit(this, gx, gy, 36, 36, () => P.generalDetail(this, gen.uid)));
-      } else {
-        this.layer.add(text(this, gx + 18, gy + 12, '将', { align: 'center', color: 0x9a9aa0 }));
-        this.layer.add(hit(this, gx, gy, 36, 36, () => toast(this, '野外把怪物打到残血，用「招降」收为副将')));
+    const loc = locations[s.location];
+    const dp = daypart();
+    const sh = Math.ceil(STAGE_H / 2);
+    this.stage.add(this.add.image(0, 0, sceneTex(this, loc.art, 180, sh, HORIZON)).setOrigin(0).setScale(2));
+    const hz = Math.round(STAGE_H * HORIZON);
+    const top = hz + 34;
+    const bottom = STAGE_H - 22;
+    const actors = this.actors();
+    const spots = this.actorSpots(actors.length, top, bottom);
+    const props = layoutProps(loc.art, s.location, W, hz + 8, bottom + 8, spots);
+    const night = dp === 'night' || OUTDOOR_DARK.has(loc.art);
+    const glows: [number, number][] = [];
+    for (const p of props) {
+      const key = propTex(this, p.kind, p.seed);
+      const img = this.add.image(p.x, p.y, key).setOrigin(0.5, 1).setDepth(p.y);
+      if (p.x > W / 2 && p.kind !== 'sign') img.setFlipX(true);
+      this.stage.add(img);
+      const gl = GLOW[p.kind];
+      if (gl) for (const [gx, gy] of gl) {
+        const fx = img.flipX ? img.width - gx : gx;
+        glows.push([Math.round(p.x - img.width / 2 + fx), Math.round(p.y - img.height + gy)]);
       }
+      if (p.kind === 'fire') this.flames(p.x, p.y - 6);
+      if ((p.kind === 'house') && !OUTDOOR_DARK.has(loc.art)) this.smoke(p.x + (img.flipX ? -10 : 10), p.y - img.height + 4);
     }
-
-    // 资料框：职业、银、金、升级还需经验
-    const iy = gy + 44;
-    const ig = this.add.graphics();
-    ig.fillStyle(UI.goldLo).fillRect(x + 5, iy, w - 10, MID_H - (iy - y) - 6);
-    ig.fillStyle(0x000000).fillRect(x + 6, iy + 1, w - 12, MID_H - (iy - y) - 8);
-    this.layer.add(ig);
-    this.layer.add(text(this, x + 10, iy + 5, `职业：${p.level}级${classes[p.classId].name}`, { color: UI.white }));
-    this.layer.add(text(this, x + 10, iy + 21, `银：${moneyText(p.silver)}`, { color: UI.white }));
-    this.layer.add(text(this, x + 10, iy + 37, `金：${moneyText(p.gold)}`, { color: UI.yellow }));
-    this.layer.add(text(this, x + 10, iy + 53, '升级还需经验：', { color: UI.white }));
-    this.layer.add(text(this, x + w / 2, iy + 68, `${expToNext(p.level) - p.exp}`, { align: 'center', color: UI.white }));
-    this.layer.add(bar(this, x + 10, iy + 84, w - 20, 4, p.exp / expToNext(p.level), C.gold, C.sand));
-    let qy = iy + 94;
-    if (p.free > 0) {
-      this.layer.add(new Button(this, x + 9, qy, w - 18, 20, `可分配属性点 ${p.free}`, () => P.allocatePanel(this), { style: 'red' }));
-      qy += 24;
+    actors.forEach((a, i) => this.drawActor(a, spots[i][0], spots[i][1]));
+    this.passersby(top);
+    // 时辰滤镜：晨橙、暮紫、夜蓝；夜里灯笼、营火、窗户亮起暖光
+    const tint: Record<Daypart, [number, number] | null> = { dawn: [0xffe4c8, 1], day: null, dusk: [0xffccb0, 1], night: [0x5a64a8, 1] };
+    const tt = OUTDOOR_DARK.has(loc.art) ? null : tint[dp];
+    if (tt) this.stage.add(this.add.rectangle(0, 0, W, STAGE_H, tt[0]).setOrigin(0).setBlendMode(Phaser.BlendModes.MULTIPLY).setDepth(900));
+    if (night || dp === 'dusk') for (const [gx, gy] of glows) {
+      const c = this.add.circle(gx, gy, 16, 0xffa040, 0.22).setBlendMode(Phaser.BlendModes.ADD).setDepth(901);
+      const c2 = this.add.circle(gx, gy, 6, 0xffd080, 0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(901);
+      this.stage.add([c, c2]);
+      this.tweens.add({ targets: [c, c2], alpha: { from: 0.7, to: 1 }, duration: 600 + Math.random() * 400, yoyo: true, repeat: -1 });
     }
-    const q = questProgressText(s);
-    this.layer.add(hit(this, x, qy - 2, w, y + MID_H - qy, () => P.questPanel(this)));
-    this.layer.add(text(this, x + 10, qy, `任务：${q}`, { wrap: w - 20, color: currentQuest(s) && s.main.state === 'ready' ? UI.red : UI.green, lineGap: 2 }));
+    this.weather(loc.art, dp, hz);
+    // 舞台下沿压一道暗影，接住下面的状态栏
+    const g = this.add.graphics().setDepth(950);
+    vgrad(g, 0, STAGE_H - 18, W, 18, [0x000000, 0x0a0604]);
+    g.setAlpha(0.55);
+    this.stage.add(g);
   }
 
-  // 四个分页：原版是一排橙色金属牌，选中的那块发亮
-  private drawTabs(): void {
-    const g = this.add.graphics();
-    g.fillStyle(0x000000).fillRect(0, TAB_Y, W, 32);
-    this.layer.add(g);
-    TABS.forEach(([id, name], i) => {
-      const b = new Button(this, i * 90 + 1, TAB_Y + 1, 88, 30, '', () => {
-        tab = id;
-        this.refresh();
-      }, { style: tab === id ? 'dark' : 'orange' });
-      this.layer.add(b);
-      this.layer.add(text(this, i * 90 + 45, TAB_Y + 3, name, { align: 'center', color: tab === id ? 0xc01000 : 0xfff4d0, stroke: tab === id ? 0xffffff : 0x6a2000, scale: 2 }));
-    });
-  }
-
-  private drawPlayers(): void {
-    const s = store.save;
-    const ps = playersAt(s.location);
-    const g = this.add.graphics();
-    g.fillStyle(0x000000).fillRect(0, PLAYERS_Y, W, 28);
-    g.fillStyle(0x2a2a30).fillRect(0, PLAYERS_Y + 27, W, 1);
-    this.layer.add(g);
-    ps.slice(0, 9).forEach((pl, i) => {
-      const img = this.add.image(6 + i * 30, PLAYERS_Y + 2, avatarTex(this, heroLookKey(pl.classId, pl.gender), pl.variant)).setOrigin(0).setCrop(0, 0, 24, 24);
-      this.layer.add(img);
-    });
-    this.layer.add(text(this, W - 8, PLAYERS_Y + 8, `更多(${ps.length})`, { align: 'right', color: UI.white }));
-    this.layer.add(hit(this, 0, PLAYERS_Y, W, 28, () => P.playersPanel(this)));
-  }
-
-  private drawTabContent(): void {
-    const x = LEFT_W;
-    const y = MID_Y;
-    const w = W - LEFT_W;
-    const g = this.add.graphics();
-    goldFrame(g, x, y, w, MID_H, null);
-    this.layer.add(g);
-    this.layer.add(this.add.image(x + 4, y + 4, fireTex(this, w - 8, MID_H - 8)).setOrigin(0));
-    // 分页名水印（原版右下角那两个蓝色大字）
-    const name = TABS.find(([id]) => id === tab)![1];
-    this.layer.add(text(this, x + w - 14, y + MID_H - 40, name, { align: 'right', color: 0x4a9cff, stroke: 0xffffff, scale: 2 }).setAlpha(0.9));
-    if (tab === 'people') this.drawPeople(x + 6, y + 6, w - 12, MID_H - 12);
-    else if (tab === 'facility') this.drawFacilities(x + 6, y + 6, w - 12);
-    else if (tab === 'move') this.drawMove(x + 6, y + 6, w - 12);
-    else this.drawFunc(x + 6, y + 6, w - 12);
-  }
-
-  private drawPeople(x: number, y: number, w: number, h: number): void {
+  private actors(): Actor[] {
     const s = store.save;
     const loc = locations[s.location];
-    const area = new ScrollArea(this, x, y, w, h, this.layer);
-    const c = area.content;
-    let yy = 0;
+    const out: Actor[] = [];
     const q = currentQuest(s);
     const dest = questDestination(s);
-    const hereIsTarget = dest === s.location;
-    const guideNpc = loc.npcs.find((n) => npcMark(s, n));
-    if (guideNpc && s.player.level < 15) {
-      c.add(text(this, 2, yy, `点击箭头处，与${npcs[guideNpc].name}对话`, { color: C.red, wrap: w - 6 }));
-      yy += 18;
-    }
     for (const id of loc.npcs) {
       const n = npcs[id];
-      const mark = npcMark(s, id);
-      this.row(c, yy, w, avatarTex(this, n.look), `${n.name}${mark ? ' ' + mark : ''}`, mark ? UI.red : UI.white, '对话', () => P.talkTo(this, id), area, !!mark);
-      yy += 32;
+      const mark = npcMark(s, id) ?? undefined;
+      out.push({ kind: 'npc', id, look: n.look, variant: 0, name: n.name, color: mark ? UI.yellow : 0xfbefd0, mark, onTap: () => P.talkTo(this, id) });
     }
     loc.groups.forEach((gr, gi) => {
       const m = monsters[gr.monster];
       const lv = gr.level[0] === gr.level[1] ? `${gr.level[0]}` : `${gr.level[0]}-${gr.level[1]}`;
-      const isTarget = hereIsTarget && s.main.state === 'active' && q?.target?.monster === gr.monster;
-      this.row(c, yy, w, avatarTex(this, m.look), `${groupLabel(gr)} ${lv}级`, m.boss ? UI.yellow : UI.white, '战斗', () => this.fight(gi), area, isTarget);
-      yy += 32;
+      const target = dest === s.location && s.main.state === 'active' && q?.target?.monster === gr.monster;
+      out.push({ kind: 'group', id: `g${gi}`, look: m.look, variant: 0, name: `${groupLabel(gr)} ${lv}级`, color: m.boss ? UI.yellow : 0xffb0a0, target, count: gr.count[1], onTap: () => this.groupCard(gi, gr) });
     });
-    if (X.treasureHere(s)) {
-      this.row(c, yy, w, avatarTex(this, 'guardian'), '宝藏守卫（抢宝）', UI.yellow, '抢宝', () => X.fightTreasure(this), area, true);
-      yy += 32;
-    }
-    if (!loc.npcs.length && !loc.groups.length) c.add(text(this, 2, yy, '这里空无一人。', { color: C.gray }));
-    area.setContentHeight(yy);
+    if (X.treasureHere(s)) out.push({ kind: 'treasure', id: 'treasure', look: 'guardian', variant: 0, name: '宝藏守卫', color: UI.yellow, target: true, onTap: () => X.fightTreasure(this) });
+    return out;
   }
 
-  private row(c: Phaser.GameObjects.Container, y: number, w: number, avatar: string, label: string, color: number, action: string, fn: () => void, area: ScrollArea, arrow: boolean): void {
-    // 原版的列表：透明底，一行一条暗金分隔线
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.35).fillRect(0, y, w - 4, 30);
-    g.fillStyle(UI.line).fillRect(0, y + 30, w - 4, 1);
-    c.add(g);
-    c.add(this.add.image(3, y + 3, avatar).setOrigin(0).setCrop(0, 0, 24, 24));
-    c.add(text(this, 32, y + 8, label, { color, stroke: 0x000000 }));
-    c.add(new Button(this, w - 52, y + 5, 44, 20, action, fn, { style: action === '战斗' ? 'red' : 'tan', clip: area, color: action === '战斗' ? undefined : 0x1a3cc0 }));
-    if (arrow) {
-      const a = text(this, w - 70, y + 8, '◀', { color: C.red });
-      c.add(a);
-      this.tweens.add({ targets: a, x: a.x - 4, duration: 300, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
-    }
+  // 站位：交错排开，前排靠下；人少就站中间一点
+  private actorSpots(n: number, top: number, bottom: number): [number, number][] {
+    const slots: [number, number][] = [
+      [0.26, 0.18], [0.74, 0.24], [0.42, 0.42], [0.62, 0.5], [0.16, 0.6], [0.86, 0.66], [0.32, 0.82], [0.7, 0.88], [0.5, 1], [0.1, 0.96],
+    ];
+    const span = bottom - top;
+    return slots.slice(0, n).map(([u, v]) => [Math.round(20 + u * (W - 40)), Math.round(top + v * span)]);
   }
 
-  private drawFacilities(x: number, y: number, w: number): void {
-    const loc = locations[store.save.location];
-    const fac = loc.facilities ?? [];
-    if (!loc.town || !fac.length) {
-      this.layer.add(text(this, x + 2, y + 2, '野外没有设施。\n回城镇（新手村、翠竹山庄、许昌、颍阳、陈）才能用医馆等设施。', { wrap: w - 6, color: C.gray }));
-      return;
+  private drawActor(a: Actor, x: number, y: number): void {
+    const flip = x < W / 2;
+    const depth = y;
+    const shadow = this.add.ellipse(x, y + 1, 26, 6, 0x000000, 0.28).setDepth(depth - 0.5);
+    this.stage.add(shadow);
+    const sprites: Phaser.GameObjects.Image[] = [];
+    const mk = (dx: number, dy: number, d: number) => {
+      const img = this.add.image(x + dx + (flip ? OFF : -OFF), y + dy, unitTex(this, a.look, a.variant, 'idle')).setOrigin(0.5, FEET_Y / UNIT_H).setFlipX(flip).setDepth(depth + d);
+      this.stage.add(img);
+      sprites.push(img);
+      return img;
+    };
+    // 一群怪：后面再站一个
+    if (a.kind === 'group' && (a.count ?? 1) > 1) {
+      const back = mk(flip ? -12 : 12, -8, -1);
+      back.setTint(0xc8c0b8);
     }
-    const area = new ScrollArea(this, x, y, w, MID_H - 8, this.layer);
-    fac.forEach((f, i) => {
-      const [name, desc, open] = FACILITIES[f];
-      const yy = i * 40;
-      const g = this.add.graphics();
-      g.fillStyle(0x000000, 0.35).fillRect(0, yy, w - 6, 36);
-      g.fillStyle(UI.line).fillRect(0, yy + 36, w - 6, 1);
-      area.content.add(g);
-      area.content.add(text(this, 8, yy + 3, name, { color: UI.white, stroke: 0x000000 }));
-      area.content.add(text(this, 8, yy + 19, desc, { color: UI.cream }));
-      area.content.add(new Button(this, w - 58, yy + 7, 48, 22, '进入', () => open(this), { clip: area }));
+    const main = mk(0, 0, 0);
+    // 待机：两帧交替 + 一点上下起伏，各人节奏不同
+    let f = false;
+    this.ambient.push(this.time.addEvent({ delay: 520 + Math.random() * 300, loop: true, callback: () => {
+      f = !f;
+      for (const sp of sprites) sp.setTexture(unitTex(this, a.look, a.variant, f ? 'idle2' : 'idle'));
+    } }));
+    // 名牌：脚下一块暗色小牌
+    const nw = textWidth(a.name) + 10;
+    const plate = this.add.graphics().setDepth(800 + depth / 1000);
+    plate.fillStyle(0x0a0604, 0.72).fillRect(x - nw / 2, y + 4, nw, 15).fillRect(x - nw / 2 + 1, y + 3, nw - 2, 17);
+    if (a.kind === 'group') plate.fillStyle(0xb42c18).fillRect(x - nw / 2 + 1, y + 18, nw - 2, 1);
+    this.stage.add([plate, text(this, x, y + 5, a.name, { align: 'center', color: a.color, stroke: 0x000000 }).setDepth(801 + depth / 1000)]);
+    // 头顶标记：任务「！」「？」、任务目标的红箭头
+    if (a.mark || a.target) {
+      const mx = x;
+      const my = y - 70;
+      const g = this.add.graphics().setDepth(820);
+      if (a.mark) {
+        // 金色（可接）/ 绿色（可交）气泡，里面一个大号「！」「？」
+        const c = a.mark === '?' ? 0x8af060 : 0xffd040;
+        g.fillStyle(0x2a1604).fillRect(mx - 11, my - 13, 22, 26).fillRect(mx - 12, my - 12, 24, 24);
+        g.fillStyle(c).fillRect(mx - 10, my - 12, 20, 24).fillRect(mx - 11, my - 11, 22, 22);
+        g.fillStyle(0xffffff, 0.6).fillRect(mx - 9, my - 11, 14, 2);
+        g.fillStyle(0x2a1604).fillTriangle(mx - 4, my + 13, mx + 4, my + 13, mx, my + 18);
+        g.fillStyle(c).fillTriangle(mx - 2, my + 12, mx + 2, my + 12, mx, my + 15);
+      } else {
+        g.fillStyle(0x3a0804).fillTriangle(mx - 8, my - 2, mx + 8, my - 2, mx, my + 10);
+        g.fillStyle(0xf04424).fillTriangle(mx - 6, my - 1, mx + 6, my - 1, mx, my + 7);
+      }
+      this.stage.add(g);
+      const parts: Phaser.GameObjects.GameObject[] = [g];
+      if (a.mark) {
+        const t = text(this, mx, my - 12, a.mark === '?' ? '?' : '!', { align: 'center', color: 0x2a1604, scale: 2 }).setDepth(821);
+        this.stage.add(t);
+        parts.push(t);
+      }
+      this.tweens.add({ targets: parts, y: '-=3', duration: 380, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+    const z = hit(this, x - 22, y - 58, 44, 80, () => {
+      // 点人：先跳一下表示点到了
+      this.tweens.add({ targets: main, y: main.y - 4, duration: 70, yoyo: true });
+      a.onTap();
+    }).setDepth(830);
+    this.stage.add(z);
+  }
+
+  // 游荡的江湖侠客：在后排慢慢来回走，点他可以切磋、雇来同行
+  private passersby(top: number): void {
+    const s = store.save;
+    const ps = playersAt(s.location).slice(0, locations[s.location].town ? 3 : 1);
+    ps.forEach((pl, i) => {
+      const y = Math.round(top - 26 + i * 6);
+      const look = heroLookKey(pl.classId, pl.gender);
+      let x = 30 + Math.random() * (W - 60);
+      const img = this.add.image(x, y, unitTex(this, look, pl.variant, 'idle')).setOrigin(0.5, FEET_Y / UNIT_H).setDepth(y).setAlpha(0.95);
+      this.stage.add(img);
+      const nm = this.add.ellipse(x, y + 1, 18, 4, 0x000000, 0.22).setDepth(y - 1);
+      this.stage.add(nm);
+      const walk = () => {
+        const nx = 30 + Math.random() * (W - 60);
+        const dur = Math.abs(nx - x) * 40 + 400;
+        img.setFlipX(nx > x);
+        let f = false;
+        const step = this.time.addEvent({ delay: 220, loop: true, callback: () => {
+          f = !f;
+          img.setTexture(unitTex(this, look, pl.variant, f ? 'idle2' : 'idle'));
+        } });
+        this.ambient.push(step);
+        this.tweens.add({ targets: [img, nm], x: nx, duration: dur, onComplete: () => {
+          step.remove();
+          x = nx;
+          this.ambient.push(this.time.delayedCall(1500 + Math.random() * 4000, walk));
+        } });
+      };
+      this.ambient.push(this.time.delayedCall(800 + i * 1200, walk));
+      const z = hit(this, x - 14, y - 50, 28, 56, () => P.playerDetail(this, pl)).setDepth(829);
+      this.stage.add(z);
+      this.events.on('update', () => z.active && z.setX(img.x - 14));
     });
-    area.setContentHeight(fac.length * 40);
   }
 
-  private drawMove(x: number, y: number, w: number): void {
+  private flames(x: number, y: number): void {
+    const cols = [0xffe060, 0xffa030, 0xf05020];
+    this.ambient.push(this.time.addEvent({ delay: 70, loop: true, callback: () => {
+      const p = this.add.rectangle(x - 4 + Math.random() * 8, y, 2 + Math.round(Math.random() * 2), 3, cols[Math.floor(Math.random() * 3)]).setOrigin(0).setDepth(y + 20);
+      this.stage.add(p);
+      this.tweens.add({ targets: p, y: y - 10 - Math.random() * 10, alpha: 0, scale: 0.4, duration: 420, onComplete: () => p.destroy() });
+    } }));
+  }
+
+  private smoke(x: number, y: number): void {
+    this.ambient.push(this.time.addEvent({ delay: 420, loop: true, callback: () => {
+      const p = this.add.rectangle(x, y, 3, 3, 0xd8d8d0, 0.6).setOrigin(0).setDepth(y + 1);
+      this.stage.add(p);
+      this.tweens.add({ targets: p, y: y - 26, x: x + 6 + Math.random() * 6, alpha: 0, scale: 2, duration: 2200, onComplete: () => p.destroy() });
+    } }));
+  }
+
+  // 环境动效：飘叶 / 落花 / 萤火 / 洞里的浮尘 / 天上的云
+  private weather(art: string, dp: Daypart, hz: number): void {
+    const leafy = ['forest', 'valley', 'grass', 'road', 'hill', 'bamboo', 'farm'].includes(art);
+    const petal = ['village', 'manor', 'city'].includes(art);
+    const spawn = (fn: () => void, delay: number) => this.ambient.push(this.time.addEvent({ delay, loop: true, callback: fn }));
+    if ((leafy || petal) && dp !== 'night') spawn(() => {
+      const c = petal ? (Math.random() < 0.5 ? 0xf8b8c8 : 0xffe0e8) : Math.random() < 0.5 ? 0x86a94a : 0xd8b040;
+      const x = Math.random() * W;
+      const p = this.add.rectangle(x, -4, 2, 2, c).setOrigin(0).setDepth(890);
+      this.stage.add(p);
+      this.tweens.add({ targets: p, y: STAGE_H * (0.6 + Math.random() * 0.4), x: x - 40 - Math.random() * 60, duration: 5000 + Math.random() * 3000, onComplete: () => p.destroy() });
+      this.tweens.add({ targets: p, scaleX: 0.3, duration: 400, yoyo: true, repeat: -1 });
+    }, 700);
+    if (dp === 'night' && !OUTDOOR_DARK.has(art) && art !== 'city') spawn(() => {
+      const x = 20 + Math.random() * (W - 40);
+      const y = hz + 20 + Math.random() * (STAGE_H - hz - 40);
+      const p = this.add.rectangle(x, y, 2, 2, 0xd8ff80).setOrigin(0).setDepth(902).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
+      this.stage.add(p);
+      this.tweens.add({ targets: p, alpha: 1, yoyo: true, duration: 900, x: x + (Math.random() - 0.5) * 30, y: y - 10 - Math.random() * 10, onComplete: () => p.destroy() });
+    }, 300);
+    if (OUTDOOR_DARK.has(art)) spawn(() => {
+      const x = Math.random() * W;
+      const y = Math.random() * STAGE_H;
+      const p = this.add.rectangle(x, y, 1, 1, 0xf0e0c0, 0.7).setOrigin(0).setDepth(890);
+      this.stage.add(p);
+      this.tweens.add({ targets: p, y: y + 20, alpha: 0, duration: 4000, onComplete: () => p.destroy() });
+    }, 250);
+    if (!OUTDOOR_DARK.has(art)) {
+      // 两朵慢慢飘过的云
+      for (let i = 0; i < 2; i++) {
+        const cy = 14 + i * 22 + Math.random() * 10;
+        const cl = this.add.graphics().setDepth(5).setAlpha(dp === 'night' ? 0.25 : 0.8);
+        const w = 30 + Math.random() * 24;
+        cl.fillStyle(0xffffff).fillRect(0, 4, w, 6).fillRect(6, 0, w * 0.5, 5).fillRect(w * 0.45, 2, w * 0.4, 4);
+        cl.fillStyle(0xd8e4f0).fillRect(0, 9, w, 2);
+        cl.setPosition(Math.random() * W, cy);
+        this.stage.add(cl);
+        const drift = () => {
+          this.tweens.add({ targets: cl, x: W + 10, duration: (W + 10 - cl.x) * 220, onComplete: () => {
+            cl.x = -w - 10;
+            drift();
+          } });
+        };
+        drift();
+      }
+    }
+  }
+
+  // 舞台上叠的界面：地名题签、时辰、任务追踪、右上角快捷钮
+  private drawStageHud(): void {
     const s = store.save;
     const loc = locations[s.location];
     const g = this.add.graphics();
-    goldFrame(g, x, y + 20, 96, 96, null);
+    vgrad(g, 0, 0, W, 30, [0x000000, 0x000000]);
+    g.setAlpha(0.32);
     this.layer.add(g);
-    this.layer.add(this.add.image(x + 4, y + 24, sceneTex(this, loc.art, 88, 88, 0.4)).setOrigin(0));
-    // 地点名牌（原版小地图上那块蓝底白字）
     const pg = this.add.graphics();
-    drawFace(pg, x, y, 96, 18, 'blue');
-    this.layer.add(pg);
-    this.layer.add(text(this, x + 48, y + 3, loc.name, { align: 'center', color: UI.white, stroke: 0x0a1450 }));
-    const exits = exitsOf(s.location);
-    exits.forEach((e, i) => {
-      const yy = y + i * 34;
-      this.layer.add(new Button(this, x + 104, yy, w - 108, 30, `${DIR_ARROW[e.dir]} ${e.name}`, () => {
-        if (e.locked) return toast(this, `${e.name}，还不能去`);
-        this.walkTo(e.to);
-      }, { disabled: false, color: e.locked ? C.gray : undefined }));
+    const tw = Math.max(80, textWidth(loc.name) + 32);
+    titlePlaque(pg, W / 2, 5, tw, 20);
+    this.layer.add([pg, text(this, W / 2, 8, loc.name, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
+    const dp = daypart();
+    const dpName: Record<Daypart, string> = { dawn: '清晨', day: '白昼', dusk: '黄昏', night: '夜' };
+    this.layer.add(text(this, W - 6, 8, `${shichen()}·${dpName[dp]}`, { align: 'right', color: 0xfbefd0, stroke: 0x000000 }));
+    this.drawTracker();
+    // 右上快捷：福利、国战（有事时亮红点）
+    const quick: [string, string, () => void, boolean][] = [
+      ['gift', '福利', () => welfarePanel(this), welfarePending(s) || X.festivalPending(s)],
+      ['flag', '国战', () => G4.guozhanPanel(this), G4.guozhanPending(s)],
+    ];
+    quick.forEach(([icon, label, fn, dot], i) => {
+      const x = W - 34;
+      const y = 36 + i * 46;
+      const qg = this.add.graphics();
+      qg.fillStyle(0x000000, 0.45).fillRect(x - 1, y - 1, 30, 30);
+      sealBox(qg, x, y, 28);
+      this.layer.add(qg);
+      this.layer.add(this.add.image(x + 14, y + 13, uiIconTex(this, icon)).setScale(2).setOrigin(0.5));
+      this.layer.add(text(this, x + 14, y + 30, label, { align: 'center', color: 0xfbefd0, stroke: 0x000000 }));
+      if (dot) this.layer.add(this.add.circle(x + 26, y + 2, 4, 0xff3020).setStrokeStyle(1, 0xffffff));
+      this.layer.add(hit(this, x - 2, y - 2, 32, 46, fn));
     });
-    if (s.location === 'baodong') {
-      this.layer.add(new Button(this, x + 104, y, w - 108, 30, '离开宝洞，回许昌', () => this.walkTo('xuchang'), { style: 'red' }));
-    } else if (s.location !== 'xinshoucun' && !exits.some((e) => e.to === 'xinshoucun')) {
-      this.layer.add(new Button(this, x + 104, y + exits.length * 34, w - 108, 30, '返回新手村', () => {
-        moveTo(s, 'xinshoucun');
-        sfx('step');
-        tab = 'people';
-        this.refresh();
-      }, { style: 'red' }));
-    }
-    const rows = exits.length + (s.location !== 'xinshoucun' && !exits.some((e) => e.to === 'xinshoucun') ? 1 : 0);
-    this.layer.add(text(this, x + 2, y + Math.max(124, rows * 34) + 6, '「功能 → 任务」里可以开启寻路，自动走到任务地点。', { wrap: w - 6, color: UI.cream, stroke: 0x000000 }));
   }
 
-  private drawFunc(x: number, y: number, w: number): void {
-    const items: [string, () => void][] = [
-      ['状态', () => P.statusPanel(this)], ['物品', () => P.bagPanel(this)], ['副将', () => P.generalsPanel(this)],
-      ['组队', () => X.teamPanel(this)], ['排行', () => X.rankPanel(this)], ['国战', () => G4.guozhanPanel(this)],
-      ['邮件', () => welfarePanel(this)], ['任务', () => P.questPanel(this)], ['擂台', () => X.arenaPanel(this)],
-      ['帮派', () => X.sectPanel(this)], ['训练', () => X.trainingPanel(this)], ['宝库', () => X.vaultPanel(this)],
-      ['公告', () => P.messagesPanel(this)], ['攻略', () => P.helpPanel(this)], ['退出', () => P.exitPanel(this)],
-    ];
-    // 原版功能格：暗底白字，右边一枚金色箭头楔，横线分行
-    const bw = Math.floor(w / 3);
+  // 任务追踪：左上一块半透明墨底卡片，写当前主线；目的地不在这儿就给个「前往」
+  private drawTracker(): void {
+    const s = store.save;
+    const q = currentQuest(s);
+    if (!q) return;
+    const x = 6;
+    const y = 32;
+    const w = 196;
+    const ready = s.main.state === 'ready';
+    const body = s.main.state === 'available' ? `去找${npcs[q.giver]?.name ?? ''}接任务` : questProgressText(s);
+    const lines = Math.min(2, Math.ceil(textWidth(body) / (w - 16)));
+    const h = 22 + lines * 14 + 4;
     const g = this.add.graphics();
+    g.fillStyle(0x0a0604, 0.62).fillRect(x, y, w, h).fillRect(x + 1, y - 1, w - 2, h + 2);
+    g.fillStyle(ready ? 0x8af060 : 0xb42c18).fillRect(x, y, 2, h);
     this.layer.add(g);
-    items.forEach(([name, fn], i) => {
-      const bx = x + (i % 3) * bw;
-      const by = y + Math.floor(i / 3) * 34;
-      const dot = (name === '状态' && store.save.player.free > 0) || (name === '任务' && store.save.main.state === 'ready') || (name === '邮件' && (welfarePending(store.save) || X.festivalPending(store.save))) || (name === '国战' && G4.guozhanPending(store.save));
-      g.fillStyle(0x000000, 0.4).fillRect(bx, by, bw - 2, 32);
-      if (i % 3 === 0) g.fillStyle(UI.line).fillRect(x, by + 32, w, 1);
-      // 金楔：上宽下窄的斜三角
-      for (let k = 0; k < 16; k++) {
-        const len = Math.max(1, 14 - k);
-        g.fillStyle(k < 3 ? UI.goldHi : k < 9 ? UI.gold : UI.goldLo).fillRect(bx + bw - 6 - len, by + 8 + k, len, 1);
+    // 小红签「主线」
+    const tg = this.add.graphics();
+    tg.fillStyle(0xb42c18).fillRect(x + 6, y + 4, 28, 14);
+    this.layer.add(tg);
+    this.layer.add(text(this, x + 20, y + 5, '主线', { align: 'center', color: 0xfff0c0 }));
+    this.layer.add(text(this, x + 40, y + 5, q.title, { color: ready ? 0x8af060 : UI.yellow, stroke: 0x000000 }));
+    this.layer.add(text(this, x + 8, y + 22, body, { color: 0xfbefd0, wrap: w - 16, lineGap: 2 }));
+    this.layer.add(hit(this, x, y, w, h, () => P.questPanel(this)));
+    const dest = questDestination(s);
+    if (dest && dest !== s.location) {
+      this.layer.add(new Button(this, x + w + 4, y + 2, 40, 20, '前往', () => this.autoPath(dest), { style: 'red' }));
+    }
+  }
+
+  // ===== 状态栏 =====
+  private drawHud(): void {
+    const s = store.save;
+    const p = s.player;
+    const st = playerStats(s);
+    const y = STAGE_H;
+    const g = this.add.graphics();
+    vgrad(g, 0, y, W, HUD_H, [0x2a1a10, 0x1c120a, 0x140d08]);
+    g.fillStyle(0x000000).fillRect(0, y, W, 1);
+    // 经验条压在状态栏上沿，金色细线
+    const er = p.exp / expToNext(p.level);
+    g.fillStyle(0x3a2a14).fillRect(0, y + 1, W, 2);
+    g.fillStyle(UI.gold).fillRect(0, y + 1, Math.round(W * Math.max(0, Math.min(1, er))), 2);
+    // 头像框
+    g.fillStyle(0x000000).fillRect(5, y + 6, 48, 48);
+    g.fillStyle(UI.goldLo).fillRect(6, y + 7, 46, 46);
+    g.fillStyle(UI.gold).fillRect(7, y + 8, 44, 44);
+    g.fillStyle(0x24160c).fillRect(8, y + 9, 42, 42);
+    this.layer.add(g);
+    const av = this.add.image(29, y + 30, avatarTex(this, heroLookKey(p.classId, p.gender), heroVariant(s))).setScale(2).setOrigin(0.5);
+    av.setCrop(1, 1, 22, 22);
+    this.layer.add(av);
+    if (p.free > 0) {
+      this.layer.add(this.add.circle(50, y + 9, 6, 0xd03018).setStrokeStyle(1, 0xffffff));
+      this.layer.add(text(this, 50, y + 3, '+', { align: 'center', color: 0xffffff }));
+    }
+    this.layer.add(hit(this, 4, y + 4, 52, 52, () => (p.free > 0 ? P.allocatePanel(this) : P.statusPanel(this))));
+    this.layer.add(text(this, 60, y + 6, p.name, { color: 0xfbefd0, stroke: 0x000000 }));
+    this.layer.add(text(this, 62 + textWidth(p.name) + 6, y + 6, `${p.level}级${classes[p.classId].name}`, { color: UI.yellow, stroke: 0x000000 }));
+    const bw = 190;
+    this.layer.add(bar(this, 60, y + 23, bw, 11, p.hp / st.maxHp, C.red, C.darkRed));
+    this.layer.add(text(this, 60 + bw / 2, y + 22, `${p.hp}/${st.maxHp}`, { align: 'center', color: 0xffffff, stroke: 0x000000 }));
+    this.layer.add(bar(this, 60, y + 38, bw, 11, p.mp / st.maxMp, C.lightBlue, C.navy));
+    this.layer.add(text(this, 60 + bw / 2, y + 37, `${p.mp}/${st.maxMp}`, { align: 'center', color: 0xffffff, stroke: 0x000000 }));
+    // 右侧：三格副将 + 银两金砖
+    for (let i = 0; i < 3; i++) {
+      const gx = 258 + i * 33;
+      const gy = y + 6;
+      const gen = s.generals[i];
+      const active = gen && gen.uid === s.activeGeneral;
+      const fg = this.add.graphics();
+      fg.fillStyle(active ? UI.goldHi : 0x6a5a48).fillRect(gx, gy, 30, 30);
+      fg.fillStyle(active ? 0x5a2a10 : 0x24160c).fillRect(gx + 1, gy + 1, 28, 28);
+      this.layer.add(fg);
+      if (gen) {
+        this.layer.add(this.add.image(gx + 3, gy + 2, avatarTex(this, gen.look)).setOrigin(0));
+        const gs = generalStats(gen);
+        this.layer.add(bar(this, gx + 2, gy + 25, 26, 3, gen.hp / gs.maxHp, C.red, C.darkRed));
+        this.layer.add(hit(this, gx, gy, 30, 30, () => P.generalDetail(this, gen.uid)));
+      } else {
+        this.layer.add(text(this, gx + 15, gy + 8, '将', { align: 'center', color: 0x8a7a60 }));
+        this.layer.add(hit(this, gx, gy, 30, 30, () => toast(this, '野外把怪物打到残血，用「招降」收为副将')));
       }
-      this.layer.add(text(this, bx + 6, by + 10, name, { color: dot ? UI.red : UI.white, stroke: 0x000000 }));
-      if (dot) this.layer.add(text(this, bx + 6 + name.length * 12, by + 4, '●', { color: UI.red, raw: true }));
-      this.layer.add(hit(this, bx, by, bw - 2, 32, fn));
+    }
+    this.layer.add(this.add.image(258, y + 41, uiIconTex(this, 'coin')).setOrigin(0));
+    this.layer.add(text(this, 268, y + 39, moneyText(p.silver), { color: 0xe8e8f0, stroke: 0x000000 }));
+    this.layer.add(this.add.image(310, y + 41, uiIconTex(this, 'ingot')).setOrigin(0));
+    this.layer.add(text(this, 320, y + 39, moneyText(p.gold), { color: UI.yellow, stroke: 0x000000 }));
+  }
+
+  // ===== 底部导航 =====
+  private drawNav(): void {
+    const s = store.save;
+    const loc = locations[s.location];
+    const y = H - NAV_H;
+    const g = this.add.graphics();
+    vgrad(g, 0, y, W, NAV_H, [0x3a2414, 0x24160c, 0x160c06]);
+    g.fillStyle(0x000000).fillRect(0, y, W, 1);
+    g.fillStyle(UI.goldLo).fillRect(0, y + 1, W, 1);
+    this.layer.add(g);
+    const town = !!loc.town && !!loc.facilities?.length;
+    const funcDot = s.player.free > 0 || s.main.state === 'ready' || welfarePending(s) || X.festivalPending(s) || G4.guozhanPending(s);
+    const items: [string, string, () => void, boolean, boolean][] = [
+      ['house', town ? '设施' : '野外', () => (town ? this.facilitySheet() : toast(this, '野外没有设施，回城镇才能用医馆、钱庄这些')), false, !town],
+      ['map', '地图', () => this.mapSheet(), false, false],
+      ['bag', '行囊', () => P.bagPanel(this), false, false],
+      ['helmet', '副将', () => P.generalsPanel(this), false, false],
+      ['scroll', '功能', () => this.funcSheet(), funcDot, false],
+    ];
+    const bw = W / items.length;
+    items.forEach(([icon, label, fn, dot, dim], i) => {
+      const cx = Math.round(i * bw + bw / 2);
+      if (i > 0) g.fillStyle(0x000000, 0.4).fillRect(Math.round(i * bw), y + 8, 1, NAV_H - 16);
+      const img = this.add.image(cx, y + 18, uiIconTex(this, icon)).setScale(2).setAlpha(dim ? 0.4 : 1);
+      this.layer.add(img);
+      this.layer.add(text(this, cx, y + 34, label, { align: 'center', color: dim ? 0x8a7a60 : 0xfbefd0, stroke: 0x000000 }));
+      if (dot) this.layer.add(this.add.circle(cx + 14, y + 7, 4, 0xff3020).setStrokeStyle(1, 0xffffff));
+      this.layer.add(hit(this, Math.round(i * bw), y, Math.round(bw), NAV_H, () => {
+        this.tweens.add({ targets: img, scale: 2.3, duration: 70, yoyo: true });
+        fn();
+      }));
     });
-    this.layer.add(new Button(this, x + 20, y + 5 * 34 + 8, w - 40, 24, '任务帮助使者', () => P.talkTo(this, 'bangzhu'), { style: 'red' }));
+  }
+
+  // ===== 弹出页 =====
+  private sheet(title: string, h: number): Modal {
+    return new Modal(this, title, { h: Math.min(h, H - 40), y: Math.max(20, H - NAV_H - Math.min(h, H - 40) - 8) });
+  }
+
+  private facilitySheet(): void {
+    const loc = locations[store.save.location];
+    const fac = loc.facilities ?? [];
+    const rows = Math.ceil(fac.length / 2);
+    const m = this.sheet(`${loc.name} · 设施`, 50 + rows * 52);
+    const cw = Math.floor((m.cw - 6) / 2);
+    fac.forEach((f, i) => {
+      const [name, desc, open] = FACILITIES[f];
+      const x = m.cx + (i % 2) * (cw + 6);
+      const y = m.cy + Math.floor(i / 2) * 52;
+      const b = new Button(this, x, y, cw, 46, '', () => {
+        m.close();
+        open(this);
+      });
+      m.inner.add(b);
+      const sg = this.add.graphics();
+      sealBox(sg, x + 6, y + 8, 30);
+      m.inner.add(sg);
+      m.inner.add(text(this, x + 21, y + 16, name[0], { align: 'center', color: 0xfff0c0 }));
+      m.inner.add(text(this, x + 42, y + 7, name, { color: C.darkBrown }));
+      m.inner.add(text(this, x + 42, y + 25, desc.length > 7 ? `${desc.slice(0, 7)}…` : desc, { color: C.brown }));
+    });
+  }
+
+  private mapSheet(): void {
+    const s = store.save;
+    const loc = locations[s.location];
+    const exits = exitsOf(s.location);
+    const back = s.location === 'baodong' ? 'xuchang' : s.location !== 'xinshoucun' && !exits.some((e) => e.to === 'xinshoucun') ? 'xinshoucun' : null;
+    const dest = questDestination(s);
+    const n = exits.length + (back ? 1 : 0);
+    const m = this.sheet('地图', 138 + n * 50 + (dest && dest !== s.location ? 34 : 0));
+    // 当前位置：一张小场景图 + 名牌
+    const fg = this.add.graphics();
+    fg.fillStyle(0x3a2414).fillRect(m.cx, m.cy, m.cw, 72);
+    m.inner.add(fg);
+    m.inner.add(this.add.image(m.cx + 2, m.cy + 2, sceneTex(this, loc.art, Math.floor((m.cw - 4) / 2), 34, 0.5)).setOrigin(0).setScale(2));
+    const pg = this.add.graphics();
+    titlePlaque(pg, m.cx + m.cw / 2, m.cy + 50, Math.max(80, textWidth(loc.name) + 30));
+    m.inner.add([pg, text(this, m.cx + m.cw / 2, m.cy + 52, `当前：${loc.name}`, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
+    let y = m.cy + 80;
+    if (dest && dest !== s.location) {
+      m.inner.add(new Button(this, m.cx, y, m.cw, 28, `寻路到任务地点：${locations[dest].name}`, () => {
+        m.close();
+        this.autoPath(dest);
+      }, { style: 'red' }));
+      y += 34;
+    }
+    for (const e of exits) {
+      const b = new Button(this, m.cx, y, m.cw, 44, '', () => {
+        if (e.locked) return toast(this, `${e.name}，还不能去`);
+        m.close();
+        this.walkTo(e.to);
+      }, { disabled: e.locked });
+      m.inner.add(b);
+      const to = locations[e.to];
+      m.inner.add(this.add.image(m.cx + 4, m.cy + 0 + (y - m.cy) + 4, sceneTex(this, to.art, 36, 18, 0.5)).setOrigin(0).setScale(2).setAlpha(e.locked ? 0.4 : 1));
+      m.inner.add(text(this, m.cx + 84, y + 6, `${DIR_ARROW[e.dir]} 往${DIR_NAME[e.dir]}`, { color: C.brown }));
+      m.inner.add(text(this, m.cx + 84, y + 23, e.name, { color: e.locked ? C.gray : C.darkBrown }));
+      if (e.locked) m.inner.add(text(this, m.cx + m.cw - 8, y + 15, '未开放', { align: 'right', color: C.gray }));
+      else if (to.town) m.inner.add(text(this, m.cx + m.cw - 8, y + 15, '城镇', { align: 'right', color: C.green }));
+      else if (to.groups.length) {
+        const lv = Math.min(...to.groups.map((g) => g.level[0]));
+        m.inner.add(text(this, m.cx + m.cw - 8, y + 15, `${lv}级起`, { align: 'right', color: lv > s.player.level + 3 ? C.red : C.brown }));
+      }
+      y += 50;
+    }
+    if (back) {
+      m.inner.add(new Button(this, m.cx, y, m.cw, 28, back === 'xuchang' ? '离开宝洞，回许昌' : '返回新手村', () => {
+        m.close();
+        this.walkTo(back, true);
+      }));
+    }
+  }
+
+  private funcSheet(): void {
+    const s = store.save;
+    const items: [string, () => void, boolean][] = [
+      ['状态', () => P.statusPanel(this), s.player.free > 0], ['物品', () => P.bagPanel(this), false], ['副将', () => P.generalsPanel(this), false],
+      ['任务', () => P.questPanel(this), s.main.state === 'ready'], ['组队', () => X.teamPanel(this), false], ['排行', () => X.rankPanel(this), false],
+      ['国战', () => G4.guozhanPanel(this), G4.guozhanPending(s)], ['邮件', () => welfarePanel(this), welfarePending(s) || X.festivalPending(s)], ['擂台', () => X.arenaPanel(this), false],
+      ['帮派', () => X.sectPanel(this), false], ['训练', () => X.trainingPanel(this), false], ['宝库', () => X.vaultPanel(this), false],
+      ['公告', () => P.messagesPanel(this), false], ['攻略', () => P.helpPanel(this), false], ['退出', () => P.exitPanel(this), false],
+    ];
+    const cols = 5;
+    const rows = Math.ceil(items.length / cols);
+    const m = this.sheet('功能', 84 + rows * 58);
+    const cw = Math.floor(m.cw / cols);
+    items.forEach(([name, fn, dot], i) => {
+      const x = m.cx + (i % cols) * cw;
+      const y = m.cy + 4 + Math.floor(i / cols) * 58;
+      const sg = this.add.graphics();
+      sealBox(sg, x + cw / 2 - 17, y, 34);
+      m.inner.add(sg);
+      m.inner.add(text(this, x + cw / 2, y + 7, name[0], { align: 'center', color: 0xfff0c0, scale: 2 }).setOrigin(0.5, 0).setY(y + 5));
+      m.inner.add(text(this, x + cw / 2, y + 38, name, { align: 'center', color: C.darkBrown }));
+      if (dot) m.inner.add(this.add.circle(x + cw / 2 + 17, y + 1, 4, 0xff3020).setStrokeStyle(1, 0xffffff));
+      m.inner.add(hit(this, x, y - 2, cw, 56, () => {
+        m.close();
+        fn();
+      }));
+    });
+    m.inner.add(new Button(this, m.cx, m.cy + 8 + rows * 58, m.cw, 26, '任务帮助使者', () => {
+      m.close();
+      P.talkTo(this, 'bangzhu');
+    }));
+  }
+
+  private chatSheet(): void {
+    const m = new Modal(this, '江湖见闻', { h: Math.min(H - 80, 460) });
+    const box = new ChatBox(this, m.cx, m.cy, m.cw, m.ph - 40);
+    m.inner.add(box.root);
+  }
+
+  // 怪物卡：立绘、等级、数量，确认再打
+  private groupCard(gi: number, gr: MonsterGroup): void {
+    const s = store.save;
+    const mon = monsters[gr.monster];
+    const m = new Modal(this, groupLabel(gr), { w: 300, h: 230 });
+    const fg = this.add.graphics();
+    fg.fillStyle(0x3a2414).fillRect(m.cx, m.cy, 112, 128);
+    fg.fillStyle(0x24160c).fillRect(m.cx + 2, m.cy + 2, 108, 124);
+    m.inner.add(fg);
+    m.inner.add(this.add.image(m.cx + 56, m.cy + 126, bustTex(this, mon.look)).setOrigin(0.5, 1).setScale(1.7));
+    const x = m.cx + 122;
+    const lv = gr.level[0] === gr.level[1] ? `${gr.level[0]}级` : `${gr.level[0]}～${gr.level[1]}级`;
+    const cnt = gr.count[0] === gr.count[1] ? `${gr.count[0]}个` : `${gr.count[0]}～${gr.count[1]}个`;
+    m.inner.add(text(this, x, m.cy + 4, mon.name, { color: C.darkRed, scale: 2 }));
+    m.inner.add(text(this, x, m.cy + 36, `等级：${lv}`, { color: gr.level[0] > s.player.level + 3 ? C.red : C.darkBrown }));
+    m.inner.add(text(this, x, m.cy + 54, `数量：${cnt}`, { color: C.darkBrown }));
+    m.inner.add(text(this, x, m.cy + 72, `职业：${classes[mon.class]?.name ?? '—'}`, { color: C.darkBrown }));
+    if (gr.escort) m.inner.add(text(this, x, m.cy + 90, `带着：${monsters[gr.escort.monster].name}`, { color: C.brown }));
+    if (mon.boss) m.inner.add(text(this, x, m.cy + 108, '头目', { color: C.red }));
+    m.inner.add(new Button(this, m.cx, m.py + m.ph - 40, m.cw, 28, '战斗', () => {
+      m.close();
+      this.fight(gi);
+    }, { style: 'red' }));
   }
 
   private announceTreasure(): void {
@@ -406,17 +725,80 @@ export class MainScene extends Phaser.Scene implements P.Host {
       toast(this, '气血太少了，先吃药或去医馆治疗');
       return;
     }
-    const b = startBattle(s, groupIndex, randomSeed());
-    store.flush();
-    this.scene.start('Battle', { battle: b });
+    this.enterBattle(startBattle(s, groupIndex, randomSeed()));
   }
 
-  walkTo(to: string): void {
-    if (moveTo(store.save, to)) {
+  private enterBattle(b: ReturnType<typeof startGroupBattle>): void {
+    store.flush();
+    sfx('hit');
+    // 进战斗：白闪一下再黑场
+    this.cameras.main.flash(120, 255, 255, 255);
+    this.time.delayedCall(120, () => {
+      this.cameras.main.fadeOut(180, 0, 0, 0);
+      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Battle', { battle: b }));
+    });
+  }
+
+  // 换地点：黑场 → 换图 → 亮起来，中间浮出地名；野外可能碰上奇遇
+  walkTo(to: string, direct = false): void {
+    const s = store.save;
+    const go = () => {
+      if (direct) arrive(s, to);
+      else if (!moveTo(s, to)) return false;
+      return true;
+    };
+    this.cameras.main.fadeOut(160, 10, 6, 4);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      if (!go()) {
+        this.cameras.main.fadeIn(160, 10, 6, 4);
+        return;
+      }
       sfx('step');
-      tab = 'people';
       this.refresh();
+      this.cameras.main.fadeIn(240, 10, 6, 4);
+      this.areaTitle();
+      const ev = rollJourney(s);
+      if (ev) this.time.delayedCall(900, () => this.journey(ev));
+      store.commit();
+    });
+  }
+
+  // 地名浮现：一道墨痕上写着地名，停一会儿淡出
+  private areaTitle(): void {
+    const loc = locations[store.save.location];
+    const c = this.add.container(W / 2, STAGE_H * 0.4).setDepth(1500);
+    const g = this.add.graphics();
+    const w = Math.max(140, textWidth(loc.name) * 2 + 60);
+    for (let k = 0; k < 30; k++) {
+      const a = 0.65 * (1 - Math.abs(k - 15) / 15);
+      g.fillStyle(0x0a0604, a).fillRect(-w / 2 + (k % 3), -22 + k * 1.5, w - (k % 3) * 2, 2);
     }
+    g.fillStyle(UI.gold).fillRect(-w / 2 + 20, -24, w - 40, 1).fillRect(-w / 2 + 20, 23, w - 40, 1);
+    c.add([g, text(this, 0, -12, loc.name, { align: 'center', color: 0xfff0c0, stroke: 0x2a0804, scale: 2 })]);
+    c.setAlpha(0).setY(c.y + 8);
+    this.tweens.add({ targets: c, alpha: 1, y: c.y - 8, duration: 300, ease: 'Quad.easeOut' });
+    this.tweens.add({ targets: c, alpha: 0, delay: 1300, duration: 400, onComplete: () => c.destroy() });
+  }
+
+  private journey(ev: JourneyEvent): void {
+    const s = store.save;
+    sfx('magic');
+    showDialog(this, ev.lines.map((t) => ({ who: ev.who, text: t })), ev.choices.map((c, i) => ({
+      label: c.label,
+      style: i === 0 ? 'red' as const : 'tan' as const,
+      fn: () => {
+        if (c.disabled) {
+          toast(this, '做不到');
+          return this.journey(ev);
+        }
+        const out = c.run(s);
+        store.commit();
+        this.refresh();
+        showDialog(this, out.lines.map((t) => ({ who: out.who, text: t })), [], () => {
+          if (out.fight) this.enterBattle(startGroupBattle(s, out.fight, randomSeed()));
+        });
+      },
+    })));
   }
 
   // 开启寻路：一站一站自动走过去
@@ -425,21 +807,27 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const path = findPath(store.save.location, dest);
     if (!path) return toast(this, '找不到路');
     if (path.length === 1) {
-      tab = 'people';
       this.refresh();
       return toast(this, '已经在目的地了');
     }
     this.walking = true;
     let i = 1;
     const step = () => {
-      arrive(store.save, path[i]);
-      sfx('step');
-      tab = 'people';
-      this.refresh();
-      toast(this, i < path.length - 1 ? `寻路中…… → ${locations[path[path.length - 1]].name}` : `到达${locations[path[i]].name}`, 350);
-      i++;
-      if (i < path.length) this.time.delayedCall(450, step);
-      else this.walking = false;
+      this.cameras.main.fadeOut(120, 10, 6, 4);
+      this.cameras.main.once('camerafadeoutcomplete', () => {
+        arrive(store.save, path[i]);
+        sfx('step');
+        this.refresh();
+        this.cameras.main.fadeIn(160, 10, 6, 4);
+        i++;
+        if (i < path.length) {
+          toast(this, `寻路中…… → ${locations[path[path.length - 1]].name}`, 400);
+          this.time.delayedCall(520, step);
+        } else {
+          this.walking = false;
+          this.areaTitle();
+        }
+      });
     };
     step();
   }

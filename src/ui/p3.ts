@@ -556,7 +556,7 @@ export function teamPanel(h: Host): void {
   const s = store.save;
   const m = new Modal(h, '组队', { h: 340 });
   let y = m.cy;
-  m.inner.add(text(h, m.cx, y, '单机版没有真人玩家，可以雇 AI 队友跟你一起打。队友不吃经验，打一场少一场。', { wrap: m.cw, color: C.brown }));
+  m.inner.add(text(h, m.cx, y, '花银两雇江湖侠客同行，跟你一起打。他们不分经验，打一场少一场。', { wrap: m.cw, color: C.brown }));
   y += 40;
   if (s.p3.merc) {
     m.inner.add(text(h, m.cx, y, `现在的队友：${classes[s.p3.merc.id as ClassId]?.name ?? ''}，还能打${s.p3.merc.battles}场`, { color: C.darkRed }));

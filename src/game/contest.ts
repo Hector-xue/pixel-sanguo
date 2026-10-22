@@ -239,8 +239,8 @@ export function kuaquView(s: Save, now = Date.now()) {
 }
 
 export function kuaquReason(s: Save, now = Date.now()): string {
-  if (s.player.level < K.minLevel) return `${K.minLevel}级才能参加跨区大战`;
-  if (!kuaquOpen(now)) return '跨区大战周六、周日开';
+  if (s.player.level < K.minLevel) return `${K.minLevel}级才能参加诸州会武`;
+  if (!kuaquOpen(now)) return '诸州会武周六、周日开';
   return '';
 }
 
@@ -261,17 +261,17 @@ export function kuaquBattle(s: Save, idx: number, seed: number, now = Date.now()
   const { allies, reserve } = sparTeam(s);
   return createBattle({
     seed: (rng.next() * 4294967296) >>> 0, allies, reserve, enemies: [m, g], items: {},
-    title: `跨区大战·${f.server} ${f.name}`, spar: true, canFlee: false, tag: `kuaqu:${idx}`,
+    title: `诸州会武·${f.server} ${f.name}`, spar: true, canFlee: false, tag: `kuaqu:${idx}`,
   });
 }
 
 export function claimKuaqu(s: Save, now = Date.now()): string[] {
   syncKuaqu(s, now);
   const c = s.p4.kuaqu.claim;
-  if (!c) return ['没有能领的跨区奖励'];
+  if (!c) return ['没有能领的会武奖励'];
   s.p4.kuaqu.claim = null;
   const r = K.rewards[c.rank - 1];
-  const lines = [`上周跨区大战${s.server}排第${c.rank}（你拿了${c.points}分）`, ...grantReward(s, { ...r, silver: r.silverPerLevel * s.player.level })];
+  const lines = [`上周诸州会武${s.server}排第${c.rank}（你拿了${c.points}分）`, ...grantReward(s, { ...r, silver: r.silverPerLevel * s.player.level })];
   if (c.rank === 1) bump(s, 'kuaquChamps');
   for (const l of lines) log(s, l);
   return lines;
@@ -308,8 +308,8 @@ export function afterContest(s: Save, b: Battle, now = Date.now()): string[] {
       k.points += pts;
       k.wins++;
       bump(s, 'kuaquWins');
-      lines.push(`跨区大战获胜，为${s.server}拿下${pts}分（共${k.points}分）`);
-    } else lines.push('跨区大战落败，没拿到分');
+      lines.push(`会武获胜，为${s.server}拿下${pts}分（共${k.points}分）`);
+    } else lines.push('会武落败，没拿到分');
   }
   return lines;
 }

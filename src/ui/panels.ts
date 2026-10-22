@@ -1,13 +1,14 @@
-// 主界面里点开的各个面板：状态/加点/物品/副将/任务/医馆/技能学校/公告/攻略/退出/此地玩家，以及 NPC 对话
+// 主界面里点开的各个面板：状态/加点/物品/副将/任务/医馆/技能学校/公告/攻略/退出/此地侠客，以及 NPC 对话
 import Phaser from 'phaser';
 import { C } from '../art/palette';
-import { avatarTex, gearTex, heroLookKey, iconTex } from '../art/textures';
+import { avatarTex, bustTex, gearTex, heroLookKey, iconTex } from '../art/textures';
 import { balance, bountyOptions, classes, items, locations, mainQuests, monsters, npcs, quiz, skills } from '../data';
 import { expToNext, skillMp } from '../core/formulas';
 import type { Attrs } from '../core/types';
 import { ATTR_KEYS, ATTR_NAMES } from '../core/types';
 import { gearLines, gearName } from '../core/gear';
 import { playerClassName, playersAt } from '../game/chatter';
+import { TIERS, chatWith, favorOf, giftValue, giftable, giftsLeftToday, giveGift, likedCat, likedText, tierName, tierOf } from '../game/bond';
 import { allGenerals, readXinfa, rerollApt, rewardCost, rewardGeneral, starCost, starUp } from '../game/generals';
 import { ringDestination, ringStatusText } from '../game/ring';
 import type { AiPlayer } from '../game/chatter';
@@ -622,7 +623,7 @@ export function helpPanel(h: Host): void {
     '【化境】技能5级熟练度满30000、人物90级以后，去技能学校升一次就入化境，威力再涨一截。',
     '【转职】100级以后去洛阳找左慈，重选性别、职业、头像，属性点退回重加；不转职等级停在100。副将100级也能转生（花大将军令）。',
     '【教派】34级以后去陈留找教派使者入教，每天做教派任务攒声望；声望高了升职位，教派加成更大。做任务要用活力，活力每天回满。',
-    '【擂台】陈留、濮阳、洛阳、长安有擂台：擂台是主角排位，斗将台是副将单挑，决斗场抢AI玩家的银两（欺负弱的涨恶人值，恶人值找捕快交罚银消掉）。',
+    '【擂台】陈留、濮阳、洛阳、长安有擂台：擂台是主角排位，斗将台是副将单挑，决斗场抢江湖侠客的银两（欺负弱的涨恶人值，恶人值找捕快交罚银消掉）。',
     '【训练】「功能 → 训练」交银两挂着练，关了游戏也按真实时间涨经验，周末半价。',
     '【宝库】「功能 → 宝库」是金砖商城：将军令、大将军令、心法书、宝箱都在这里买；「武将」页能看每位英才、将才的资质和属性；「仓库」页随时存取东西，花金砖扩容。',
     '【抢宝】每天9点、11点各开半小时，宝藏埋在野外，「设施 → 战场」能直接传送过去，打赢宝藏守卫就归你，每天3次。',
@@ -636,7 +637,7 @@ export function helpPanel(h: Host): void {
     '【国战】60级以后「功能 → 国战」投奔魏、蜀、吴其中一国。AI 每小时走一回合，自己补兵、打邻城；一周一个赛季，按城数排名发奖。你每天有8道军令：出征打和本国接壤的敌城削守军，驻守前线补兵；守军打光后守将出城，单挑赢了这座城就归本国（守将战不用军令，趁对方没补上兵赶紧打）。本国占着洛阳经验+10%，占着虎牢关银两+10%。',
     '【战功官职】出征、驻守、斩将都给战功：累计战功升官职（士卒到大将军），官职越高加的属性越多、每天俸禄越多；可用战功在「国战 → 战功」里换将军令、宝石、矿石。',
     '【军团争霸】入了教派就能打：四个教派一周循环赛，每天一轮，你替本教派打三阵，赢的阵越多本教派越可能赢这一轮。周一按积分领上周奖励。',
-    '【跨区大战】80级以后，周六、周日在「国战 → 跨区」和别区高手过招，赢了给本区加分，周一按三个区的名次领奖。',
+    '【诸州会武】80级以后，周六、周日在「国战 → 会武」和兖州、徐州的高手过招，赢了给本州加分，周一按三州的名次领奖。',
     '【安卓版】安卓手机在标题页点「下载安卓版」装 App，可以离线玩；存档和网页版是分开的，用云存档互相同步。',
   ];
   const area = new ScrollArea(h, m.cx, m.cy, m.cw, m.ph - 40, m.inner);
@@ -687,11 +688,11 @@ export function exitPanel(h: Host): void {
   m.inner.add(text(h, m.cx, y, '游戏会自动保存在这个浏览器里；登录云存档后也能存到服务器上。', { wrap: m.cw, color: C.gray }));
 }
 
-// ===== 此地玩家 =====
+// ===== 此地侠客 =====
 export function playersPanel(h: Host): void {
   const s = store.save;
   const list = playersAt(s.location);
-  const m = new Modal(h, `此地玩家（${list.length}）`);
+  const m = new Modal(h, `此地侠客（${list.length}）`);
   const area = new ScrollArea(h, m.cx, m.cy, m.cw, m.ph - 40, m.inner);
   list.forEach((pl, i) => {
     const y = i * 38;
@@ -700,26 +701,26 @@ export function playersPanel(h: Host): void {
     area.content.add(text(h, 32, y + 4, pl.name, { color: C.darkRed }));
     area.content.add(text(h, 32, y + 18, `${pl.level}级${playerClassName(pl)}`, { color: C.brown }));
     area.content.add(new Button(h, m.cw - 96, y + 6, 42, 22, '队', () => X.teamPanel(h), { clip: area }));
-    area.content.add(new Button(h, m.cw - 50, y + 6, 42, 22, '聊', () => toast(h, `${pl.name}：你好呀，一起加油！`), { clip: area }));
+    area.content.add(new Button(h, m.cw - 50, y + 6, 42, 22, '看', () => playerDetail(h, pl), { clip: area }));
   });
   area.setContentHeight(list.length * 38);
 }
 
-function playerDetail(h: Host, pl: AiPlayer): void {
-  const m = new Modal(h, '玩家详情', { h: 320, w: 300 });
+export function playerDetail(h: Host, pl: AiPlayer): void {
+  const m = new Modal(h, '侠客', { h: 320, w: 300 });
   const fg = h.add.graphics();
   frame(fg, m.cx, m.cy, 52, 52, 'tan');
   m.inner.add(fg);
   m.inner.add(h.add.image(m.cx + 2, m.cy + 2, avatarTex(h, heroLookKey(pl.classId, pl.gender), pl.variant)).setOrigin(0).setScale(2));
   m.inner.add(text(h, m.cx + 60, m.cy + 4, pl.name, { color: C.darkRed, scale: 2 }));
   m.inner.add(text(h, m.cx + 60, m.cy + 34, `${pl.level}级${playerClassName(pl)}`, { color: C.brown }));
-  const info = ['阶层：平民', '段位：无', '称号：无', '帮派：无', `活力：${pl.level * 3}`, `魅力：${pl.level * 2}`, '摊位：无', '房产：无'];
-  info.forEach((t, i) => m.inner.add(text(h, m.cx + (i % 2) * 140, m.cy + 62 + Math.floor(i / 2) * 16, t)));
-  const btns = ['发信息', '加好友', '查看包', '加黑', '切磋', '禁言'];
-  btns.forEach((b, i) => m.inner.add(new Button(h, m.cx + (i % 3) * 94, m.cy + 136 + Math.floor(i / 3) * 30, 88, 26, b, () => (b === '切磋' ? sparWith(h, pl) : toast(h, '单机版没有其他真人玩家')), { style: b === '切磋' ? 'red' : 'tan' })));
+  const lines = ['四海为家，路过此地。', '听说前面不太平，正要去看看。', '想切磋两招？点到为止。', '江湖路远，多交个朋友。'];
+  m.inner.add(text(h, m.cx, m.cy + 64, `「${lines[pl.name.length % lines.length]}」`, { wrap: m.cw, color: C.darkBrown }));
+  m.inner.add(new Button(h, m.cx, m.cy + 136, m.cw / 2 - 4, 28, '切磋', () => sparWith(h, pl), { style: 'red' }));
+  m.inner.add(new Button(h, m.cx + m.cw / 2 + 4, m.cy + 136, m.cw / 2 - 4, 28, '雇他同行', () => X.teamPanel(h)));
 }
 
-// 切磋：和此地的 AI 玩家打一场，不掉经验不掉血
+// 切磋：和此地的侠客打一场，不掉经验不掉血
 function sparWith(h: Host, pl: AiPlayer): void {
   const s = store.save;
   const allies = [playerUnit(s)];
@@ -785,8 +786,56 @@ export function talkTo(h: Host, npcId: string): void {
   if (n.marriage) opts.push({ label: '婚姻', fn: () => X.marriageTalk(h) });
   if (n.wenqu) opts.push({ label: '答题', fn: () => X.wenquTalk(h) });
   if (n.bounty && s.p3.evil > 0) opts.push({ label: '交罚银', fn: () => X.payFine(h) });
-  if (opts.length) opts.push({ label: '返回', fn: () => {} });
+  opts.push({ label: '闲聊', fn: () => chatNpc(h, npcId) });
+  opts.push({ label: `送礼（${tierName(s, npcId)} ${favorOf(s, npcId)}）`, fn: () => giftPanel(h, npcId) });
+  opts.push({ label: '告辞', fn: () => {} });
   showDialog(h, lines, opts);
+}
+
+// 闲聊：每天第一次涨点好感，顺带听个传闻
+function chatNpc(h: Host, npcId: string): void {
+  const s = store.save;
+  const r = chatWith(s, npcId);
+  store.commit();
+  showDialog(h, [{ who: npcId, text: r.text }], [], () => {
+    toast(h, [r.first ? `好感+${r.gain}（${tierName(s, npcId)}）` : '今天已经聊过了', ...r.lines].join('\n'), r.lines.length ? 2600 : 1400);
+    h.refresh();
+  });
+}
+
+function giftPanel(h: Host, npcId: string): void {
+  const s = store.save;
+  const n = npcs[npcId];
+  const m = new Modal(h, `送礼给${n.name}`);
+  const dyn = h.add.container(0, 0);
+  m.inner.add(dyn);
+  const render = () => {
+    dyn.removeAll(true);
+    const v = favorOf(s, npcId);
+    const t = tierOf(v);
+    const next = TIERS[t + 1];
+    dyn.add(h.add.image(m.cx + 4, m.cy + 74, bustTex(h, n.look)).setOrigin(0, 1).setScale(1));
+    dyn.add(text(h, m.cx + 72, m.cy + 4, `交情：${TIERS[t].name}（${v}）`, { color: C.darkRed }));
+    dyn.add(bar(h, m.cx + 72, m.cy + 22, m.cw - 80, 7, next ? (v - TIERS[t].at) / (next.at - TIERS[t].at) : 1, C.red, C.darkRed));
+    dyn.add(text(h, m.cx + 72, m.cy + 34, next ? `再${next.at - v}点到「${next.name}」，到了会回赠谢礼` : '已是莫逆之交', { color: C.brown }));
+    dyn.add(text(h, m.cx + 72, m.cy + 50, `偏好：${likedText(npcId)}　今天还能送${giftsLeftToday(s, npcId)}次`, { color: C.brown }));
+    const r = X.rows(h, m, dyn, m.cy + 82);
+    const ids = giftable(s).sort((a, b) => giftValue(b) - giftValue(a));
+    if (!ids.length) dyn.add(text(h, m.cx, m.cy + 90, '行囊里没有能送的东西。', { color: C.gray }));
+    for (const id of ids) {
+      const liked = items[id].cat === likedCat(npcId);
+      X.row(h, r, iconTex(h, id), `${items[id].name} ×${s.bag[id]}`, `好感+${giftValue(id) * (liked ? 2 : 1)}${liked ? '　正合心意' : ''}`, '送', () => {
+        const res = giveGift(s, npcId, id);
+        store.commit();
+        sfx(res.ok ? 'heal' : 'miss');
+        toast(h, [res.ok ? `好感+${res.gain}${res.liked ? '（正合心意）' : ''}` : res.lines[0], ...(res.ok ? res.lines : [])].join('\n'), res.lines.length > 0 && res.ok ? 2600 : 1400);
+        h.refresh();
+        render();
+      }, { disabled: giftsLeftToday(s, npcId) <= 0, color: liked ? C.darkRed : C.darkBrown, scale: 2 });
+    }
+    r.area.setContentHeight(r.y);
+  };
+  render();
 }
 
 function today(): string {
