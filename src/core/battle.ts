@@ -72,7 +72,7 @@ export interface Command {
 export type BEvent =
   | { t: 'round'; round: number }
   | { t: 'poison'; target: string; amount: number }
-  | { t: 'act'; actor: string; label: string; target?: string; kind: 'melee' | 'cast' | 'none' }
+  | { t: 'act'; actor: string; label: string; target?: string; kind: 'melee' | 'cast' | 'none'; skill?: string }
   | { t: 'damage'; target: string; amount: number; crit?: boolean; fatal?: boolean; mp?: number; self?: boolean }
   | { t: 'miss'; target: string }
   | { t: 'heal'; target: string; hp: number; mp: number }
@@ -325,7 +325,7 @@ class Resolver {
       case 'cleave': {
         const t = this.retarget(cmd.target, foes);
         if (!t) return;
-        this.emit({ t: 'act', actor: u.id, label: def.name, target: t.id, kind: 'melee' });
+        this.emit({ t: 'act', actor: u.id, label: def.name, target: t.id, kind: 'melee', skill: cmd.skill });
         const keep = 1 - resistReduce((def.resist ? t.resist[def.resist] : 0) + guardOf(t));
         const pct = lerpLevel(def.pct, lvl) * profCoef(st);
         let dmg = (t.hp * pct + u.atk * (def.atkMul ?? 0)) * keep;
@@ -338,7 +338,7 @@ class Resolver {
       case 'sacrifice': {
         const t = this.retarget(cmd.target, foes);
         if (!t) return;
-        this.emit({ t: 'act', actor: u.id, label: def.name, target: t.id, kind: 'melee' });
+        this.emit({ t: 'act', actor: u.id, label: def.name, target: t.id, kind: 'melee', skill: cmd.skill });
         const boost = 1 + (st.prof / (balance.skill.maxLevel * balance.skill.profPerLevel)) * (def.profMul ?? 0);
         let dmg = u.atk * lerpLevel(def.mul, lvl) * boost * (1 - resistReduce(t.resist.phys + guardOf(t)));
         if (t.defending) dmg *= balance.damage.defend;
@@ -351,7 +351,7 @@ class Resolver {
         return;
       }
       case 'guard': {
-        this.emit({ t: 'act', actor: u.id, label: def.name, kind: 'cast' });
+        this.emit({ t: 'act', actor: u.id, label: def.name, kind: 'cast', skill: cmd.skill });
         const amount = Math.round(lerpLevel(def.amount, lvl) * profCoef(st));
         for (const f of friends) {
           f.status.guard = { amount, turns: def.turns ?? 3, since: this.b.round };
@@ -362,7 +362,7 @@ class Resolver {
       case 'control': {
         const first = this.retarget(cmd.target, foes);
         if (!first || !def.status) return;
-        this.emit({ t: 'act', actor: u.id, label: def.name, target: first.id, kind: 'cast' });
+        this.emit({ t: 'act', actor: u.id, label: def.name, target: first.id, kind: 'cast', skill: cmd.skill });
         const n = def.targets?.[lvl - 1] ?? 1;
         const others = this.rng.shuffle(foes.filter((f) => f !== first)).slice(0, n - 1);
         const chance = Math.min(0.95, lerpLevel(def.chance, lvl) * profCoef(st));
@@ -379,7 +379,7 @@ class Resolver {
         return;
       }
       case 'cleanse': {
-        this.emit({ t: 'act', actor: u.id, label: def.name, kind: 'cast' });
+        this.emit({ t: 'act', actor: u.id, label: def.name, kind: 'cast', skill: cmd.skill });
         const chance = Math.min(1, lerpLevel(def.chance, lvl) * profCoef(st));
         let any = false;
         for (const f of friends) {
@@ -399,21 +399,21 @@ class Resolver {
       case 'nuke': {
         const t = this.retarget(cmd.target, foes);
         if (!t) return;
-        this.emit({ t: 'act', actor: u.id, label: def.name, target: t.id, kind: 'cast' });
+        this.emit({ t: 'act', actor: u.id, label: def.name, target: t.id, kind: 'cast', skill: cmd.skill });
         this.damage(t, this.magic(u, st, def, t));
         return;
       }
       case 'poison': {
         const t = this.retarget(cmd.target, foes);
         if (!t) return;
-        this.emit({ t: 'act', actor: u.id, label: def.name, target: t.id, kind: 'cast' });
+        this.emit({ t: 'act', actor: u.id, label: def.name, target: t.id, kind: 'cast', skill: cmd.skill });
         const dmg = Math.max(1, Math.round(this.magic(u, st, def, t)));
         this.damage(t, dmg);
         if (t.alive) t.status.poison.push({ dmg: Math.max(1, Math.round(dmg / 2)), turns: def.turns ?? 3 });
         return;
       }
       case 'aoe': {
-        this.emit({ t: 'act', actor: u.id, label: def.name, kind: 'cast' });
+        this.emit({ t: 'act', actor: u.id, label: def.name, kind: 'cast', skill: cmd.skill });
         for (const t of foes) this.damage(t, this.magic(u, st, def, t));
         return;
       }

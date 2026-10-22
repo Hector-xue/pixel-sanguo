@@ -1,4 +1,4 @@
-// 城镇设施面板：武器店、铁匠铺、馆驿、钱庄（含商城）、孔庙、军马场、娱乐场、战场
+// 城镇设施面板：武器店、铁匠铺、馆驿、钱庄、孔庙、军马场、娱乐场、战场
 import Phaser from 'phaser';
 import { C } from '../art/palette';
 import { avatarTex, gearTex, iconTex, mountTex } from '../art/textures';
@@ -11,7 +11,7 @@ import type { GearRef } from '../game/smith';
 import { bagCap, bagCount, bagUsed, moveToInn, moveToTeam } from '../game/state';
 import { store } from '../game/store';
 import {
-  buyGold, buyMount, deposit, enterCave, mountExpNeed, restMount, ride, sellGold, shopBuy, storeItem, takeItem, teleport, teleportTargets,
+  buyGold, buyMount, deposit, enterCave, mountExpNeed, restMount, ride, sellGold, storeItem, takeItem, teleport, teleportTargets,
   templeGraduate, templeJoin, withdraw,
 } from '../game/town';
 import type { Host } from './panels';
@@ -25,7 +25,7 @@ export const FACILITIES: Record<string, [string, string, (h: Host) => void]> = {
   temple: ['孔庙', '拜师，打仗经验更多', (h) => templePanel(h)],
   smith: ['铁匠铺', '打造装备、合成矿石、宝石', (h) => smithPanel(h)],
   inn: ['馆驿', '寄存物品、存放副将、传送', (h) => innPanel(h)],
-  bank: ['钱庄', '存钱、兑换金砖、商城', (h) => bankPanel(h)],
+  bank: ['钱庄', '存钱、兑换金砖', (h) => bankPanel(h)],
   skillschool: ['技能学校', '学习和升级技能', (h) => skillSchoolPanel(h)],
   stable: ['军马场', '买马、骑乘、休息', (h) => stablePanel(h)],
   casino: ['娱乐场', '赤壁、猜猜看、幸运王', (h) => casinoPanel(h)],
@@ -311,16 +311,18 @@ export function innPanel(h: Host): void {
   render();
 }
 
-// ===== 钱庄 + 商城 =====
+// ===== 钱庄（商城在「功能 → 宝库」） =====
 let bankTab = 0;
-export function bankPanel(h: Host): void {
+export function bankPanel(h: Host, tab?: number): void {
+  if (tab !== undefined) bankTab = tab;
+  bankTab = Math.min(bankTab, 1);
   const s = store.save;
   const m = new Modal(h, '钱庄');
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
   const render = () => {
     dyn.removeAll(true);
-    tabs(h, m, dyn, ['存取', '金砖', '商城'], bankTab, (i) => {
+    tabs(h, m, dyn, ['存取', '金砖'], bankTab, (i) => {
       bankTab = i;
       render();
     });
@@ -340,18 +342,14 @@ export function bankPanel(h: Host): void {
       dyn.add(new Button(h, m.cx + m.cw / 2 + 4, y, m.cw / 2 - 4, 30, '取出', () => chooseAmount(h, '取出多少', s.bank, (n) => act(() => withdraw(s, n))()), { disabled: s.bank <= 0 }));
       y += 40;
       dyn.add(text(h, m.cx, y, `存款每天有${balance.bank.interestDaily * 100}%的利息（一天最多${balance.bank.interestCap}两）。`, { wrap: m.cw, color: C.gray }));
-    } else if (bankTab === 1) {
+    } else {
       dyn.add(text(h, m.cx, y, `买入：${balance.bank.goldBuy}两换1块金砖\n卖出：1块金砖换${balance.bank.goldSell}两`, { color: C.brown, lineGap: 4 }));
       y += 40;
       [1, 10, 50].forEach((n, i) => dyn.add(new Button(h, m.cx + i * (m.cw / 3), y, m.cw / 3 - 4, 28, `买${n}块`, act(() => buyGold(s, n)), { disabled: s.player.silver < n * balance.bank.goldBuy })));
       y += 34;
       [1, 10, 50].forEach((n, i) => dyn.add(new Button(h, m.cx + i * (m.cw / 3), y, m.cw / 3 - 4, 28, `卖${n}块`, act(() => sellGold(s, n)), { disabled: s.player.gold < n })));
       y += 40;
-      dyn.add(text(h, m.cx, y, '金砖能在商城买东西，也能买好马。七日签到也送金砖。', { wrap: m.cw, color: C.gray }));
-    } else {
-      const r = list(h, m, dyn, y, 12);
-      for (const g of systems.shop.goods) row(h, r, m.cw, iconTex(h, g.item), items[g.item].name, `${g.gold}金砖　${items[g.item].desc ?? ''}`.slice(0, 22), '购买', () => chooseCount(h, `购买${items[g.item].name}（${g.gold}金砖）`, Math.floor(s.player.gold / g.gold), (n) => act(() => shopBuy(s, g.item, n))()), { disabled: s.player.gold < g.gold });
-      r.area.setContentHeight(r.y);
+      dyn.add(text(h, m.cx, y, '金砖在「功能 → 宝库」的商城里花（将军令、心法书……），也能买好马。七日签到也送金砖。', { wrap: m.cw, color: C.gray }));
     }
   };
   render();

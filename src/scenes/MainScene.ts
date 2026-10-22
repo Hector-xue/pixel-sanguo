@@ -36,10 +36,17 @@ const DIR_ARROW: Record<string, string> = { up: '↑', down: '↓', left: '←',
 
 const TOP = 24;
 const MID_Y = TOP;
-const MID_H = 292;
-const TAB_Y = MID_Y + MID_H;
-const PLAYERS_Y = TAB_Y + 32;
-const CHAT_Y = PLAYERS_Y + 28;
+// 原版按 640 高排；屏幕更长时多出来的高度七成给上半区（人物列表、状态栏），剩下的给聊天区，不让内容全挤在顶上
+let MID_H = 292;
+let TAB_Y = MID_Y + MID_H;
+let PLAYERS_Y = TAB_Y + 32;
+let CHAT_Y = PLAYERS_Y + 28;
+function layout(): void {
+  MID_H = 292 + Math.round(Math.max(0, H - 640) * 0.7);
+  TAB_Y = MID_Y + MID_H;
+  PLAYERS_Y = TAB_Y + 32;
+  CHAT_Y = PLAYERS_Y + 28;
+}
 const LEFT_W = 132;
 
 let tab: Tab = 'people';
@@ -56,6 +63,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
   create(): void {
     // 战斗中进出过全屏：回到主界面时按新高度排
     syncHeight(this.game);
+    layout();
     setChrome('#0a0604');
     if (!store.has()) {
       this.scene.start('Title');

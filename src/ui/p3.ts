@@ -2,9 +2,10 @@
 import Phaser from 'phaser';
 import { C } from '../art/palette';
 import { avatarTex, heroLookKey, iconTex } from '../art/textures';
-import { CLASS_IDS, balance, classes, items, locations, systems } from '../data';
+import { CLASS_IDS, balance, classSkills, classes, items, locations, recruits, skills, systems } from '../data';
+import type { RecruitDef } from '../data';
 import type { Battle } from '../core/battle';
-import { randomSeed } from '../core/rng';
+import { Rng, randomSeed } from '../core/rng';
 import type { ClassId, Gender } from '../core/types';
 import { arenaBattle, arenaSalary, challengers, evilNow, fightsLeft, myRank, pkBattle, pkList } from '../game/arena';
 import type { Ladder } from '../game/arena';
@@ -21,12 +22,13 @@ import {
 } from '../game/sect';
 import { candidateName, candidates, divorce, giftCost, giftsLeft, giveGift, hireMerc, marry, mercCost, swear, swornReason } from '../game/social';
 import { canSell, collectStall, fairPrice, putOnStall, setStallName, settleStall, takeOffStall } from '../game/stall';
-import type { Save } from '../game/state';
-import { allGenerals } from '../game/generals';
+import type { Grade, Save } from '../game/state';
+import { allGenerals, makeRecruit, ownsRecruit, recruitLevel } from '../game/generals';
 import { bagCount, findGeneral, generalStats, playerStats, sectRank } from '../game/state';
 import { store } from '../game/store';
 import { endTraining, startTraining, trainCost, trainExpPerHour, trainingProgress } from '../game/training';
-import { expandVault, vaultStore, vaultTake, vaultUsed } from '../game/town';
+import { expandVault, shopBuy, vaultStore, vaultTake, vaultUsed } from '../game/town';
+import { bankPanel } from './town';
 import { showDialog } from './dialog';
 import { overlayInput } from './input';
 import type { Host } from './panels';
@@ -265,38 +267,119 @@ export function trainingPanel(h: Host): void {
   render();
 }
 
-// ===== 宝库 =====
-export function vaultPanel(h: Host): void {
+// ===== 宝库：金砖商城 + 武将图鉴 + 随身仓库 =====
+// 原版「功能 → 宝库」是花金砖的商城（卖将军令、大将军令、心法书……），令牌拿去招贤使者招武将
+let vaultTab = 0;
+export function vaultPanel(h: Host, tab?: number): void {
+  if (tab !== undefined) vaultTab = tab;
   const s = store.save;
   const m = new Modal(h, '宝库');
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
-  let tab = 0;
   const render = () => {
     dyn.removeAll(true);
-    tabs(h, m, dyn, ['存入', '取出'], tab, (i) => {
-      tab = i;
+    tabs(h, m, dyn, ['商城', '武将', '仓库'], vaultTab, (i) => {
+      vaultTab = i;
       render();
     });
-    dyn.add(text(h, m.cx, m.cy + 28, `宝库 ${vaultUsed(s)}/${s.p3.vaultCap}　随时随地都能存取`, { color: C.brown }));
-    dyn.add(new Button(h, m.cx + m.cw - 110, m.cy + 24, 110, 22, `扩容（${balance.vault.goldPerStep}金砖）`, () => {
-      toast(h, expandVault(s));
+    const act = (fn: () => string) => {
+      toast(h, fn());
       h.refresh();
       render();
-    }));
-    const r = rows(h, m, dyn, m.cy + 52);
-    const src = tab === 0 ? s.bag : s.p3.vault;
-    for (const [id, n] of Object.entries(src)) {
-      if (!items[id] || (tab === 0 && items[id].quest)) continue;
-      row(h, r, iconTex(h, id), items[id].name, `×${n}`, tab === 0 ? '存入' : '取出', () => chooseCount(h, `${tab === 0 ? '存入' : '取出'}几个？`, n, (k) => {
-        toast(h, tab === 0 ? vaultStore(s, id, k) : vaultTake(s, id, k));
-        h.refresh();
-        render();
-      }), { scale: 2 });
+    };
+    if (vaultTab === 0) {
+      dyn.add(text(h, m.cx, m.cy + 28, `金砖：${s.player.gold}　银两：${s.player.silver}`, { color: C.darkRed }));
+      dyn.add(new Button(h, m.cx + m.cw - 96, m.cy + 24, 96, 22, '银两换金砖', () => {
+        m.close();
+        bankPanel(h, 1);
+      }));
+      const r = rows(h, m, dyn, m.cy + 52);
+      for (const g of systems.shop.goods) {
+        const it = items[g.item];
+        row(h, r, iconTex(h, g.item), `${it.name}　${g.gold}金砖`, (it.desc ?? '').slice(0, 17), '购买', () => chooseCount(h, `购买${it.name}（${g.gold}金砖）`, Math.floor(s.player.gold / g.gold), (n) => act(() => shopBuy(s, g.item, n))), { disabled: s.player.gold < g.gold, scale: 2 });
+      }
+      r.area.setContentHeight(r.y);
+    } else if (vaultTab === 1) {
+      dyn.add(text(h, m.cx, m.cy + 28, '点一位看资质和属性。令牌拿到招贤使者那里招募。', { color: C.brown }));
+      const r = rows(h, m, dyn, m.cy + 48);
+      const tokenOf = (id: string) => Object.entries(recruits.tokens).find(([, v]) => v === id)?.[0];
+      const list: [RecruitDef, Grade][] = [...recruits.jiangcai.map((d) => [d, '将才'] as [RecruitDef, Grade]), ...recruits.yingcai.map((d) => [d, '英才'] as [RecruitDef, Grade])];
+      for (const [d, grade] of list) {
+        const tok = tokenOf(d.id);
+        const how = tok ? `${items[tok].name}或${grade === '将才' ? '大将军令' : '将军令'}` : grade === '将才' ? '大将军令' : '将军令';
+        const own = ownsRecruit(s, d.id);
+        row(h, r, avatarTex(h, d.look), `${d.name}　${grade}·${classes[d.class].name}·${d.gender === 'male' ? '男' : '女'}`, own ? '已招募' : `招募：${how}`, '查看', () => recruitInfo(h, d, grade), { color: grade === '将才' ? C.darkRed : C.darkBrown });
+      }
+      r.area.setContentHeight(r.y);
+    } else {
+      dyn.add(text(h, m.cx, m.cy + 28, `仓库 ${vaultUsed(s)}/${s.p3.vaultCap}　随时随地都能存取`, { color: C.brown }));
+      dyn.add(new Button(h, m.cx + m.cw - 110, m.cy + 24, 110, 22, `扩容（${balance.vault.goldPerStep}金砖）`, () => act(() => expandVault(s))));
+      const r = rows(h, m, dyn, m.cy + 52);
+      const entries: [string, number, boolean][] = [
+        ...Object.entries(s.p3.vault).map(([id, n]) => [id, n, true] as [string, number, boolean]),
+        ...Object.entries(s.bag).filter(([id]) => items[id] && !items[id].quest).map(([id, n]) => [id, n, false] as [string, number, boolean]),
+      ];
+          for (const [id, n, stored] of entries) {
+        if (!items[id]) continue;
+        row(h, r, iconTex(h, id), `${items[id].name}${stored ? '（仓库）' : ''}`, `×${n}`, stored ? '取出' : '存入', () => chooseCount(h, `${stored ? '取出' : '存入'}几个？`, n, (k) => act(() => (stored ? vaultTake(s, id, k) : vaultStore(s, id, k)))), { scale: 2, color: stored ? C.green : C.darkBrown });
+      }
+      r.area.setContentHeight(r.y);
     }
-    r.area.setContentHeight(r.y);
   };
   render();
+}
+
+// 武将图鉴：资质范围 + 按你现在能招到的等级、资质取中间值算的参考属性
+function recruitInfo(h: Host, d: RecruitDef, grade: Grade): void {
+  const s = store.save;
+  const A = balance.generalAptitude[grade];
+  const mid = (r: number[]) => Math.round(((r[0] + r[1]) / 2) * 100) / 100;
+  const g = makeRecruit({ nextUid: 0 } as Save, d, grade, recruitLevel(s), new Rng(1));
+  g.apt = { growth: mid(A.growth), con: mid(A.attr), str: mid(A.attr), int: mid(A.attr), agi: mid(A.attr) };
+  const st = generalStats(g);
+  const m = new Modal(h, '武将信息', { h: 360 });
+  const L = m.cx + 4;
+  const R = m.cx + m.cw / 2 + 4;
+  let y = m.cy;
+  const fg = h.add.graphics();
+  frame(fg, L - 4, y, 52, 52, 'tan');
+  m.inner.add(fg);
+  m.inner.add(h.add.image(L - 2, y + 2, avatarTex(h, d.look)).setOrigin(0).setScale(2));
+  m.inner.add(text(h, L + 56, y + 4, d.name, { color: C.darkRed, scale: 2 }));
+  m.inner.add(text(h, L + 56, y + 34, `${grade} · ${classes[d.class].name} · ${d.gender === 'male' ? '男' : '女'}${ownsRecruit(s, d.id) ? ' · 已招募' : ''}`, { color: C.brown }));
+  y += 60;
+  const kv2 = (x: number, k: string, v: string | number, color: number = C.darkBrown) => {
+    m.inner.add(text(h, x, y, `${k}：`, { color: C.brown }));
+    m.inner.add(text(h, x + 40, y, `${v}`, { color }));
+  };
+  m.inner.add(text(h, L, y, '资质范围', { color: C.darkRed }));
+  y += 18;
+  kv2(L, '成长', `${A.growth[0]}～${A.growth[1]}`, C.red);
+  kv2(R, '四维', `${A.attr[0]}～${A.attr[1]}`);
+  y += 22;
+  m.inner.add(text(h, L, y, `参考属性（${g.level}级，资质取中间值）`, { color: C.darkRed }));
+  y += 18;
+  kv2(L, '气血', st.maxHp);
+  kv2(R, '精力', st.maxMp);
+  y += 16;
+  kv2(L, '攻击', st.atk);
+  kv2(R, '防御', st.def);
+  y += 16;
+  kv2(L, '速度', st.spd);
+  kv2(R, '战力', power(st), C.red);
+  y += 22;
+  m.inner.add(text(h, L, y, `10级后能学：${classSkills(d.class, d.gender).map((k) => skills[k].name).join('、')}`, { wrap: m.cw - 8, color: C.darkBrown }));
+  y += 36;
+  const tok = Object.entries(recruits.tokens).find(([, v]) => v === d.id)?.[0];
+  const way = tok ? `用${items[tok].name}点名招募，或者碰运气用${grade === '将才' ? '大将军令' : '将军令'}抽` : `在招贤使者处用${grade === '将才' ? '大将军令' : '将军令'}随机招（先给没有的）`;
+  m.inner.add(text(h, L, y, way, { wrap: m.cw - 8, color: C.gray }));
+  const need = grade === '将才' ? 'dajiangjunling' : 'jiangjunling';
+  const good = systems.shop.goods.find((x) => x.item === need);
+  if (good) m.inner.add(new Button(h, m.cx, m.py + m.ph - 40, m.cw, 28, `买${items[need].name}（${good.gold}金砖，有${bagCount(s, need)}个）`, () => chooseCount(h, `购买${items[need].name}`, Math.floor(s.player.gold / good.gold), (n) => {
+    toast(h, shopBuy(s, need, n));
+    h.refresh();
+    m.close();
+  }), { style: 'red', disabled: s.player.gold < good.gold }));
 }
 
 // ===== 转职（左慈） =====
