@@ -75,13 +75,12 @@ class Px {
   }
 }
 
-// 分档渐变：每档同色，档与档之间只有一行稀疏交错，远看平滑、近看干净
+// 分档渐变：档分得细、交界不加交错行（交错行在手机上看像一道道扫描线）
 function bands(p: Px, x0: number, y0: number, w: number, h: number, stops: number[], n: number): void {
-  const colorOf = (k: number) => ramp(stops, (k + 0.5) / n);
   for (let y = 0; y < h; y++) {
     const k = Math.min(n - 1, Math.floor((y / h) * n));
-    const last = Math.floor(((y + 1) / h) * n) !== k && k < n - 1;
-    for (let x = 0; x < w; x++) p.set(x0 + x, y0 + y, last && (x + y) % 2 === 0 ? colorOf(k + 1) : colorOf(k));
+    const c = ramp(stops, (k + 0.5) / n);
+    for (let x = 0; x < w; x++) p.set(x0 + x, y0 + y, c);
   }
 }
 
@@ -103,7 +102,7 @@ function layout(w: number, h: number): Layout {
 
 function drawSky(L: Layout): Px {
   const p = new Px(L.w, L.hz + 4);
-  bands(p, 0, 0, L.w, L.hz + 4, [0x4a8fd8, 0x6fb0e8, 0xa2d4f2, 0xd8ecf0, HAZE], 14);
+  bands(p, 0, 0, L.w, L.hz + 4, [0x4a8fd8, 0x6fb0e8, 0xa2d4f2, 0xd8ecf0, HAZE], 40);
   // 太阳的光晕：一圈圈阶梯，越往外越淡
   const rings: [number, number][] = [[44, 0.07], [30, 0.13], [20, 0.22], [13, 0.4], [9, 0.7]];
   for (const [r, a] of rings) {
@@ -285,7 +284,7 @@ function drawNear(L: Layout): Px {
   }
   for (let x = 4; x < w; x += 9 + Math.floor(rnd() * 8)) bush(p, x, hill[x] + 1, 3 + rnd() * 2.5, 0x4f8f48, 0x6aab52, 0x9ad070);
   // 田野：远浅近深
-  bands(p, 0, hz + 4, w, h - hz - 4, [0xb6dc86, 0x98cc64, 0x7cba50, 0x64a744, 0x4f9139], 9);
+  bands(p, 0, hz + 4, w, h - hz - 4, [0xb6dc86, 0x98cc64, 0x7cba50, 0x64a744, 0x4f9139], 24);
   // 小路，透视越近越宽，略弯
   const pathAt = (y: number) => {
     const t = (y - hz - 4) / (h - hz - 4);

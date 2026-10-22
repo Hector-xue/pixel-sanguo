@@ -5,10 +5,10 @@ import { UI, drawFace, faceText, stoneTex } from '../art/chrome';
 import type { Face } from '../art/chrome';
 
 export const W = 360;
-// 高度随手机屏幕比例伸缩（640～780），多出来的给聊天区；宽度固定 360
+// 高度随手机屏幕比例伸缩（640～860，覆盖到 21:9 的长屏），多出来的给聊天区；宽度固定 360
 export const H = (() => {
   const ratio = window.innerHeight / Math.max(1, window.innerWidth);
-  return Math.max(640, Math.min(780, Math.round(W * ratio)));
+  return Math.max(640, Math.min(860, Math.round(W * ratio)));
 })();
 export const FONT = 'FusionPixel';
 

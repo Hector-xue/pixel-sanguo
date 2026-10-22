@@ -7,13 +7,9 @@ import { H, W } from './ui/widgets';
 import { store } from './game/store';
 import { onlineTick } from './game/welfare';
 
-// 尽量按设备像素整数倍放大，保证像素和点阵字清晰；整数倍会在屏幕四周空出一大圈时，改成铺满（高分屏上看不出像素粗细不均）
+// 铺满屏幕（宽固定 360、高随屏幕比例伸缩，所以基本没有空边）；画布用 pixelated 放大，像素和点阵字仍是硬边
 function fitZoom(): number {
-  const dpr = window.devicePixelRatio || 1;
-  const fit = Math.min(window.innerWidth / W, window.innerHeight / H);
-  const k = Math.floor(fit * dpr);
-  if (k >= 1 && k / dpr >= fit * 0.94) return k / dpr;
-  return fit;
+  return Math.min(window.innerWidth / W, window.innerHeight / H);
 }
 
 async function boot(): Promise<void> {

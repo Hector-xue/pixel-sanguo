@@ -14,13 +14,12 @@ interface Ctx {
   haze: number;
 }
 
-// 分档渐变：每档同色，档与档交界只有一行交错，不再整片棋盘格
-function bandFill(g: Grid, x0: number, y0: number, w: number, h: number, top: number, bottom: number, n = Math.max(3, Math.round(h / 5))): void {
+// 分档渐变：每档同色，不再整片棋盘格；交界不加交错行（手机上看像扫描线）
+function bandFill(g: Grid, x0: number, y0: number, w: number, h: number, top: number, bottom: number, n = Math.max(3, Math.min(9, Math.round(h / 4)))): void {
   const col = (k: number) => blend(top, bottom, n <= 1 ? 0 : k / (n - 1));
   for (let y = 0; y < h; y++) {
     const k = Math.min(n - 1, Math.floor((y / h) * n));
-    const edge = k < n - 1 && Math.floor(((y + 1) / h) * n) !== k;
-    for (let x = 0; x < w; x++) g.set(x0 + x, y0 + y, edge && (x + y) % 2 === 0 ? col(k + 1) : col(k));
+    for (let x = 0; x < w; x++) g.set(x0 + x, y0 + y, col(k));
   }
 }
 
