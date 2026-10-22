@@ -3,6 +3,8 @@
 import { items, locations, npcs } from '../data';
 import { currentQuest, dayKey, addItem, log, removeItem, rollRng } from './state';
 import type { Save } from './state';
+import { lifeDefaults } from './life';
+import type { LifeState } from './life';
 
 export interface P5State {
   favor: Record<string, number>;
@@ -12,10 +14,12 @@ export interface P5State {
   journey: { cooldown: number; seen: Record<string, number> };
   // 已领的战备补给份数
   supply: number;
+  // 生活技能
+  life: LifeState;
 }
 
 export function p5Defaults(): P5State {
-  return { favor: {}, chatDay: {}, gifts: {}, tierGot: {}, journey: { cooldown: 1, seen: {} }, supply: 0 };
+  return { favor: {}, chatDay: {}, gifts: {}, tierGot: {}, journey: { cooldown: 1, seen: {} }, supply: 0, life: lifeDefaults() };
 }
 
 export const TIERS: { at: number; name: string }[] = [
@@ -58,6 +62,8 @@ export function likedText(id: string): string {
 // 送一件东西能涨多少好感：按价钱取对数，没有标价的稀罕物另算
 const SPECIAL: Record<string, number> = {
   baoxiang: 6, gaojibaoxiang: 10, tilidan: 4, xinfa1: 3, xinfa2: 6, xinfa3: 9, jiangjunling: 10, dajiangjunling: 15, jinengshu: 8, zhusun: 2, junzi: 3,
+  // 亲手做的菜：送人最见心意
+  cai_kaoyu: 3, cai_yutang: 5, cai_yaoshan: 5, cai_guiyu: 7, cai_shentang: 8, cai_ligeng: 9, cai_jinlin: 12,
 };
 export function giftValue(itemId: string): number {
   const it = items[itemId];

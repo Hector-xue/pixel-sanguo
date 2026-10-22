@@ -44,6 +44,7 @@ npx vite-node scripts/make-icons.ts   # 重新生成主屏图标（改了头像�
 - `src/art/props.ts` 场景舞台的地面摆设（屋舍、树、货摊、帐篷、营火……），每种地点一套摆放规则（主界面和战场共用，晨昏夜也在这里算）
 - `src/scenes/BattleScene.ts` 战斗：当地场景做战场、行动顺序条、宣纸指令盘（立绘+指令 / 战报）、朱漆题签报招式名、盖印的战果卷轴
 - `src/game/bond.ts` NPC 好感（闲聊、送礼、按档回赠谢礼）；`src/game/journey.ts` 野外奇遇（十七件事，按地形、昼夜、等级、交情出现，几个选项后果各不相同）
+- `src/game/life.ts` + `src/ui/life.ts` 生活技能：钓鱼、采矿、采药（场景里的采集点 + 看准时机点的小游戏，一处挖几次就空、多走几步恢复）和烹饪（城镇灶台做菜，回血回蓝的菜能在战斗里吃，药膳管几场战斗的攻防加成），四项各有等级
 - `src/game/worldmap.ts` + `src/ui/worldmap.ts` 舆图：按出口方向把地点排成一张图，去过的显示、相邻的露影子、其余罩在云里，点一处自动寻路
 - `src/sim/autoplay.ts` 自动通关模拟（1 级打到汉中篇结束），调数值后跑 `npm test` 看节奏
 - `artpreview.html` 美术预览页（开发服务器下打开）

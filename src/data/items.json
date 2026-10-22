@@ -385,5 +385,113 @@
     "price": 2000,
     "use": "gemore",
     "desc": "敲开能得到一颗2～3级宝石"
+  },
+  "yu_ji": {
+    "name": "鲫鱼",
+    "cat": "misc",
+    "price": 20,
+    "desc": "河里最常见的鱼，烤着吃就不错"
+  },
+  "yu_li": {
+    "name": "鲤鱼",
+    "cat": "misc",
+    "price": 60,
+    "desc": "肥美的鲤鱼，炖汤最好"
+  },
+  "yu_gui": {
+    "name": "鳜鱼",
+    "cat": "misc",
+    "price": 160,
+    "desc": "桃花流水鳜鱼肥，清蒸上品"
+  },
+  "yu_huang": {
+    "name": "黄河大鲤",
+    "cat": "misc",
+    "price": 420,
+    "desc": "金鳞赤尾的大鲤鱼，难得一见"
+  },
+  "yu_jin": {
+    "name": "金鳞鱼",
+    "cat": "misc",
+    "price": 1500,
+    "desc": "传说中的金鳞鱼，渔翁一辈子也钓不着一条"
+  },
+  "yao_cao": {
+    "name": "草药",
+    "cat": "misc",
+    "price": 15,
+    "desc": "山野里常见的草药，入菜能补身子"
+  },
+  "yao_lingzhi": {
+    "name": "灵芝",
+    "cat": "misc",
+    "price": 300,
+    "desc": "长在老树根上的灵芝"
+  },
+  "yao_shen": {
+    "name": "山参",
+    "cat": "misc",
+    "price": 900,
+    "desc": "深山老参，大补"
+  },
+  "cai_kaoyu": {
+    "name": "烤鲫鱼",
+    "cat": "drug",
+    "hp": 250,
+    "mp": 80,
+    "price": 0,
+    "cook": true,
+    "desc": "气血+250、精力+80"
+  },
+  "cai_yutang": {
+    "name": "鲤鱼汤",
+    "cat": "drug",
+    "hp": 800,
+    "mp": 260,
+    "price": 0,
+    "cook": true,
+    "desc": "气血+800、精力+260"
+  },
+  "cai_guiyu": {
+    "name": "清蒸鳜鱼",
+    "cat": "drug",
+    "hp": 2200,
+    "mp": 700,
+    "price": 0,
+    "cook": true,
+    "desc": "气血+2200、精力+700"
+  },
+  "cai_ligeng": {
+    "name": "黄河鲤羹",
+    "cat": "drug",
+    "hp": 6000,
+    "mp": 1800,
+    "price": 0,
+    "cook": true,
+    "desc": "气血+6000、精力+1800"
+  },
+  "cai_yaoshan": {
+    "name": "药膳鱼",
+    "cat": "misc",
+    "price": 0,
+    "cook": true,
+    "use": "feast",
+    "desc": "吃下后5场战斗攻击+8%"
+  },
+  "cai_shentang": {
+    "name": "参汤",
+    "cat": "misc",
+    "price": 0,
+    "cook": true,
+    "use": "feast",
+    "desc": "吃下后5场战斗防御+12%"
+  },
+  "cai_jinlin": {
+    "name": "金鳞宴",
+    "cat": "misc",
+    "price": 0,
+    "cook": true,
+    "use": "feast",
+    "desc": "吃下后10场战斗攻击、防御各+12%"
   }
 }

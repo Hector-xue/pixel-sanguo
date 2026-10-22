@@ -15,6 +15,7 @@ import {
   supplyNext, suppliesReady,
 } from '../game/welfare';
 import { showDialog } from './dialog';
+import { eatFeast } from '../game/life';
 import { festivalBlock } from './p3';
 import type { Host } from './panels';
 import { done } from './panels';
@@ -212,6 +213,9 @@ export function useMisc(h: Host, id: string, after: () => void): void {
       return finish(openGemOre(s));
     case 'stamina':
       return finish(eatPill(s));
+    case 'feast':
+      sfx('heal');
+      return finish(eatFeast(s, id));
     case 'dig':
       return toast(h, '在宝洞里找宝洞老人才能挖。许昌「设施 → 战场」进宝洞');
     case 'xinfa':

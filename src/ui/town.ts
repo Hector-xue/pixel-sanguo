@@ -15,12 +15,14 @@ import {
   templeGraduate, templeJoin, withdraw,
 } from '../game/town';
 import type { Host } from './panels';
+import { lifePanel } from './life';
 import { chooseAmount, chooseCount, done, generalsPanel, hospitalPanel, skillSchoolPanel } from './panels';
 import { arenaPanel, luckyPanel, stallPanel, treasurePanel } from './p3';
 import { Button, Modal, ScrollArea, confirm, frame, sfx, text, toast } from './widgets';
 
 export const FACILITIES: Record<string, [string, string, (h: Host) => void]> = {
   hospital: ['医馆', '治疗、买药、药品回收', (h) => hospitalPanel(h)],
+  kitchen: ['灶台', '鱼和草药做成菜', (h) => lifePanel(h)],
   weapon: ['武器店', '买卖装备（只卖1级）', (h) => weaponShopPanel(h)],
   temple: ['孔庙', '拜师，打仗经验更多', (h) => templePanel(h)],
   smith: ['铁匠铺', '打造装备、合成矿石、宝石', (h) => smithPanel(h)],

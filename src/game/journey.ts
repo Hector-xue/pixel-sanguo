@@ -48,7 +48,7 @@ function groupHere(s: Save): MonsterGroup | undefined {
 
 // 货郎卖的药：等级够得着的里面最贵的一种
 function peddlerDrug(lv: number): string {
-  const ds = Object.keys(items).filter((id) => items[id].cat === 'drug' && (items[id].hp ?? 0) > 0 && !items[id].quest && items[id].price > 0);
+  const ds = Object.keys(items).filter((id) => items[id].cat === 'drug' && (items[id].hp ?? 0) > 0 && !items[id].quest && !items[id].cook && items[id].price > 0);
   ds.sort((a, b) => items[a].price - items[b].price);
   const fit = ds.filter((id) => items[id].price <= Math.max(30, lv * 15));
   return fit[fit.length - 1] ?? ds[0];

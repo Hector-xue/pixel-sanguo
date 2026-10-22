@@ -23,8 +23,99 @@ function pouch(col: number, tie: number): Grid {
   return g;
 }
 
+// 鱼：朝右，身子 + 尾巴 + 眼睛
+function fish(body: number, belly: number, fin: number): Grid {
+  const g = new Grid(12, 12);
+  g.ellipse(6, 6, 4, 2.4, body);
+  g.rect(3, 7, 6, 1, belly);
+  g.poly([[1, 3], [3, 6], [1, 9]], fin);
+  g.rect(5, 3, 2, 1, fin);
+  g.set(8, 5, C.ink);
+  g.outline(C.ink);
+  return g;
+}
+
+// 盘子：白瓷盘上一样东西
+function dish(food: number, hi: number): Grid {
+  const g = new Grid(12, 12);
+  g.ellipse(6, 8, 5, 2.2, C.white);
+  g.rect(2, 9, 8, 1, C.lightGray);
+  g.ellipse(6, 6.5, 3, 1.8, food);
+  g.set(5, 5, hi);
+  g.set(6, 5, hi);
+  g.outline(C.ink);
+  return g;
+}
+
+// 碗：青瓷碗盛着汤，上面一缕热气
+function bowl(soup: number, rim: number): Grid {
+  const g = new Grid(12, 12);
+  g.poly([[1, 6], [10, 6], [8, 10], [3, 10]], rim);
+  g.rect(2, 6, 8, 1, soup);
+  g.set(4, 3, C.white);
+  g.set(5, 2, C.white);
+  g.set(7, 3, C.white);
+  g.set(8, 2, C.white);
+  g.outline(C.ink);
+  return g;
+}
+
 export function drawItemIcon(id: string): Grid {
   switch (id) {
+    case 'yu_ji':
+      return fish(C.gray, C.lightGray, C.darkGray);
+    case 'yu_li':
+      return fish(C.gold, C.yellow, C.orange);
+    case 'yu_gui':
+      return fish(C.lightBrown, C.tan, C.brown);
+    case 'yu_huang':
+      return fish(C.orange, C.yellow, C.red);
+    case 'yu_jin':
+      return fish(C.yellow, C.white, C.gold);
+    case 'yao_cao': {
+      const g = new Grid(12, 12);
+      g.line(6, 11, 6, 4, C.green);
+      g.ellipse(4, 5, 2, 1.2, C.grass);
+      g.ellipse(8, 4, 2, 1.2, C.grass);
+      g.ellipse(4, 8, 2, 1.2, C.green);
+      g.ellipse(8, 7, 2, 1.2, C.lime);
+      g.outline(C.ink);
+      return g;
+    }
+    case 'yao_lingzhi': {
+      const g = new Grid(12, 12);
+      g.ellipse(6, 5, 5, 2.5, C.darkRed);
+      g.rect(3, 4, 6, 1, C.red);
+      g.rect(5, 7, 2, 4, C.brown);
+      g.set(4, 3, C.orange);
+      g.outline(C.ink);
+      return g;
+    }
+    case 'yao_shen': {
+      const g = new Grid(12, 12);
+      g.ellipse(6, 7, 2, 3, C.tan);
+      g.line(5, 9, 3, 11, C.tan);
+      g.line(7, 9, 9, 11, C.tan);
+      g.line(6, 4, 6, 1, C.green);
+      g.set(5, 1, C.red);
+      g.set(7, 1, C.red);
+      g.outline(C.ink);
+      return g;
+    }
+    case 'cai_kaoyu':
+      return dish(C.brown, C.orange);
+    case 'cai_yutang':
+      return bowl(C.paper, C.sky);
+    case 'cai_guiyu':
+      return dish(C.lightBrown, C.white);
+    case 'cai_ligeng':
+      return bowl(C.orange, C.blue);
+    case 'cai_yaoshan':
+      return dish(C.green, C.lime);
+    case 'cai_shentang':
+      return bowl(C.tan, C.lightBrown);
+    case 'cai_jinlin':
+      return dish(C.gold, C.yellow);
     case 'dieda':
       return bottle(C.orange, C.yellow, false);
     case 'zhixue':

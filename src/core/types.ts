@@ -64,7 +64,7 @@ export interface SkillDef {
   base?: [number, number];
 }
 
-export type ItemUse = 'box' | 'bigbox' | 'stamina' | 'xinfa' | 'skillbook' | 'dig' | 'gemore';
+export type ItemUse = 'box' | 'bigbox' | 'stamina' | 'xinfa' | 'skillbook' | 'dig' | 'gemore' | 'feast';
 
 export interface ItemDef {
   name: string;
@@ -74,6 +74,8 @@ export interface ItemDef {
   price: number;
   quest?: boolean;
   desc?: string;
+  // 自己做的菜：店里不卖
+  cook?: boolean;
   tier?: number;
   use?: ItemUse;
   amount?: number;

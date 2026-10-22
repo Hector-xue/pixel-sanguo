@@ -493,7 +493,7 @@ export function hospitalPanel(h: Host): void {
     dyn.add(text(h, m.cx, m.cy + 38, `银两：${s.player.silver}　负重：${bagUsed(s)}/${bagCap(s)}`, { color: C.brown }));
     const area = new ScrollArea(h, m.cx, m.cy + 58, m.cw, m.ph - 130, dyn);
     let y = 0;
-    const ids = mode === 'buy' ? Object.keys(items).filter((id) => items[id].cat === 'drug') : Object.keys(s.bag).filter((id) => !items[id].quest && sellPrice(id) > 0);
+    const ids = mode === 'buy' ? Object.keys(items).filter((id) => items[id].cat === 'drug' && !items[id].cook) : Object.keys(s.bag).filter((id) => !items[id].quest && sellPrice(id) > 0);
     for (const id of ids) {
       const def = items[id];
       const g = h.add.graphics();

@@ -1,4 +1,5 @@
 // 存档 ↔ 战斗内核 之间的转换：开战时把主角/副将/怪物做成战斗单位，打完把结果写回存档
+import { feastBonus, feastTick } from './life';
 import { balance, items, locations, monsters, startLocation } from '../data';
 import type { MonsterGroup } from '../data';
 import { emptyStatus, computeRewards, createBattle } from '../core/battle';
@@ -50,8 +51,13 @@ function baseUnit(id: string, stats: Stats): Pick<BUnit, 'id' | 'maxHp' | 'maxMp
 export function playerUnit(s: Save): BUnit {
   const st = playerStats(s);
   const p = s.player;
+  // 药膳加成
+  const fb = feastBonus(s);
+  const base = baseUnit('p', st);
+  base.atk = Math.round(base.atk * (1 + fb.atk));
+  base.def = Math.round(base.def * (1 + fb.def));
   return {
-    ...baseUnit('p', st),
+    ...base,
     name: p.name, side: 'ally', kind: 'player', refId: 'player',
     classId: p.classId, gender: p.gender, look: `hero_${p.classId}_${p.gender}`, variant: heroVariant(s),
     level: p.level, row: 0,
@@ -143,6 +149,8 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
     for (const l of sum.lines) log(s, l);
     return sum;
   }
+  const fed = feastTick(s);
+  if (fed) sum.lines.push(fed);
   for (const [id, n] of Object.entries(b.itemsUsed)) {
     s.bag[id] = Math.max(0, (s.bag[id] ?? 0) - n);
     if (!s.bag[id]) delete s.bag[id];

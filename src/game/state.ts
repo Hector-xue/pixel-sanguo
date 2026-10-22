@@ -845,6 +845,8 @@ export function findPath(from: string, to: string): string[] | null {
 export function arrive(s: Save, to: string): void {
   s.location = to;
   s.flags[`v_${to}`] = true;
+  // 生活技能的采集点按走过的步数恢复
+  if (s.p5?.life) s.p5.life.steps++;
   const t = s.ring?.task;
   if (t && t.type === 'goto' && t.at === to) t.arrived = true;
   const st = s.p3?.sect.task;
@@ -1053,6 +1055,7 @@ export function deserialize(text: string): Save {
   s.p3 = { ...p3Defaults(), ...(s.p3 ?? {}) };
   s.p4 = { ...p4Defaults(), ...(s.p4 ?? {}) };
   s.p5 = { ...p5Defaults(), ...(s.p5 ?? {}) };
+  s.p5.life = { ...p5Defaults().life, ...s.p5.life };
   // 单机化：以前的「1区 许昌」这类分区名统一成本州
   if (!s.server || /区/.test(s.server)) s.server = '豫州';
   // 主线加长了：之前停在「全部完成」的存档接着往下走

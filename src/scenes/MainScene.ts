@@ -30,6 +30,9 @@ import { Button, H, Modal, SAFE_TOP, W, bar, hit, sfx, text, textWidth, toast } 
 import { UI, sealBox, titlePlaque, vgrad } from '../art/chrome';
 import { showDialog } from '../ui/dialog';
 import { worldMap } from '../ui/worldmap';
+import { gatherGame, lifePanel } from '../ui/life';
+import { SPOT_SIZE, spotKind, spotLeft } from '../game/life';
+import type { GatherKind } from '../game/life';
 import * as P from '../ui/panels';
 import * as X from '../ui/p3';
 import * as G4 from '../ui/p4';
@@ -153,7 +156,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const s = store.save;
     const loc = locations[s.location];
     const marks = loc.npcs.map((n) => npcMark(s, n) ?? '').join('');
-    return `${s.location}|${daypart()}|${marks}|${s.main.step}:${s.main.state}|${X.treasureHere(s) ? 1 : 0}|${H}`;
+    return `${s.location}|${daypart()}|${marks}|${s.main.step}:${s.main.state}|${X.treasureHere(s) ? 1 : 0}|${H}|${spotLeft(s, s.location)}`;
   }
 
   // ===== 舞台 =====
@@ -171,7 +174,9 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const top = hz + 34;
     const bottom = STAGE_H - 22;
     const actors = this.actors();
-    const spots = this.actorSpots(actors.length, top, bottom);
+    // 采集点占一个站位（排在人后面），摆设也避开它
+    const gk = spotKind(s.location);
+    const spots = this.actorSpots(actors.length + (gk ? 1 : 0), top, bottom);
     const props = layoutProps(loc.art, s.location, W, hz + 8, bottom + 8, spots);
     const night = dp === 'night' || OUTDOOR_DARK.has(loc.art);
     const glows: [number, number][] = [];
@@ -189,6 +194,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
       if ((p.kind === 'house') && !OUTDOOR_DARK.has(loc.art)) this.smoke(p.x + (img.flipX ? -10 : 10), p.y - img.height + 4);
     }
     actors.forEach((a, i) => this.drawActor(a, spots[i][0], spots[i][1]));
+    if (gk) this.drawGatherSpot(gk, spots[actors.length][0], spots[actors.length][1]);
     this.passersby(top);
     // 时辰滤镜：晨橙、暮紫、夜蓝；夜里灯笼、营火、窗户亮起暖光
     const tint: Record<Daypart, [number, number] | null> = { dawn: [0xffe4c8, 1], day: null, dusk: [0xffccb0, 1], night: [0x5a64a8, 1] };
@@ -300,6 +306,47 @@ export class MainScene extends Phaser.Scene implements P.Host {
       a.onTap();
     }).setDepth(830);
     this.stage.add(z);
+  }
+
+  // 采集点：水边一圈涟漪 / 一块带矿脉的石头 / 一丛草药，上面闪着光；挖空了就灰掉
+  private drawGatherSpot(kind: GatherKind, x: number, y: number): void {
+    const s = store.save;
+    const left = spotLeft(s, s.location);
+    const g = this.add.graphics().setDepth(y);
+    if (kind === 'fish') {
+      g.fillStyle(0x3a6a90).fillEllipse(x, y - 2, 46, 14);
+      g.fillStyle(0x6aa0c8).fillEllipse(x, y - 3, 38, 9);
+      g.lineStyle(1, 0xd8f0ff, 0.9).strokeEllipse(x + 4, y - 3, 14, 4);
+      g.fillStyle(0x5a3a1c).fillRect(x - 20, y - 20, 2, 18);
+      g.lineStyle(1, 0x2a1a10).lineBetween(x - 19, y - 20, x + 4, y - 3);
+    } else if (kind === 'mine') {
+      g.fillStyle(0x3a342e).fillEllipse(x, y - 8, 36, 22);
+      g.fillStyle(0x6a6058).fillEllipse(x - 3, y - 10, 30, 16);
+      g.fillStyle(0x8a7e70).fillEllipse(x - 6, y - 13, 14, 6);
+      g.fillStyle(0xd8a040).fillRect(x - 6, y - 10, 3, 2).fillRect(x + 4, y - 7, 2, 2).fillRect(x, y - 14, 2, 1);
+    } else {
+      g.fillStyle(0x2a5a1a).fillEllipse(x, y - 6, 30, 14);
+      g.fillStyle(0x4a8a2a).fillEllipse(x - 6, y - 9, 14, 8).fillEllipse(x + 6, y - 10, 14, 8);
+      g.fillStyle(0xf8f0d0).fillRect(x - 3, y - 14, 2, 2).fillRect(x + 4, y - 15, 2, 2);
+    }
+    if (!left) g.setAlpha(0.45);
+    this.stage.add(g);
+    // 闪光：几颗金点轮流亮
+    if (left) for (let k = 0; k < 3; k++) {
+      const p = this.add.rectangle(x - 10 + k * 10, y - 18 - (k % 2) * 6, 2, 2, 0xfff0a0).setDepth(y + 1).setAlpha(0);
+      this.stage.add(p);
+      this.tweens.add({ targets: p, alpha: 1, duration: 300, yoyo: true, repeat: -1, delay: k * 280, repeatDelay: 600 });
+    }
+    const label = `${({ fish: '钓鱼', mine: '采矿', herb: '采药' } as const)[kind]} ${left}/${SPOT_SIZE}`;
+    const nw = textWidth(label) + 10;
+    const plate = this.add.graphics().setDepth(800);
+    plate.fillStyle(0x0a0604, 0.72).fillRect(x - nw / 2, y + 4, nw, 15).fillRect(x - nw / 2 + 1, y + 3, nw - 2, 17);
+    plate.fillStyle(0x6ab0d0).fillRect(x - nw / 2 + 1, y + 18, nw - 2, 1);
+    this.stage.add([plate, text(this, x, y + 5, label, { align: 'center', color: left ? 0xd8f0ff : 0x9a9a9a, stroke: 0x000000 }).setDepth(801)]);
+    this.stage.add(hit(this, x - 26, y - 26, 52, 48, () => {
+      if (!left) return toast(this, '这一处已经空了，多走几个地方再回来');
+      gatherGame(this, () => this.refresh());
+    }).setDepth(830));
   }
 
   // 游荡的江湖侠客：在后排慢慢来回走，点他可以切磋、雇来同行
@@ -570,7 +617,8 @@ export class MainScene extends Phaser.Scene implements P.Host {
 
   private facilitySheet(): void {
     const loc = locations[store.save.location];
-    const fac = loc.facilities ?? [];
+    // 城镇都有灶台（做菜）
+    const fac = [...(loc.facilities ?? []), 'kitchen'];
     const rows = Math.ceil(fac.length / 2);
     const m = this.sheet(`${loc.name} · 设施`, 50 + rows * 52);
     const cw = Math.floor((m.cw - 6) / 2);
@@ -655,7 +703,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
       ['任务', () => P.questPanel(this), s.main.state === 'ready'], ['组队', () => X.teamPanel(this), false], ['排行', () => X.rankPanel(this), false],
       ['国战', () => G4.guozhanPanel(this), G4.guozhanPending(s)], ['福利', () => welfarePanel(this), welfarePending(s) || X.festivalPending(s)], ['擂台', () => X.arenaPanel(this), false],
       ['帮派', () => X.sectPanel(this), false], ['训练', () => X.trainingPanel(this), false], ['宝库', () => X.vaultPanel(this), false],
-      ['公告', () => P.messagesPanel(this), false], ['攻略', () => P.helpPanel(this), false], ['退出', () => P.exitPanel(this), false],
+      ['生活', () => lifePanel(this), false], ['攻略', () => P.helpPanel(this), false], ['退出', () => P.exitPanel(this), false],
     ];
     const cols = 5;
     const rows = Math.ceil(items.length / cols);
