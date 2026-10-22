@@ -44,3 +44,26 @@ export const C = {
 // 界面用的颜色（十六进制数值，给 Phaser Graphics 用）
 export const hex = (i: number): number => parseInt(PALETTE[i].slice(1), 16);
 export const css = (i: number): string => PALETTE[i];
+
+// 两个调色板颜色之间的过渡色：按 1/8 档取，第一次用到时追加进调色板（索引最多到 255）
+const blends = new Map<string, number>();
+export function blend(a: number, b: number, t: number): number {
+  const q = Math.round(Math.max(0, Math.min(1, t)) * 8);
+  if (q === 0 || a === b) return a;
+  if (q === 8) return b;
+  const key = `${a}:${b}:${q}`;
+  const hit = blends.get(key);
+  if (hit !== undefined) return hit;
+  if (PALETTE.length >= 255) return q < 4 ? a : b;
+  const pa = PALETTE[a];
+  const pb = PALETTE[b];
+  if (!pa.startsWith('#') || !pb.startsWith('#')) return a;
+  let out = '#';
+  for (let i = 1; i < 7; i += 2) {
+    const v = Math.round(parseInt(pa.slice(i, i + 2), 16) + ((parseInt(pb.slice(i, i + 2), 16) - parseInt(pa.slice(i, i + 2), 16)) * q) / 8);
+    out += v.toString(16).padStart(2, '0');
+  }
+  PALETTE.push(out);
+  blends.set(key, PALETTE.length - 1);
+  return PALETTE.length - 1;
+}

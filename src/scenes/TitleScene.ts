@@ -15,6 +15,7 @@ import { cloudPanel } from '../ui/cloud';
 import { isApp } from '../game/cloud';
 import { Button, H, W, confirm, frame, goldFrame, hit, text, toast } from '../ui/widgets';
 import { UI } from '../art/chrome';
+import { logoTex, titleBackdrop } from '../art/title';
 
 const SERVERS = ['许昌', '洛阳', '长安', '邺城', '建业', '成都', '襄阳', '下邳', '宛城', '汝南', '北海', '陈留', '濮阳', '庐江', '江陵'];
 const CLASS_TRAIT: Record<ClassId, string> = {
@@ -31,7 +32,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.add.image(0, 0, sceneTex(this, 'village', 180, Math.ceil(H / 2), 0.5)).setOrigin(0).setScale(2);
+    titleBackdrop(this, W, H);
     this.showHome();
   }
 
@@ -43,12 +44,14 @@ export class TitleScene extends Phaser.Scene {
 
   private showHome(): void {
     const p = this.newPage();
-    const g = this.add.graphics();
-    goldFrame(g, 40, 70, 280, 110, 0x0c0e44);
-    p.add(g);
-    p.add(text(this, W / 2, 88, '像素三国', { align: 'center', color: UI.yellow, stroke: 0x6a2000, scale: 3 }));
-    p.add(text(this, W / 2, 140, '回合制 · 三国像素单机', { align: 'center', color: C.brown }));
-    p.add(text(this, W / 2, 158, '单机版 P4 · 天下', { align: 'center', color: C.gray }));
+    // 招牌字直接立在天上，不再压深色框
+    p.add(this.add.image(W / 2, 112, logoTex(this, '像素三国')).setScale(2));
+    const rg = this.add.graphics();
+    rg.fillStyle(0x2a3a66, 0.32).fillRect(70, 152, 220, 38);
+    rg.fillStyle(0xffffff, 0.35).fillRect(70, 152, 220, 1).fillRect(70, 189, 220, 1);
+    p.add(rg);
+    p.add(text(this, W / 2, 156, '回合制 · 三国像素单机', { align: 'center', color: UI.white, stroke: 0x2a3a66 }));
+    p.add(text(this, W / 2, 173, '单机版 P4 · 天下', { align: 'center', color: UI.cream, stroke: 0x2a3a66 }));
     let y = 360;
     if (store.has()) {
       const s = store.save;

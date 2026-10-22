@@ -1,6 +1,6 @@
 // 地点场景（主界面横幅、战斗背景、小地图）：按地形程序生成，种子固定所以每次一样
-import { Grid, dither, ridge, seeded } from './pixel';
-import { C } from './palette';
+import { Grid, ridge, seeded } from './pixel';
+import { C, blend } from './palette';
 
 export type SceneArt = 'village' | 'forest' | 'hill' | 'bamboo' | 'grass' | 'manor' | 'valley' | 'gate' | 'camp' | 'road' | 'city' | 'farm' | 'river' | 'cave'
   | 'tomb' | 'marsh' | 'ruins' | 'pass' | 'altar';
@@ -11,13 +11,22 @@ interface Ctx {
   h: number;
   horizon: number;
   rnd: () => number;
+  haze: number;
+}
+
+// 分档渐变：每档同色，档与档交界只有一行交错，不再整片棋盘格
+function bandFill(g: Grid, x0: number, y0: number, w: number, h: number, top: number, bottom: number, n = Math.max(3, Math.round(h / 5))): void {
+  const col = (k: number) => blend(top, bottom, n <= 1 ? 0 : k / (n - 1));
+  for (let y = 0; y < h; y++) {
+    const k = Math.min(n - 1, Math.floor((y / h) * n));
+    const edge = k < n - 1 && Math.floor(((y + 1) / h) * n) !== k;
+    for (let x = 0; x < w; x++) g.set(x0 + x, y0 + y, edge && (x + y) % 2 === 0 ? col(k + 1) : col(k));
+  }
 }
 
 function sky(c: Ctx, top: number, bottom: number): void {
-  for (let y = 0; y < c.horizon; y++) {
-    const t = y / Math.max(1, c.horizon - 1);
-    for (let x = 0; x < c.w; x++) c.g.set(x, y, dither(x, y, t) ? bottom : top);
-  }
+  c.haze = bottom;
+  bandFill(c.g, 0, 0, c.w, c.horizon, top, bottom);
 }
 
 function clouds(c: Ctx, n: number): void {
@@ -32,18 +41,21 @@ function clouds(c: Ctx, n: number): void {
 
 function mountains(c: Ctx, seed: number, base: number, amp: number, freq: number, col: number, shade?: number): number[] {
   const line = ridge(seed, c.w, base, amp, freq);
+  // 山脚泛起一层雾，往天边的颜色里化开，远近才分得开
+  const fogFrom = c.horizon - Math.max(3, Math.round(amp * 0.45));
   for (let x = 0; x < c.w; x++) {
-    for (let y = line[x]; y < c.horizon + 2; y++) c.g.set(x, y, col);
+    for (let y = line[x]; y < c.horizon + 2; y++) {
+      const f = y < fogFrom ? 0 : (y - fogFrom) / Math.max(1, c.horizon - fogFrom);
+      c.g.set(x, y, f <= 0 ? col : blend(col, c.haze, f < 0.5 ? 0.25 : 0.5));
+    }
     if (shade !== undefined && x > 0 && line[x] > line[x - 1]) c.g.set(x, line[x], shade);
   }
   return line;
 }
 
 function ground(c: Ctx, main: number, alt: number, speck: number): void {
-  for (let y = c.horizon; y < c.h; y++) {
-    const t = (y - c.horizon) / Math.max(1, c.h - c.horizon);
-    for (let x = 0; x < c.w; x++) c.g.set(x, y, dither(x + 1, y, 0.5 - t * 0.5) ? alt : main);
-  }
+  // 远处偏 alt（更亮更虚），近处是 main
+  bandFill(c.g, 0, c.horizon, c.w, c.h - c.horizon, blend(main, alt, 0.5), main, Math.max(3, Math.round((c.h - c.horizon) / 6)));
   for (let i = 0; i < c.w * (c.h - c.horizon) * 0.02; i++) {
     const x = Math.floor(c.rnd() * c.w);
     const y = c.horizon + 2 + Math.floor(c.rnd() * (c.h - c.horizon - 2));
@@ -141,7 +153,7 @@ function path(c: Ctx, col: number, edge: number, x0: number, x1: number): void {
 
 export function drawScene(art: SceneArt, w: number, h: number, horizonRatio: number, seed = 7): Grid {
   const g = new Grid(w, h);
-  const c: Ctx = { g, w, h, horizon: Math.round(h * horizonRatio), rnd: seeded(seed * 97 + art.length * 13) };
+  const c: Ctx = { g, w, h, horizon: Math.round(h * horizonRatio), rnd: seeded(seed * 97 + art.length * 13), haze: C.sky };
   const hz = c.horizon;
   switch (art) {
     case 'village': {
@@ -355,15 +367,12 @@ export function drawScene(art: SceneArt, w: number, h: number, horizonRatio: num
     }
     case 'cave': {
       // 洞里没有天：顶上是石壁，往下渐亮，地上散着宝石的反光
-      for (let y = 0; y < h; y++) {
-        const t = y / h;
-        for (let x = 0; x < w; x++) g.set(x, y, dither(x, y, t) ? C.darkBrown : C.ink);
-      }
+      bandFill(g, 0, 0, w, h, C.ink, C.darkBrown);
       for (let x = 0; x < w; x += 5 + Math.floor(c.rnd() * 6)) {
         const len = 3 + Math.floor(c.rnd() * (hz * 0.4));
         g.poly([[x, 0], [x + 4, 0], [x + 2, len]], C.brown);
       }
-      for (let y = hz; y < h; y++) for (let x = 0; x < w; x++) g.set(x, y, dither(x, y, (y - hz) / (h - hz)) ? C.lightBrown : C.brown);
+      bandFill(g, 0, hz, w, h - hz, C.brown, C.lightBrown);
       for (let i = 0; i < w / 6; i++) {
         const x = Math.floor(c.rnd() * w);
         const y = hz + 2 + Math.floor(c.rnd() * (h - hz - 3));

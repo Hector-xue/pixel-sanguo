@@ -7,12 +7,13 @@ import { H, W } from './ui/widgets';
 import { store } from './game/store';
 import { onlineTick } from './game/welfare';
 
-// 按设备像素整数倍放大，保证像素和点阵字清晰；屏幕太小时才退回非整数缩放
+// 尽量按设备像素整数倍放大，保证像素和点阵字清晰；整数倍会在屏幕四周空出一大圈时，改成铺满（高分屏上看不出像素粗细不均）
 function fitZoom(): number {
   const dpr = window.devicePixelRatio || 1;
-  const k = Math.floor(Math.min((window.innerWidth * dpr) / W, (window.innerHeight * dpr) / H));
-  if (k >= 1) return k / dpr;
-  return Math.min(window.innerWidth / W, window.innerHeight / H);
+  const fit = Math.min(window.innerWidth / W, window.innerHeight / H);
+  const k = Math.floor(fit * dpr);
+  if (k >= 1 && k / dpr >= fit * 0.94) return k / dpr;
+  return fit;
 }
 
 async function boot(): Promise<void> {
