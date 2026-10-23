@@ -8,7 +8,7 @@ import { Button, Modal, sfx, text, toast } from './widgets';
 
 export function formationPanel(h: Host, onPick?: () => void): void {
   const s = store.save;
-  const m = new Modal(h, '阵法');
+  const m = new Modal(h, '阵法', { help: '阵法' });
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
   const render = () => {

@@ -5,6 +5,7 @@ import { MainScene } from './scenes/MainScene';
 import { BattleScene } from './scenes/BattleScene';
 import { H, W, toast } from './ui/widgets';
 import { store } from './game/store';
+import { installBack, setBackWarn } from './ui/back';
 import { autoFullscreen, fitZoom, syncHeight } from './ui/screen';
 
 async function boot(): Promise<void> {
@@ -48,6 +49,11 @@ async function boot(): Promise<void> {
   autoFullscreen();
   (window as unknown as { __game: Phaser.Game }).__game = game;
   // 存档写不进去（存储满了）：在眼下的场景里提示
+  installBack();
+  setBackWarn((msg) => {
+    const sc = game.scene.getScenes(true)[0];
+    if (sc) toast(sc, msg, 1800);
+  });
   store.onWarn = (msg) => {
     const sc = game.scene.getScenes(true)[0];
     if (sc) toast(sc, msg, 5000);

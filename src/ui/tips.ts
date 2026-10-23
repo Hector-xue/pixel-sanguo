@@ -1,6 +1,7 @@
 // 江湖指引：新系统第一次用得上时，屏幕上方滑出一张小卡片说清楚怎么用，点一下收起，每条只出一次。
 // 主线里教过的（采集、灶台、徽章、布阵）不重复；这里管后面才碰得到的：新阵法、羁绊成形、福利可领、舆图
 import Phaser from 'phaser';
+import { pushBack } from './back';
 import { PAPER, paperTex, sealBox, woodFrame } from '../art/chrome';
 import { pendingTips } from '../game/guide';
 import type { Tip } from '../game/guide';
@@ -59,6 +60,7 @@ export function showTip(scene: Phaser.Scene, tip: Tip, onClose?: () => void): vo
     } });
   };
   z.on('pointerup', close);
+  c.once(Phaser.GameObjects.Events.DESTROY, pushBack(close));
   scene.time.delayedCall(9000, close);
 }
 

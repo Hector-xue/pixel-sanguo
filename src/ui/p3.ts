@@ -1,8 +1,8 @@
 // P3 的界面：擂台/斗将台/决斗场、教派、训练、宝库、转职、排行榜、成就称号、银两环、组队、婚姻结拜、文曲星、幸运王、摆摊、抢宝、节日、战斗录像
 import Phaser from 'phaser';
-import { fit } from './textfit';
 import { C } from '../art/palette';
 import { avatarTex, heroLookKey, iconTex } from '../art/textures';
+import { sealBox } from '../art/chrome';
 import { CLASS_IDS, balance, classSkills, classes, items, locations, monsters, recruits, skills, systems } from '../data';
 import type { RecruitDef } from '../data';
 import type { Battle } from '../core/battle';
@@ -19,6 +19,8 @@ import {
 } from '../game/events';
 import { canRebirth, generalRebirth, generalRebirthReason, rebirth } from '../game/rebirth';
 import { rivalLevel } from '../game/rivals';
+import { COMBOS, FACTION_NAMES, factionCount } from '../game/camp';
+import type { Faction } from '../game/camp';
 import { floorBoss, floorLevel, floorPower, rewardText, towerBattle, towerBest, towerLossesLeft, towerReason } from '../game/tower';
 import {
   joinSect, leaveSect, sectDef, sectRankName, sectTaskDone, sectTaskText, takeSectTask, turnInSect,
@@ -37,12 +39,15 @@ import { overlayInput } from './input';
 import type { Host } from './panels';
 import { chooseAmount, chooseCount, done } from './panels';
 import { power } from './role';
-import { Button, Modal, ScrollArea, confirm, frame, sfx, text, toast } from './widgets';
+import { Button, Modal, ScrollArea, confirm, fitText, frame, sfx, tabFade, text, toast } from './widgets';
 
 // ===== 小工具 =====
 export function tabs(h: Host, m: Modal, parent: Phaser.GameObjects.Container, names: string[], cur: number, pick: (i: number) => void, y = m.cy): void {
   const bw = Math.floor(m.cw / names.length);
-  names.forEach((n, i) => parent.add(new Button(h, m.cx + i * bw, y, bw - 2, 22, n, () => pick(i), { style: i === cur ? 'dark' : 'tan' })));
+  names.forEach((n, i) => parent.add(new Button(h, m.cx + i * bw, y, bw - 2, 22, n, () => {
+    pick(i);
+    if (i !== cur) tabFade(h, parent);
+  }, { style: i === cur ? 'dark' : 'tan' })));
 }
 
 export interface Rows {
@@ -63,7 +68,8 @@ export function row(h: Host, r: Rows, icon: string | null, title: string, sub: s
   if (icon) c.add(h.add.image(5, r.y + 6, icon).setOrigin(0).setScale(o.scale ?? 1).setCrop(0, 0, 24, 24));
   const tx = icon ? 34 : 8;
   c.add(text(h, tx, r.y + 3, title, { color: o.color ?? C.darkBrown }));
-  c.add(text(h, tx, r.y + 19, sub, { color: C.brown }));
+  // 副标题一行放不下就截断，点一下看整句
+  c.add(fitText(h, tx, r.y + 19, sub, w - tx - (btn ? 70 : 12), { color: C.brown }, r.area));
   if (btn) c.add(new Button(h, w - 62, r.y + 7, 54, 22, btn, fn, { clip: r.area, disabled: o.disabled, style: o.style }));
   r.y += 40;
 }
@@ -81,7 +87,7 @@ let arenaTab = 0;
 export function arenaPanel(h: Host, tab?: number): void {
   if (tab !== undefined) arenaTab = tab;
   const s = store.save;
-  const m = new Modal(h, '擂台');
+  const m = new Modal(h, '擂台', { help: arenaTab === 3 ? '演武塔' : '擂台' });
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
   const render = () => {
@@ -164,7 +170,7 @@ function towerTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: numbe
   const pw = Math.round((floorPower(n) - 1) * 100);
   dyn.add(text(h, m.cx + 8, y + 6, `第${n}层${boss ? `　名将：${monsters[boss].name}` : ''}`, { color: boss ? C.red : C.darkRed }));
   dyn.add(text(h, m.cx + 8, y + 24, `守兵${floorLevel(n)}级${pw ? `，再强${pw}%` : ''}`, { color: C.darkBrown }));
-  dyn.add(text(h, m.cx + 8, y + 42, fit(`首通：${rewardText(s, n)}`, m.cw - 84), { color: C.brown }));
+  dyn.add(fitText(h, m.cx + 8, y + 42, `首通：${rewardText(s, n)}`, m.cw - 84, { color: C.brown }));
   const why = towerReason(s);
   dyn.add(new Button(h, m.cx + m.cw - 70, y + 24, 62, 28, '挑战', () => {
     m.close();
@@ -178,7 +184,7 @@ function towerTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: numbe
   const first = Math.floor(n / TW.bossEvery) * TW.bossEvery + TW.bossEvery;
   for (let f = first; f < first + TW.bossEvery * 5; f += TW.bossEvery) {
     const id = floorBoss(f)!;
-    row(h, r, null, `第${f}层　${monsters[id].name}`, fit(`首通：${rewardText(s, f)}`, m.cw - 24), null, () => undefined);
+    row(h, r, null, `第${f}层　${monsters[id].name}`, `首通：${rewardText(s, f)}`, null, () => undefined);
   }
   r.area.setContentHeight(r.y);
 }
@@ -315,7 +321,7 @@ export function vaultPanel(h: Host, tab?: number): void {
   m.inner.add(dyn);
   const render = () => {
     dyn.removeAll(true);
-    tabs(h, m, dyn, ['商城', '武将', '仓库'], vaultTab, (i) => {
+    tabs(h, m, dyn, ['商城', '武将', '仓库', '羁绊'], vaultTab, (i) => {
       vaultTab = i;
       render();
     });
@@ -333,7 +339,7 @@ export function vaultPanel(h: Host, tab?: number): void {
       const r = rows(h, m, dyn, m.cy + 52);
       for (const g of systems.shop.goods) {
         const it = items[g.item];
-        row(h, r, iconTex(h, g.item), `${it.name}　${g.gold}金砖`, fit(it.desc ?? '', 210), '购买', () => chooseCount(h, `购买${it.name}（${g.gold}金砖）`, Math.floor(s.player.gold / g.gold), (n) => act(() => shopBuy(s, g.item, n))), { disabled: s.player.gold < g.gold, scale: 2 });
+        row(h, r, iconTex(h, g.item), `${it.name}　${g.gold}金砖`, it.desc ?? '', '购买', () => chooseCount(h, `购买${it.name}（${g.gold}金砖）`, Math.floor(s.player.gold / g.gold), (n) => act(() => shopBuy(s, g.item, n))), { disabled: s.player.gold < g.gold, scale: 2 });
       }
       r.area.setContentHeight(r.y);
     } else if (vaultTab === 1) {
@@ -348,6 +354,8 @@ export function vaultPanel(h: Host, tab?: number): void {
         row(h, r, avatarTex(h, d.look), `${d.name}　${grade}·${classes[d.class].name}·${d.gender === 'male' ? '男' : '女'}`, own ? '已招募' : `招募：${how}`, '查看', () => recruitInfo(h, d, grade), { color: grade === '将才' ? C.darkRed : C.darkBrown });
       }
       r.area.setContentHeight(r.y);
+    } else if (vaultTab === 3) {
+      bondTab(h, m, dyn);
     } else {
       dyn.add(text(h, m.cx, m.cy + 28, `仓库 ${vaultUsed(s)}/${s.p3.vaultCap}　随时随地都能存取`, { color: C.brown }));
       dyn.add(new Button(h, m.cx + m.cw - 110, m.cy + 24, 110, 22, `扩容（${balance.vault.goldPerStep}金砖）`, () => act(() => expandVault(s))));
@@ -364,6 +372,76 @@ export function vaultPanel(h: Host, tab?: number): void {
     }
   };
   render();
+}
+
+// 羁绊总览：四个阵营各一行（没招到的压暗、随行的金框），三组组合用线连起来，成了的是金线
+function bondTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container): void {
+  const s = store.save;
+  const all = [...recruits.jiangcai, ...recruits.yingcai];
+  const carried = new Set(s.generals.map((g) => g.recruitId).filter(Boolean) as string[]);
+  const pos = new Map<string, [number, number]>();
+  const r = rows(h, m, dyn, m.cy + 30);
+  const c = r.area.content;
+  let y = 0;
+  const face = (d: RecruitDef, x: number, yy: number) => {
+    const own = ownsRecruit(s, d.id);
+    const on = carried.has(d.id);
+    const g = h.add.graphics();
+    frame(g, x, yy, 40, 40, on ? 'red' : 'tan');
+    c.add(g);
+    c.add(h.add.image(x + 2, yy + 2, avatarTex(h, d.look)).setOrigin(0).setScale(1.5).setAlpha(own ? 1 : 0.3));
+    c.add(text(h, x + 20, yy + 42, d.name, { align: 'center', color: own ? C.darkBrown : C.gray }));
+    pos.set(d.id, [x + 20, yy + 20]);
+    const z = h.add.zone(x, yy, 40, 54).setOrigin(0).setInteractive({ useHandCursor: true });
+    z.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (!r.area.contains(p.x, p.y) || r.area.dragging()) return;
+      recruitInfo(h, d, recruits.jiangcai.includes(d) ? '将才' : '英才');
+    });
+    c.add(z);
+  };
+  c.add(text(h, 0, y, '随行同阵营两人攻防+5%，三人+10%。红框是随行的，暗的还没招到；点头像看详情。', { wrap: m.cw - 10, color: C.brown }));
+  y += 36;
+  for (const f of Object.keys(FACTION_NAMES) as Faction[]) {
+    const list = all.filter((d) => d.faction === f);
+    if (!list.length) continue;
+    const n = factionCount(s, f);
+    const sg = h.add.graphics();
+    sealBox(sg, 0, y + 8, 24);
+    c.add([sg, text(h, 12, y + 14, FACTION_NAMES[f], { align: 'center', color: 0xfff0c0 })]);
+    c.add(text(h, 30, y + 2, n >= 3 ? `随行${n}人：攻防+10%` : n >= 2 ? `随行${n}人：攻防+5%` : n ? `随行${n}人：再带一个攻防+5%` : '还没带', { color: n >= 2 ? C.red : C.gray }));
+    let x = 30;
+    let row0 = y + 18;
+    for (const d of list) {
+      if (x + 40 > m.cw - 6) {
+        x = 30;
+        row0 += 58;
+      }
+      face(d, x, row0);
+      x += 46;
+    }
+    y = row0 + 62;
+  }
+  c.add(text(h, 0, y, '组合羁绊', { color: C.darkRed }));
+  y += 20;
+  for (const cb of COMBOS) {
+    const have = cb.members.filter((id) => carried.has(id)).length;
+    const on = have >= cb.need;
+    c.add(text(h, 0, y, `${cb.name}${on ? '（已成）' : `（随行${have}/${cb.need}）`}`, { color: on ? C.red : C.darkBrown }));
+    c.add(fitText(h, 0, y + 16, cb.desc, m.cw - 10, { color: C.brown }, r.area));
+    // 成员头像排一行，中间用线连起来
+    const line = h.add.graphics();
+    c.add(line);
+    const ids = cb.members.map((id) => all.find((d) => d.id === id)).filter(Boolean) as RecruitDef[];
+    ids.forEach((d, i) => face(d, 30 + i * 70, y + 36));
+    line.lineStyle(2, on ? 0xd8a020 : 0xb8aa90, 1);
+    for (let i = 1; i < ids.length; i++) {
+      const [x1, y1] = pos.get(ids[i - 1].id)!;
+      const [x2] = pos.get(ids[i].id)!;
+      line.lineBetween(x1 + 20, y1, x2 - 20, y1);
+    }
+    y += 36 + 62;
+  }
+  r.area.setContentHeight(y);
 }
 
 // 武将图鉴：资质范围 + 按你现在能招到的等级、资质取中间值算的参考属性
@@ -782,7 +860,7 @@ export function stallPanel(h: Host): void {
 // ===== 战场：宝洞 + 抢宝 =====
 export function treasurePanel(h: Host, enterCave: () => void): void {
   const s = store.save;
-  const m = new Modal(h, '战场', { h: 320 });
+  const m = new Modal(h, '战场', { h: 320, help: '抢宝' });
   const t = treasureNow(s);
   let y = m.cy;
   m.inner.add(new Button(h, m.cx, y, m.cw, 30, '进入宝洞挖宝', () => {

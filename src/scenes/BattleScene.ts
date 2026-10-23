@@ -27,6 +27,8 @@ import { PAPER, UI, paperTex, timeTint, titlePlaque, vgrad, woodFrame } from '..
 import { FORMS, clashText } from '../game/formation';
 import { playJingle, playMusic } from '../ui/audio';
 import { saveSettings, settings } from '../ui/settings';
+import { setSceneBack } from '../ui/back';
+import { buzz } from '../ui/haptics';
 import { passiveOf } from '../core/passives';
 import type { FormId } from '../game/formation';
 
@@ -57,7 +59,9 @@ function layout(): void {
   G_BOT = PANEL_Y - 26;
 }
 // 站位：敌人两列（前排 x=100、后排 x=44），我方站右边；纵向按人数在地面上均匀排开
-const ROW_X: Record<0 | 1, number> = { 0: 120, 1: 50 };
+// 横坐标按 360 宽写的，画面放大（宽 320）时等比收拢
+const SX = W / 360;
+const ROW_X: Record<0 | 1, number> = { 0: Math.round(120 * SX), 1: Math.round(50 * SX) };
 const SPREAD: Record<number, number[]> = { 1: [0.5], 2: [0.22, 0.78], 3: [0, 0.5, 1] };
 // 后排插在前排的空当里（两排名牌横着挨得近，站在同一高度会叠字）：按前排几个人选
 const BACK_SPREAD: Record<number, Record<number, number[]>> = {
@@ -67,8 +71,8 @@ const BACK_SPREAD: Record<number, Record<number, number[]>> = {
   3: { 1: [0.25], 2: [0.25, 0.75], 3: [0.25, 0.75, 0.75] },
 };
 // 主角站右边中间；副将（最多三个）和雇来的队友按上场顺序占后面这几格
-const HERO_SLOT: [number, number] = [302, 0.52];
-const ALLY_SLOTS: [number, number][] = [[244, 0.92], [250, 0.04], [196, 0.3], [196, 0.7]];
+const HERO_SLOT: [number, number] = [Math.round(302 * SX), 0.52];
+const ALLY_SLOTS: [number, number][] = ([[244, 0.92], [250, 0.04], [196, 0.3], [196, 0.7]] as [number, number][]).map(([x, v]) => [Math.round(x * SX), v]);
 const gy = (v: number) => Math.round(G_TOP + v * (G_BOT - G_TOP));
 
 interface View {
@@ -199,6 +203,11 @@ export class BattleScene extends Phaser.Scene {
     const s = store.save;
     const loc = locations[s.location];
     this.drawField(loc.art, s.location);
+    // 返回键：选目标、翻技能物品时退回指令盘；别的时候不动（不会误按退出战斗）
+    setSceneBack(() => {
+      if (this.popup || this.mode === 'target' || this.mode === 'list') this.back();
+      return true;
+    });
     this.drawTopBar(s.player.name);
     this.order = this.add.container(0, 0).setDepth(240);
     for (const u of this.b.units) this.makeView(u, true);
@@ -240,6 +249,7 @@ export class BattleScene extends Phaser.Scene {
     const lead = chief ? 900 : 0;
     if (chief) {
       sfx('crit');
+      buzz('heavy');
       void this.cutIn(chief.name, monsters[chief.monsterId!]?.historic ? '名将出阵' : '头目登场', C.red, (n) => n / this.speed);
     } else this.showBanner(`遭遇 ${this.b.title}`, 900);
     // 有克制关系的话，开打前再报一句
@@ -283,7 +293,7 @@ export class BattleScene extends Phaser.Scene {
     const hz = FIELD_Y + Math.round(FIELD_H * HORIZON);
     // 站位附近不摆东西；大件只摆在人物后面（靠地平线），中间留给出招
     const keep: [number, number][] = [];
-    for (const x of [ROW_X[0], ROW_X[1], 244, 302]) for (let v = 0; v <= 1; v += 0.25) keep.push([x, gy(v)]);
+    for (const x of [ROW_X[0], ROW_X[1], ALLY_SLOTS[0][0], HERO_SLOT[0]]) for (let v = 0; v <= 1; v += 0.25) keep.push([x, gy(v)]);
     const props = layoutProps(art, key, W, hz + 6, PANEL_Y - 4, keep).filter((p) => (BIG.has(p.kind) ? p.y < G_TOP - 18 : !(p.x > 130 && p.x < 230 && p.y > G_TOP)));
     const dp = daypart();
     const dark = OUTDOOR_DARK.has(art);
@@ -989,11 +999,16 @@ export class BattleScene extends Phaser.Scene {
           sfx(crit ? 'crit' : 'hit');
           if (!v.dead) this.pose(v, 'hurt');
           const sx = v.spr.x;
-          this.tweens.add({ targets: v.spr, x: sx + (v.flip ? -3 : 3), duration: 50, yoyo: true, repeat: 1, onComplete: () => !v.dead && this.lunged !== v && this.pose(v, 'idle') });
+          // 暴击、化境：往后一震更狠，画面顿一下（打击停顿），化境再整屏一闪
+          const kb = crit || this.heavy ? 8 : 3;
+          this.tweens.add({ targets: v.spr, x: sx + (v.flip ? -kb : kb), duration: crit ? 70 : 50, yoyo: true, repeat: crit ? 0 : 1, onComplete: () => !v.dead && this.lunged !== v && this.pose(v, 'idle') });
+          if (crit || this.heavy) this.hitStop(this.heavy ? 90 : 60);
+          if (this.heavy && settings().shake) this.cameras.main.flash(110, 255, 240, 200);
           v.spr.setTint(0xffffff);
           this.time.delayedCall(80, () => v.spr.clearTint());
           const label = e.t === 'poison' ? `毒-${e.amount}` : `${e.crit ? '暴击 ' : e.fatal ? '致命 ' : ''}-${e.amount}`;
           if (crit || this.heavy) this.shake(this.heavy ? 160 : 110, this.heavy ? 0.01 : 0.006);
+          if (crit || this.heavy) buzz(this.heavy ? 'medium' : 'light');
           if (e.t === 'poison') this.addLog(`${this.nameOf(e.target)}毒发 -${e.amount}`);
           else this.appendLog(`，${this.nameOf(e.target)}${e.crit ? '（暴击）' : e.fatal ? '（致命）' : ''}-${e.amount}`);
           this.float(v, label, e.t === 'poison' ? C.lilac : crit ? C.red : C.orange, crit);
@@ -1064,6 +1079,7 @@ export class BattleScene extends Phaser.Scene {
           this.tweens.killTweensOf(v.spr);
           this.pose(v, 'down');
           v.spr.setPosition(v.hx + (v.flip ? OFF : -OFF), v.hy);
+          this.dust(v.hx, v.hy);
           if (this.lunged === v) this.lunged = null;
           this.tweens.add({ targets: v.spr, alpha: 0.6, duration: 300 });
           v.name.setColor('#8c8c90');
@@ -1079,6 +1095,7 @@ export class BattleScene extends Phaser.Scene {
             v.dead = true;
             this.tweens.killTweensOf(v.spr);
             this.float(v, '招降成功', C.yellow, true);
+            buzz('medium');
             this.addLog(`${this.nameOf(e.target)}愿意归顺！`);
             this.drawBars(v);
             await new Promise<void>((r) => this.tweens.add({ targets: [v.spr, v.name, v.plate], alpha: 0, duration: ms(500), onComplete: () => r() }));
@@ -1165,6 +1182,22 @@ export class BattleScene extends Phaser.Scene {
         case 'end':
           break;
       }
+    }
+  }
+
+  // 打击停顿：补间几乎停住一小会儿（用真实时间恢复，不受补间自己的速度影响）
+  private hitStop(ms: number): void {
+    this.tweens.timeScale = 0.05;
+    window.setTimeout(() => {
+      if (this.scene.isActive()) this.tweens.timeScale = 1;
+    }, ms);
+  }
+
+  // 倒下：脚边扬起一小团土
+  private dust(x: number, y: number): void {
+    for (let i = 0; i < 7; i++) {
+      const p = this.add.rectangle(x + (Math.random() - 0.5) * 20, y - 2, 3, 3, i % 2 ? 0xb8a080 : 0x8a7458, 0.9).setDepth(spriteDepth(y) + 1);
+      this.tweens.add({ targets: p, x: p.x + (Math.random() - 0.5) * 36, y: y - 6 - Math.random() * 14, alpha: 0, scale: 1.8, duration: 420 + Math.random() * 200, ease: 'Quad.easeOut', onComplete: () => p.destroy() });
     }
   }
 
@@ -1513,7 +1546,10 @@ export class BattleScene extends Phaser.Scene {
     store.flush();
     if (sum.outcome === 'win' || sum.outcome === 'lose') playJingle(sum.outcome);
     else sfx('step');
-    if (sum.lines.some((l) => l.includes('升到'))) this.time.delayedCall(1400, () => playJingle('level'));
+    if (sum.lines.some((l) => l.includes('升到'))) this.time.delayedCall(1400, () => {
+      playJingle('level');
+      buzz('heavy');
+    });
     // 胜利：活着的我方举起兵器
     if (sum.outcome === 'win') for (const v of this.views.values()) if (!v.flip && !v.dead) this.pose(v, 'cast');
     this.time.delayedCall(sum.outcome === 'win' ? 500 : 200, () => this.showSummary(sum));
@@ -1526,7 +1562,7 @@ export class BattleScene extends Phaser.Scene {
   // 卷轴：压暗整屏，漆木框宣纸，题签写标题
   private scroll(h: number, title: string): Phaser.GameObjects.Container {
     const c = this.add.container(0, 0).setDepth(600);
-    const w = 320;
+    const w = Math.min(320, W - 16);
     const x = (W - w) / 2;
     const y = this.scrollY(h);
     const dim = this.add.graphics();
@@ -1547,7 +1583,7 @@ export class BattleScene extends Phaser.Scene {
     const big = (n: number) => (n >= 100000 ? `${(n / 10000).toFixed(1).replace(/\.0$/, '')}万` : `${n}`);
     const win = sum.outcome === 'win';
     const lines = sum.lines;
-    const w = 320;
+    const w = Math.min(320, W - 16);
     const x = (W - w) / 2;
     // 缴获按宽度排成几行（原来只排一行，多出来的就不见了）
     const dropRows: { id?: string; label: string; w: number }[][] = [];

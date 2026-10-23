@@ -36,7 +36,7 @@ let welfareTab = 0;
 export function welfarePanel(h: Host, tab?: number): void {
   if (tab !== undefined) welfareTab = tab;
   const s = store.save;
-  const m = new Modal(h, '福利');
+  const m = new Modal(h, '福利', { help: '福利' });
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
   const render = () => {

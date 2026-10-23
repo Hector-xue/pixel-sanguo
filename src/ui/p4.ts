@@ -16,10 +16,9 @@ import {
 import type { GzMode } from '../game/guozhan';
 import type { Save } from '../game/state';
 import { store } from '../game/store';
-import { fit } from './textfit';
 import type { Host } from './panels';
 import { fight, heroAvatar, row, rows, tabs } from './p3';
-import { Button, Modal, confirm, frame, hit, sfx, text, toast } from './widgets';
+import { Button, Modal, confirm, fitText, frame, hit, sfx, text, textLines, toast } from './widgets';
 
 const G = systems.guozhan;
 
@@ -80,7 +79,7 @@ export function guozhanPanel(h: Host, tab?: number): void {
   }
   if (!s.p4.nation) return joinPanel(h, () => guozhanPanel(h, 0));
   if (tab !== undefined) gzTab = tab;
-  const m = new Modal(h, `国战 · ${nationDef(s.p4.nation).full}`);
+  const m = new Modal(h, `国战 · ${nationDef(s.p4.nation).full}`, { help: '国战' });
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
   const render = () => {
@@ -179,7 +178,7 @@ function mapTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y0: number
   const note = st.owner === n && st.lostBy ? `${nationDef(st.lostBy).full}一心要夺回这座城，兵少了记得驻守`
     : cover.length ? `有${cover.map((x) => cityDef(x).name).join('、')}接应，守军打不光` : '';
   const ny = y + 26 + info.height;
-  if (note && ny + 14 <= y + 58) dyn.add(text(h, m.cx + 8, ny, fit(note, m.cw - 16), { color: C.red }));
+  if (note && ny + 14 <= y + 58) dyn.add(fitText(h, m.cx + 8, ny, note, m.cw - 16, { color: C.red }));
   const btns: [string, GzMode][] = [];
   if (st.owner !== n && st.troops <= 0) btns.push(['单挑守将', 'boss']);
   else if (atk.includes(id)) btns.push(['出征', 'atk']);
@@ -318,8 +317,9 @@ function kuaquTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: numbe
     y += 30;
   }
   const why = kuaquReason(s);
-  dyn.add(text(h, m.cx, y, why || `赛季最后两天，和别州高手过招，每赢一场给本州加分。今天还能打${K.fightsPerDay - v.fought.length}场（再打${v.next}仗换一批对手），你共拿${v.points}分。`, { wrap: m.cw, color: why ? C.red : C.darkRed }));
-  y += 36;
+  const head = why || `赛季最后两天，和别州高手过招，每赢一场给本州加分。今天还能打${K.fightsPerDay - v.fought.length}场（再打${v.next}仗换一批对手），你共拿${v.points}分。`;
+  dyn.add(text(h, m.cx, y, head, { wrap: m.cw, color: why ? C.red : C.darkRed }));
+  y += textLines(head, m.cw) + 6;
   dyn.add(text(h, m.cx, y, '各区积分', { color: C.darkRed }));
   y += 18;
   v.scores.forEach((r, i) => {

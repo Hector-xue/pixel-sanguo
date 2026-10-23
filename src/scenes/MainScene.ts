@@ -3,11 +3,11 @@
 import Phaser from 'phaser';
 import { setChrome, syncHeight } from '../ui/screen';
 import { C } from '../art/palette';
-import { avatarTex, bustTex, funcIconTex, heroLookKey, propTex, sceneTex, uiIconTex, unitTex } from '../art/textures';
+import { avatarTex, bustTex, funcIconTex, heroLookKey, iconTex, propTex, sceneTex, uiIconTex, unitTex } from '../art/textures';
 import { FEET_Y, UNIT_H, UNIT_W, BX } from '../art/units';
 import { GLOW, OUTDOOR_DARK, daypart, layoutProps } from '../art/props';
 import type { Daypart } from '../art/props';
-import { balance, classes, locations, monsters, npcs } from '../data';
+import { balance, classes, items, locations, monsters, npcs } from '../data';
 import type { MonsterGroup } from '../data';
 import { randomSeed } from '../core/rng';
 import { expToNext } from '../core/formulas';
@@ -26,7 +26,7 @@ import * as F from '../ui/fun';
 import * as R from '../ui/role';
 import { store } from '../game/store';
 import { ChatBox } from '../ui/chat';
-import { Button, H, Modal, SAFE_TOP, W, bar, hit, sfx, text, textWidth, toast, wrap } from '../ui/widgets';
+import { Button, H, Modal, SAFE_TOP, W, achvBanner, bar, resumeBanner, hit, sfx, text, textWidth, toast, wrap } from '../ui/widgets';
 import { fit } from '../ui/textfit';
 import { UI, sealBox, timeTint, titlePlaque, vgrad } from '../art/chrome';
 import { showDialog } from '../ui/dialog';
@@ -45,14 +45,18 @@ import { announce } from '../game/guozhan';
 import { storyTick } from '../game/gzstory';
 import { autoTick } from '../game/cloud';
 import { checkAchievements } from '../game/achv';
-import { treasureNow } from '../game/events';
+import { festivalToday, treasureNow } from '../game/events';
+import { WEATHER_NAMES, seasonOf, weatherOf } from '../game/weather';
 import { isDeployed, log } from '../game/state';
 import { today } from '../game/calendar';
 import { playJingle, playMusic } from '../ui/audio';
-import { sweep, sweepReason, sweepText } from '../game/sweep';
+import { sweep, sweepReason } from '../game/sweep';
 import { dailyCount } from '../game/daily';
 import { dailyPanel } from '../ui/daily';
 import { maybeWhatsNew } from '../ui/changelog';
+import { pointAt } from '../ui/pointer';
+import { setSceneBack } from '../ui/back';
+import { buzz } from '../ui/haptics';
 
 const DIR_ARROW: Record<string, string> = { up: '↑', down: '↓', left: '←', right: '→' };
 const DIR_NAME: Record<string, string> = { up: '北', down: '南', left: '西', right: '东' };
@@ -112,6 +116,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     // 战斗中进出过全屏：回到主界面时按新高度排
     syncHeight(this.game);
     layout();
+    setSceneBack(null);
     setChrome('#0a0604');
     if (!store.has()) {
       this.scene.start('Title');
@@ -153,6 +158,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     this.refresh();
     this.cameras.main.fadeIn(260, 10, 6, 4);
     if (daily.length) toast(this, daily.join('\n'), 2600);
+    resumeBanner(this);
     // 更新后第一次进来：说说更新了什么（新角色不弹）
     if (!beats.length) this.time.delayedCall(700, () => this.scene.isActive() && maybeWhatsNew(this, store.save.battles));
     if (import.meta.env.DEV) Object.assign(window, { __P: P, __T: T, __F: F, __R: R, __X: X, __G4: G4, __store: store, __main: this });
@@ -164,7 +170,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const here = locations[store.save.location];
     playMusic(here?.town ? 'town' : OUTDOOR_DARK.has(here?.art) ? 'cave' : daypart() === 'night' ? 'night' : 'field');
     const got = checkAchievements(store.save);
-    if (got.length) this.time.delayedCall(300, () => toast(this, got.join('\n'), 2800));
+    if (got.length) this.time.delayedCall(300, () => achvBanner(this, got));
     store.commit();
     const sig = this.stageSignature();
     if (sig !== this.stageKey) {
@@ -184,7 +190,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const s = store.save;
     const loc = locations[s.location];
     const marks = loc.npcs.map((n) => npcMark(s, n) ?? '').join('');
-    return `${s.location}|${daypart()}|${marks}|${s.main.step}:${s.main.state}|${X.treasureHere(s) ? 1 : 0}|${H}|${spotLeft(s, s.location)}|${hasBadge(s, s.location) ? 1 : 0}`;
+    return `${s.location}|${daypart()}|${weatherOf(s.location, loc.art)}|${marks}|${s.main.step}:${s.main.state}|${X.treasureHere(s) ? 1 : 0}|${H}|${spotLeft(s, s.location)}|${hasBadge(s, s.location) ? 1 : 0}`;
   }
 
   // ===== 舞台 =====
@@ -469,8 +475,43 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const leafy = ['forest', 'valley', 'grass', 'road', 'hill', 'bamboo', 'farm'].includes(art);
     const petal = ['village', 'manor', 'city'].includes(art);
     const spawn = (fn: () => void, delay: number) => this.ambient.push(this.time.addEvent({ delay, loop: true, callback: fn }));
-    if ((leafy || petal) && dp !== 'night') spawn(() => {
-      const c = petal ? (Math.random() < 0.5 ? 0xf8b8c8 : 0xffe0e8) : Math.random() < 0.5 ? 0x86a94a : 0xd8b040;
+    const season = seasonOf();
+    const wx = weatherOf(store.save.location, art);
+    // 过节：城镇、村子上空挂一排红灯笼
+    if (festivalToday() && petal) this.lanterns(hz);
+    if (wx === 'rain') {
+      // 下雨：天色暗一点，细雨斜着落，地上溅起小水花
+      this.stage.add(this.add.rectangle(0, 0, W, STAGE_H, 0x1a2430, 0.16).setOrigin(0).setDepth(895));
+      spawn(() => {
+        const x = Math.random() * (W + 60);
+        const p = this.add.rectangle(x, -8, 1, 6, 0xc8d8f0, 0.55).setOrigin(0).setDepth(896).setAngle(20);
+        this.stage.add(p);
+        const ty = hz + Math.random() * (STAGE_H - hz);
+        this.tweens.add({ targets: p, y: ty, x: x - (ty + 8) * 0.36, duration: 420 + Math.random() * 160, onComplete: () => {
+          p.destroy();
+          if (Math.random() < 0.3) {
+            const d = this.add.rectangle(x - (ty + 8) * 0.36, ty, 3, 1, 0xc8d8f0, 0.6).setOrigin(0.5).setDepth(896);
+            this.stage.add(d);
+            this.tweens.add({ targets: d, scaleX: 2, alpha: 0, duration: 260, onComplete: () => d.destroy() });
+          }
+        } });
+      }, 28);
+      return this.clouds(dp, true);
+    }
+    if (wx === 'snow') {
+      spawn(() => {
+        const x = Math.random() * W;
+        const p = this.add.rectangle(x, -4, 2, 2, 0xffffff, 0.9).setOrigin(0).setDepth(896);
+        this.stage.add(p);
+        this.tweens.add({ targets: p, y: hz + Math.random() * (STAGE_H - hz), duration: 4500 + Math.random() * 2500, onComplete: () => this.tweens.add({ targets: p, alpha: 0, duration: 800, onComplete: () => p.destroy() }) });
+        this.tweens.add({ targets: p, x: x + 12, duration: 1200 + Math.random() * 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      }, 140);
+      return this.clouds(dp, true);
+    }
+    // 晴天：春天飘花瓣，夏天绿叶，秋天红黄叶，冬天不落叶
+    if ((leafy || petal) && dp !== 'night' && season !== 'winter') spawn(() => {
+      const autumn = season === 'autumn';
+      const c = petal && !autumn ? (Math.random() < 0.5 ? 0xf8b8c8 : 0xffe0e8) : autumn ? [0xd8602a, 0xe8a030, 0xb8401c][Math.floor(Math.random() * 3)] : Math.random() < 0.5 ? 0x86a94a : 0xd8b040;
       const x = Math.random() * W;
       const p = this.add.rectangle(x, -4, 2, 2, c).setOrigin(0).setDepth(890);
       this.stage.add(p);
@@ -491,14 +532,39 @@ export class MainScene extends Phaser.Scene implements P.Host {
       this.stage.add(p);
       this.tweens.add({ targets: p, y: y + 20, alpha: 0, duration: 4000, onComplete: () => p.destroy() });
     }, 250);
-    if (!OUTDOOR_DARK.has(art)) {
-      // 两朵慢慢飘过的云
-      for (let i = 0; i < 2; i++) {
-        const cy = 14 + i * 22 + Math.random() * 10;
-        const cl = this.add.graphics().setDepth(5).setAlpha(dp === 'night' ? 0.25 : 0.8);
+    if (!OUTDOOR_DARK.has(art)) this.clouds(dp, false);
+  }
+
+  // 节日灯笼：一根绳上挂五盏，轻轻晃
+  private lanterns(hz: number): void {
+    const y0 = Math.max(26, hz - 46);
+    const line = this.add.graphics().setDepth(880);
+    line.lineStyle(1, 0x3a2414, 0.9).beginPath().moveTo(0, y0).lineTo(W, y0 + 6).strokePath();
+    this.stage.add(line);
+    for (let i = 0; i < 5; i++) {
+      const x = Math.round((W / 5) * (i + 0.5));
+      const c = this.add.container(x, y0 + 1 + (i * 6) / 5).setDepth(881);
+      const g = this.add.graphics();
+      g.fillStyle(0x3a2414).fillRect(0, 0, 1, 4);
+      g.fillStyle(0xe8b040).fillRect(-3, 4, 7, 2).fillRect(-3, 16, 7, 2);
+      g.fillStyle(0xc8281c).fillRect(-5, 6, 11, 10);
+      g.fillStyle(0xe85a3a).fillRect(-3, 7, 3, 8);
+      g.fillStyle(0xffd060).fillRect(0, 18, 1, 4);
+      c.add(g);
+      this.stage.add(c);
+      this.tweens.add({ targets: c, angle: { from: -4, to: 4 }, duration: 1400 + i * 120, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+  }
+
+  // 两朵慢慢飘过的云（阴雨天多几朵、颜色灰一点）
+  private clouds(dp: Daypart, grey: boolean): void {
+    {
+      for (let i = 0; i < (grey ? 4 : 2); i++) {
+        const cy = 14 + i * (grey ? 12 : 22) + Math.random() * 10;
+        const cl = this.add.graphics().setDepth(5).setAlpha(dp === 'night' ? 0.25 : grey ? 0.9 : 0.8);
         const w = 30 + Math.random() * 24;
-        cl.fillStyle(0xffffff).fillRect(0, 4, w, 6).fillRect(6, 0, w * 0.5, 5).fillRect(w * 0.45, 2, w * 0.4, 4);
-        cl.fillStyle(0xd8e4f0).fillRect(0, 9, w, 2);
+        cl.fillStyle(grey ? 0xa8b0b8 : 0xffffff).fillRect(0, 4, w, 6).fillRect(6, 0, w * 0.5, 5).fillRect(w * 0.45, 2, w * 0.4, 4);
+        cl.fillStyle(grey ? 0x808890 : 0xd8e4f0).fillRect(0, 9, w, 2);
         cl.setPosition(Math.random() * W, cy);
         this.stage.add(cl);
         const drift = () => {
@@ -528,7 +594,8 @@ export class MainScene extends Phaser.Scene implements P.Host {
     this.layer.add([pg, text(this, W / 2, T + 8, loc.name, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
     const dp = daypart();
     const dpName: Record<Daypart, string> = { dawn: '清晨', day: '白昼', dusk: '黄昏', night: '夜' };
-    this.layer.add(text(this, W - 6, T + 8, `${shichen()}·${dpName[dp]}`, { align: 'right', color: 0xfbefd0, stroke: 0x000000 }));
+    const wn = WEATHER_NAMES[weatherOf(s.location, loc.art)];
+    this.layer.add(text(this, W - 6, T + 8, `${shichen()}·${dpName[dp]}${wn ? `·${wn}` : ''}`, { align: 'right', color: 0xfbefd0, stroke: 0x000000 }));
     this.drawTracker();
     // 右上快捷：今日事务（几件没办）、福利、国战（有事时亮红点）
     const quick: [string, string, () => void, boolean | number][] = [
@@ -536,6 +603,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
       ['gift', '福利', () => welfarePanel(this), welfarePending(s) || X.festivalPending(s)],
       ['flag', '国战', () => G4.guozhanPanel(this), G4.guozhanPending(s)],
     ];
+    if (s.battles >= 10) this.time.delayedCall(1500, () => this.scene.isActive() && pointAt(this, W - 20, T + 50, 'today', true));
     quick.forEach(([icon, label, fn, dot], i) => {
       const x = W - 34;
       const y = T + 36 + i * 46;
@@ -584,6 +652,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const dest = questDestination(s);
     if (dest && dest !== s.location) {
       this.layer.add(new Button(this, x + w + 4, y + 2, 40, 20, '前往', () => this.autoPath(dest), { style: 'red' }));
+      if (s.player.level <= 3) this.time.delayedCall(1200, () => this.scene.isActive() && !this.walking && pointAt(this, x + w + 24, y + 12, 'goto', true));
     }
   }
 
@@ -616,14 +685,15 @@ export class MainScene extends Phaser.Scene implements P.Host {
     this.layer.add(hit(this, 4, y + 4, 52, 52, () => (p.free > 0 ? P.allocatePanel(this) : P.statusPanel(this))));
     this.layer.add(text(this, 60, y + 6, p.name, { color: 0xfbefd0, stroke: 0x000000 }));
     this.layer.add(text(this, 62 + textWidth(p.name) + 6, y + 6, `${p.level}级${classes[p.classId].name}`, { color: UI.yellow, stroke: 0x000000 }));
-    const bw = 190;
+    // 血条到右边三格副将之间留 8 像素（画面放大时窄一点）
+    const bw = W - 170;
     this.layer.add(bar(this, 60, y + 23, bw, 11, p.hp / st.maxHp, C.red, C.darkRed));
     this.layer.add(text(this, 60 + bw / 2, y + 22, `${p.hp}/${st.maxHp}`, { align: 'center', color: 0xffffff, stroke: 0x000000 }));
     this.layer.add(bar(this, 60, y + 38, bw, 11, p.mp / st.maxMp, C.lightBlue, C.navy));
     this.layer.add(text(this, 60 + bw / 2, y + 37, `${p.mp}/${st.maxMp}`, { align: 'center', color: 0xffffff, stroke: 0x000000 }));
     // 右侧：三格副将 + 银两金砖
     for (let i = 0; i < 3; i++) {
-      const gx = 258 + i * 33;
+      const gx = W - 102 + i * 33;
       const gy = y + 6;
       const gen = s.generals[i];
       const active = gen && isDeployed(s, gen.uid);
@@ -642,10 +712,10 @@ export class MainScene extends Phaser.Scene implements P.Host {
         this.layer.add(hit(this, gx, gy, 30, 30, () => toast(this, '野外把怪物打到残血，用「招降」收为副将')));
       }
     }
-    this.layer.add(this.add.image(258, y + 41, uiIconTex(this, 'coin')).setOrigin(0));
-    this.layer.add(text(this, 268, y + 39, moneyText(p.silver), { color: 0xe8e8f0, stroke: 0x000000 }));
-    this.layer.add(this.add.image(310, y + 41, uiIconTex(this, 'ingot')).setOrigin(0));
-    this.layer.add(text(this, 320, y + 39, moneyText(p.gold), { color: UI.yellow, stroke: 0x000000 }));
+    this.layer.add(this.add.image(W - 102, y + 41, uiIconTex(this, 'coin')).setOrigin(0));
+    this.layer.add(text(this, W - 92, y + 39, moneyText(p.silver), { color: 0xe8e8f0, stroke: 0x000000 }));
+    this.layer.add(this.add.image(W - 50, y + 41, uiIconTex(this, 'ingot')).setOrigin(0));
+    this.layer.add(text(this, W - 40, y + 39, moneyText(p.gold), { color: UI.yellow, stroke: 0x000000 }));
   }
 
   // ===== 底部导航 =====
@@ -818,7 +888,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
   private groupCard(gi: number, gr: MonsterGroup): void {
     const s = store.save;
     const mon = monsters[gr.monster];
-    const m = new Modal(this, groupLabel(gr), { w: 300, h: 296 });
+    const m = new Modal(this, groupLabel(gr), { w: 300, h: 296, help: sweepReason(s, gr) ? '阵法' : '速战' });
     const fg = this.add.graphics();
     fg.fillStyle(0x3a2414).fillRect(m.cx, m.cy, 112, 128);
     fg.fillStyle(0x24160c).fillRect(m.cx + 2, m.cy + 2, 108, 124);
@@ -871,6 +941,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
       m.close();
       this.quick(gi, 1);
     }));
+    this.time.delayedCall(200, () => m.active && pointAt(this, m.cx + third + 6 + third / 2, m.y + by + 14, 'sweep', false, 0, m));
     m.inner.add(new Button(this, m.cx + (third + 6) * 2, by, m.cw - (third + 6) * 2, 28, `连战${balance.sweep.maxRun}场`, () => {
       m.close();
       this.quick(gi, balance.sweep.maxRun);
@@ -891,14 +962,59 @@ export class MainScene extends Phaser.Scene implements P.Host {
     this.refresh();
     sfx('hit');
     if (r.lost) playJingle('lose');
-    else if (s.player.level > lv) playJingle('level');
-    const lines = sweepText(r);
+    else if (s.player.level > lv) {
+      playJingle('level');
+      buzz('heavy');
+    }
     const m = new Modal(this, '速战战果', { w: 300 });
+    const big = (v: number) => (v >= 100000 ? `${(v / 10000).toFixed(1).replace(/\.0$/, '')}万` : `${v}`);
     let y = m.cy + 2;
-    for (const l of lines) {
+    // 头一行：几场几胜；输了标红
+    m.inner.add(text(this, m.cx, y, `速战${r.fights}场，赢${r.wins}场`, { color: r.lost ? C.red : C.darkRed, scale: 2 }));
+    y += 30;
+    if (r.stop) {
+      m.inner.add(text(this, m.cx, y, `${r.stop}，停下了`, { color: C.gray }));
+      y += 18;
+    }
+    // 经验、银两：和战果卷轴一样的小图标
+    if (r.exp || r.silver) {
+      const g = this.add.graphics();
+      g.fillStyle(0xa88a5c).fillRect(m.cx, y, m.cw, 26);
+      g.fillStyle(0xe8d6ae).fillRect(m.cx + 1, y + 1, m.cw - 2, 24);
+      m.inner.add(g);
+      m.inner.add(this.add.image(m.cx + 8, y + 7, uiIconTex(this, 'scroll')).setOrigin(0));
+      m.inner.add(text(this, m.cx + 26, y + 6, `经验+${big(r.exp)}`, { color: 0x8a5a10 }));
+      const sv = big(r.silver);
+      m.inner.add(text(this, m.cx + m.cw - 8, y + 6, sv, { color: 0x5a5a6a, align: 'right' }));
+      m.inner.add(this.add.image(m.cx + m.cw - 22 - textWidth(sv), y + 7, uiIconTex(this, 'coin')).setOrigin(0));
+      y += 34;
+    }
+    // 缴获、吃掉的药：带物品图标，一行放不下就换行
+    const iconRow = (label: string, list: [string, number][], color: number) => {
+      if (!list.length) return;
+      m.inner.add(text(this, m.cx, y + 2, label, { color: 0x8a6a40 }));
+      let dx = m.cx + 36;
+      for (const [id, k] of list) {
+        const s2 = `${items[id]?.name ?? id}×${k}`;
+        const iw = 20 + textWidth(s2) + 10;
+        if (dx + iw > m.cx + m.cw) {
+          dx = m.cx + 36;
+          y += 20;
+        }
+        m.inner.add(this.add.image(dx, y + 8, iconTex(this, id)).setOrigin(0, 0.5));
+        m.inner.add(text(this, dx + 20, y + 2, s2, { color }));
+        dx += iw;
+      }
+      y += 24;
+    };
+    const idOf = (name: string) => Object.keys(items).find((k) => items[k].name === name) ?? name;
+    iconRow('缴获', Object.entries(r.drops).filter(([, k]) => k > 0).map(([nm, k]) => [idOf(nm), k]), 0x1a3a90);
+    iconRow('吃掉', Object.entries(r.used), 0x7a4a2a);
+    // 升级、任务这些要紧的话
+    for (const l of r.lines) {
       for (const ln of wrap(l, m.cw)) {
         if (y > m.py + m.ph - 64) break;
-        m.inner.add(text(this, m.cx, y, ln, { color: l.includes('升到') || l === lines[0] && r.lost ? C.red : C.darkBrown }));
+        m.inner.add(text(this, m.cx, y, ln, { color: l.includes('升到') ? C.red : C.darkBrown }));
         y += 16;
       }
       y += 2;

@@ -1,5 +1,6 @@
 // 生活技能的界面：采集小游戏（钓鱼先等咬钩再拉线、采矿三锤敲准裂缝、采药一铲挖准），和生活面板（四项等级、药膳、菜谱）
 import Phaser from 'phaser';
+import { pushBack } from './back';
 import { C } from '../art/palette';
 import { iconTex } from '../art/textures';
 import { PAPER, paperTex, titlePlaque, woodFrame } from '../art/chrome';
@@ -186,6 +187,7 @@ export function gatherGame(h: Host, onClose: () => void): void {
     root.destroy();
     onClose();
   };
+  root.once(Phaser.GameObjects.Events.DESTROY, pushBack(close));
 
   block.on('pointerdown', () => {
     if (phase === 'wait') return finish([0], '太心急了，鱼被吓跑了');
@@ -223,7 +225,7 @@ export function gatherGame(h: Host, onClose: () => void): void {
 export function lifePanel(h: Host): void {
   const s = store.save;
   const L = s.p5.life;
-  const m = new Modal(h, '生活');
+  const m = new Modal(h, '生活', { help: '生活' });
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
   const render = () => {

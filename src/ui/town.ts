@@ -18,7 +18,7 @@ import type { Host } from './panels';
 import { lifePanel } from './life';
 import { chooseAmount, chooseCount, done, generalsPanel, hospitalPanel, skillSchoolPanel } from './panels';
 import { arenaPanel, luckyPanel, stallPanel, treasurePanel } from './p3';
-import { Button, Modal, ScrollArea, confirm, frame, sfx, text, toast } from './widgets';
+import { Button, Modal, ScrollArea, confirm, frame, sfx, tabFade, text, toast } from './widgets';
 
 export const FACILITIES: Record<string, [string, string, (h: Host) => void]> = {
   hospital: ['医馆', '治疗、买药、药品回收', (h) => hospitalPanel(h)],
@@ -58,7 +58,10 @@ function row(h: Host, r: Rows, w: number, icon: string | null, title: string, su
 
 function tabs(h: Host, m: Modal, parent: Phaser.GameObjects.Container, names: string[], cur: number, pick: (i: number) => void, y = m.cy): void {
   const bw = Math.floor(m.cw / names.length);
-  names.forEach((n, i) => parent.add(new Button(h, m.cx + i * bw, y, bw - 2, 22, n, () => pick(i), { style: i === cur ? 'dark' : 'tan' })));
+  names.forEach((n, i) => parent.add(new Button(h, m.cx + i * bw, y, bw - 2, 22, n, () => {
+    pick(i);
+    if (i !== cur) tabFade(h, parent);
+  }, { style: i === cur ? 'dark' : 'tan' })));
 }
 
 function money(h: Host, m: Modal, parent: Phaser.GameObjects.Container, y: number): void {
@@ -112,7 +115,7 @@ let smithTab = 0;
 let smithSlot: Slot = 'weapon';
 export function smithPanel(h: Host): void {
   const s = store.save;
-  const m = new Modal(h, '铁匠铺');
+  const m = new Modal(h, '铁匠铺', { help: '装备' });
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
   const render = () => {

@@ -1,5 +1,6 @@
 // 主界面里点开的各个面板：状态/加点/物品/副将/任务/医馆/技能学校/公告/攻略/退出/此地侠客，以及 NPC 对话
 import { APP_VERSION, changelogPanel } from './changelog';
+import { buzz, canVibrate } from './haptics';
 import { PASSIVES } from '../core/passives';
 import { FACTION_NAMES, campMods, campSummary, factionOf } from '../game/camp';
 import Phaser from 'phaser';
@@ -35,7 +36,7 @@ import { fillText, showDialog } from './dialog';
 import { digTalk, generalSkillPanel, pickGeneral, recruitPanel, ringTalk, useMisc } from './fun';
 import { equipGrid, gearDetail, power, rolePanel } from './role';
 import * as X from './p3';
-import { Button, Modal, ScrollArea, bar, confirm, frame, sfx, text, textLines, toast } from './widgets';
+import { Button, Modal, ScrollArea, W, bar, bigFits, confirm, fitText, frame, setHelpOpener, sfx, tabFade, text, textLines, toast } from './widgets';
 import { SPEEDS, TRACK_IDS, TRACK_NAMES, VOLUME_NAMES, saveSettings, settings } from './settings';
 import type { TrackPick } from './settings';
 import { previewMusic } from './audio';
@@ -233,7 +234,7 @@ export function bagPanel(h: Host): void {
       area.content.add(h.add.image(6, y + 5, iconTex(h, id)).setOrigin(0).setScale(2));
       area.content.add(text(h, 36, y + 3, `${def.name}${def.quest ? '（任务）' : '（不绑定）'}`, { color: C.darkBrown }));
       const eff = [def.hp ? `气血+${def.hp}` : '', def.mp ? `精力+${def.mp}` : '', def.gem ? '去铁匠铺镶到装备上' : '', def.desc ?? ''].filter(Boolean).join(' ');
-      area.content.add(text(h, 36, y + 18, `×${s.bag[id]}  ${eff}`, { color: C.brown }));
+      area.content.add(fitText(h, 36, y + 18, `×${s.bag[id]}  ${eff}`, m.cw - 36 - (def.use || def.cat === 'drug' ? 66 : 12), { color: C.brown }, area));
       if (def.use) {
         area.content.add(new Button(h, m.cw - 58, y + 6, 48, 22, '使用', () => useMisc(h, id, render), { clip: area }));
       }
@@ -259,7 +260,7 @@ export function bagPanel(h: Host): void {
 let genTab: 'team' | 'inn' = 'team';
 export function generalsPanel(h: Host): void {
   const s = store.save;
-  const m = new Modal(h, '副将');
+  const m = new Modal(h, '副将', { help: '副将' });
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
   const render = () => {
@@ -627,8 +628,19 @@ export function messagesPanel(h: Host): void {
 }
 
 // ===== 攻略 =====
-export function helpPanel(h: Host): void {
-  const m = new Modal(h, '攻略');
+setHelpOpener((scene, topic) => helpPanel(scene as Host, topic));
+
+// 攻略分五页；topic 给了就翻到那一页、滚到那一条并标红（弹窗右上角的「？」用）
+const HELP_TABS: [string, string[]][] = [
+  ['入门', ['战斗', '速战', '招降', '招将', '中计', '中毒', '前后排', '加点', '医馆', '寻路', '存档', '设置', '安卓版']],
+  ['成长', ['技能', '装备', '宝石', '坐骑', '体力丹', '化境', '转职', '跑环', '二环三环', '训练', '宝库', '阵法']],
+  ['副将', ['副将', '名将', '羁绊', '馆驿', '婚姻结拜', '组队']],
+  ['日常', ['每天', '福利', '抢宝', '银两环', '文曲星', '娱乐场', '挖宝', '摆摊', '生活', '徽章', '教派', '擂台', '演武塔', '成就称号', '录像']],
+  ['国战', ['国战', '战功官职', '军团争霸', '诸州会武']],
+];
+let helpTab = 0;
+
+export function helpPanel(h: Host, topic?: string): void {
   const tips = [
     '【战斗】每回合先给主角下指令，再给出战副将下指令，各有60秒。点「自动」后，每个人重复上一次的招式（精力不够就普攻）。',
     '【速战】10级以后，比你低10级以上的普通怪，怪物卡上多出「速战」「连战10场」：跳过动画直接出结果，经验、银两、掉落、任务进度照算；血少于四成、打输或换了地方就停。头目、名将要亲自打，速战也不招降。',
@@ -664,7 +676,7 @@ export function helpPanel(h: Host): void {
     '【擂台】陈留、濮阳、洛阳、长安有擂台：擂台是主角排位，斗将台是副将单挑，决斗场抢江湖侠客的银两（欺负弱的涨恶人值，恶人值每打一仗消一点，也能找捕快交罚银消掉）。',
     '【训练】「功能 → 训练」挑一员不出战的副将随军操练：你每打赢一仗，他分到你这一仗经验的一半。',
     '【宝库】「功能 → 宝库」是金砖商城：将军令、大将军令、心法书、宝箱都在这里买；「武将」页能看每位英才、将才的资质和属性；「仓库」页随时存取东西，花金砖扩容。',
-    '【设置】「功能 → 设置」能调背景音乐和音效的音量、战斗动画速度（正常、1.5倍、2倍）、要不要沿用上一仗的自动战斗、暴击震屏；导出存档、云存档、回到标题也在这里。设置只记在这台设备上。',
+    '【设置】「功能 → 设置」能调背景音乐和音效的音量、各场合放哪首、画面大小（长屏手机能放大一成）、战斗动画速度（正常、1.5倍、2倍）、要不要沿用上一仗的自动战斗、暴击震屏、手机振动；导出存档、云存档、回到标题也在这里。设置只记在这台设备上。安卓 App 里按返回键先关最上面的弹窗，主界面按两次才退出。',
     '【每天】擂台、抢宝、银两环、文曲星、幸运王、送礼这些「每天几次」都按天下历的天算：你每打18仗过一天，用完了去打几仗就到明天，不用等真实的明天。',
     '【抢宝】天下历每天9时、15时各开一阵（各三仗的工夫），宝藏埋在野外，「设施 → 战场」能直接传送过去，打赢宝藏守卫就归你，每天3次。',
     '【银两环】40级以后去庐江（谯郡往下）找庐江都尉，打庐江逃兵追回军资换银两，一天3次。',
@@ -681,19 +693,48 @@ export function helpPanel(h: Host): void {
     '【诸州会武】80级以后，每个赛季的第六、七天在「国战 → 会武」和兖州、徐州的高手过招，赢了给本州加分，下个赛季按三州的名次领奖。',
     '【安卓版】安卓手机在标题页点「下载安卓版」装 App，可以离线玩；存档和网页版是分开的，用云存档互相同步。',
   ];
-  const area = new ScrollArea(h, m.cx, m.cy, m.cw, m.ph - 40, m.inner);
-  let y = 0;
-  for (const t of tips) {
-    area.content.add(text(h, 2, y, t, { wrap: m.cw - 10, lineGap: 3 }));
-    y += textLines(t, m.cw - 10, 3) + 8;
-  }
-  area.setContentHeight(y);
+  const byKey = new Map(tips.map((x) => [x.slice(1, x.indexOf('】')), x]));
+  if (topic) helpTab = Math.max(0, HELP_TABS.findIndex(([, ks]) => ks.includes(topic)));
+  const m = new Modal(h, '攻略');
+  const dyn = h.add.container(0, 0);
+  m.inner.add(dyn);
+  const render = (focus?: string) => {
+    dyn.removeAll(true);
+    const bw = Math.floor(m.cw / HELP_TABS.length);
+    HELP_TABS.forEach(([name], i) => dyn.add(new Button(h, m.cx + i * bw, m.cy, bw - 2, 22, name, () => {
+      const was = helpTab;
+      helpTab = i;
+      render();
+      if (i !== was) tabFade(h, dyn);
+    }, { style: i === helpTab ? 'dark' : 'tan' })));
+    const area = new ScrollArea(h, m.cx, m.cy + 30, m.cw, m.py + m.ph - 16 - m.cy - 30, dyn);
+    let y = 0;
+    let at = 0;
+    // 分页里列出的在前；没归到哪页的（以后新加的）放到「日常」最后，不会丢
+    const listed = new Set(HELP_TABS.flatMap(([, ks]) => ks));
+    const keys = [...HELP_TABS[helpTab][1], ...(HELP_TABS[helpTab][0] === '日常' ? [...byKey.keys()].filter((k) => !listed.has(k)) : [])];
+    for (const k of keys) {
+      const tx = byKey.get(k);
+      if (!tx) continue;
+      if (k === focus) {
+        at = y;
+        const g = h.add.graphics();
+        g.fillStyle(0xe8c890, 0.6).fillRect(0, y - 3, m.cw - 6, textLines(tx, m.cw - 10, 3) + 6);
+        area.content.add(g);
+      }
+      area.content.add(text(h, 2, y, tx, { wrap: m.cw - 10, lineGap: 3, color: k === focus ? C.darkRed : undefined }));
+      y += textLines(tx, m.cw - 10, 3) + 8;
+    }
+    area.setContentHeight(y);
+    if (focus) area.setScroll(Math.max(0, at - 6));
+  };
+  render(topic);
 }
 
 // ===== 退出（存档管理） =====
 // 设置：声音、战斗、存档（原来的「退出」也并在这里）
 export function settingsPanel(h: Host): void {
-  const m = new Modal(h, '设置', { h: 450, w: 300 });
+  const m = new Modal(h, '设置', { h: 510, w: 300 });
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
   const render = () => {
@@ -723,11 +764,24 @@ export function settingsPanel(h: Host): void {
     dyn.add(text(h, m.cx, y + 5, '选曲', { color: C.darkBrown }));
     dyn.add(new Button(h, m.cx + 70, y, m.cw - 70, 22, changed ? `各场合放哪首（改了${changed}处）` : '各场合放哪首', () => musicPanel(h, render)));
     y += 30;
+    // 屏幕不够长（16:9 那种）放大不了，不给这一项
+    if (bigFits() || W < 360) pick('画面大小', ['标准', '放大'], W < 360 ? 1 : 0, (i) => {
+      if ((i === 1) === (W < 360)) return;
+      confirm(h, i === 1 ? '画面放大一成（字、按钮、人物都大一点），要重新打开一次页面。' : '换回标准大小，要重新打开一次页面。', () => {
+        saveSettings({ big: i === 1 });
+        store.flush();
+        location.reload();
+      }, '重新打开');
+    });
     y += 6;
     head('战斗');
     pick('动画速度', SPEEDS.map((v) => (v === 1 ? '正常' : `${v}倍`)), SPEEDS.indexOf(st.speed), (i) => saveSettings({ speed: SPEEDS[i] }));
     pick('自动战斗', ['每仗手动', '沿用上一仗'], st.keepAuto ? 1 : 0, (i) => saveSettings({ keepAuto: i === 1 }));
     pick('暴击震屏', ['开', '关'], st.shake ? 0 : 1, (i) => saveSettings({ shake: i === 0 }));
+    if (canVibrate()) pick('手机振动', ['开', '关'], st.vibrate ? 0 : 1, (i) => {
+      saveSettings({ vibrate: i === 0 });
+      buzz('medium');
+    });
     y += 6;
     head('存档');
     const half = Math.floor((m.cw - 6) / 2);

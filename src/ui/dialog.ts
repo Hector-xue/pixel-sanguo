@@ -1,6 +1,7 @@
 // 剧情对话：场景压暗当背景，说话人的半身立绘站在对话框上（NPC 在左、主角在右），
 // 名字写在朱漆题签上，文字逐字打出；点一下补全，再点一下翻页；最后一句的选项竖排在右上方。
 import { heroVariant } from '../game/state';
+import { pushBack } from './back';
 import Phaser from 'phaser';
 import { bustTex, heroLookKey } from '../art/textures';
 import { BUST_W } from '../art/bust';
@@ -45,6 +46,8 @@ export function showDialog(scene: Phaser.Scene, lines: DialogLine[], options: Di
   if (!lines.length) lines = [{ who: '', text: '……' }];
   let i = 0;
   const root = scene.add.container(0, 0).setDepth(500);
+  // 返回键：对话开着时不往下漏（不跳过剧情，免得错过选项）
+  root.once(Phaser.GameObjects.Events.DESTROY, pushBack(() => undefined));
   const block = scene.add.zone(0, 0, W, H).setOrigin(0).setInteractive();
   const dim = scene.add.graphics();
   // 上面轻压暗，越往下越暗，场景还看得见

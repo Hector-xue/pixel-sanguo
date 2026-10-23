@@ -21,6 +21,10 @@ export interface Settings {
   lastAuto: boolean;
   // 暴击、受重击时镜头抖一下
   shake: boolean;
+  // 手机振动（暴击、升级、招降成功、名将登场）。老玩家默认关，新建角色时打开
+  vibrate: boolean;
+  // 画面放大：逻辑宽度从 360 改成 320，所有东西放大约一成（改了要重开页面）
+  big: boolean;
   tracks: Partial<Record<TrackId, TrackPick>>;
 }
 
@@ -30,7 +34,7 @@ export const VOLUME_GAIN = [0, 0.35, 0.7, 1];
 export const SPEEDS = [1, 1.5, 2];
 
 // 音效默认和以前一样是开着的；背景音乐是新加的，默认放得小一点
-const DEFAULTS: Settings = { music: 1, sfx: 2, speed: 1, keepAuto: false, lastAuto: false, shake: true, tracks: {} };
+const DEFAULTS: Settings = { music: 1, sfx: 2, speed: 1, keepAuto: false, lastAuto: false, shake: true, vibrate: false, big: false, tracks: {} };
 
 let cur: Settings | null = null;
 
@@ -60,6 +64,15 @@ export function settings(): Settings {
 export function trackFor(scene: TrackId): TrackId | null {
   const v = settings().tracks[scene] ?? scene;
   return v === 'off' ? null : v;
+}
+
+// 这台设备上有没有自己选过振动（没选过的新角色才替他打开）
+export function hasVibrateChoice(): boolean {
+  try {
+    return 'vibrate' in (JSON.parse(localStorage.getItem(KEY) ?? '{}') ?? {});
+  } catch {
+    return true;
+  }
 }
 
 const listeners: (() => void)[] = [];

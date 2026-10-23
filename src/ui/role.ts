@@ -20,6 +20,7 @@ import type { Host } from './panels';
 import { allocatePanel, done, kv, section } from './panels';
 import { achvPanel, titlePanel } from './p3';
 import { Button, Modal, frame, text, toast } from './widgets';
+import { fit } from './textfit';
 
 // 战力：把面板属性折算成一个数（排行、对比用）【推定】
 export function power(st: Stats): number {
@@ -196,7 +197,8 @@ export function equipGrid(h: Host, m: Modal, y: number, after: () => void, paren
     if (g) parent.add(h.add.image(x + 6, yy + 7, gearTex(h, slot, g.tier, g.cls)).setOrigin(0).setScale(3));
     parent.add(text(h, x + 50, yy + 6, g ? gearName(g) : equips.slotNames[slot], { color: g ? (g.q ? C.purple : C.darkRed) : C.gray }));
     if (g) {
-      parent.add(text(h, x + 50, yy + 21, gearLines(g).slice(0, 2).join(' '), { color: C.brown }));
+      // 格子窄（画面放大时）就只放得下一条，截断加省略号；点格子看全部
+      parent.add(text(h, x + 50, yy + 21, fit(gearLines(g).slice(0, 2).join(' '), cw - 54), { color: C.brown }));
       const gems = g.gems.length ? g.gems.map((x2) => (x2 ? '◆' : '◇')).join('') : '';
       parent.add(text(h, x + 50, yy + 35, `${g.tier}级 ${gems}`, { color: C.blue }));
     }

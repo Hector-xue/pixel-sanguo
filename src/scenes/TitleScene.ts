@@ -9,6 +9,9 @@ import type { ClassId, Gender } from '../core/types';
 import { aiName } from '../game/chatter';
 import { acceptQuest, deserialize, log, newSave } from '../game/state';
 import { SLOTS, store } from '../game/store';
+import { setSceneBack } from '../ui/back';
+import { canVibrate } from '../ui/haptics';
+import { hasVibrateChoice, saveSettings } from '../ui/settings';
 import { showDialog } from '../ui/dialog';
 import { overlayInput } from '../ui/input';
 import { cloudPanel } from '../ui/cloud';
@@ -28,6 +31,7 @@ const CLASS_TRAIT: Record<ClassId, string> = {
 
 export class TitleScene extends Phaser.Scene {
   private page: Phaser.GameObjects.Container | null = null;
+  private onHome = false;
   // 进出全屏后要按新高度重排：记住当前在哪一页，重排完回到这一页
   private current: () => void = () => this.showHome();
 
@@ -38,6 +42,12 @@ export class TitleScene extends Phaser.Scene {
   // slots：从游戏里「设置 → 换存档位」过来，直接进存档位页
   create(data?: { relayout?: boolean; slots?: boolean }): void {
     this.page = null;
+    // 返回键：存档位、建角色这些页回到首页；在首页就按两次退出
+    setSceneBack(() => {
+      if (this.onHome) return false;
+      this.showHome();
+      return true;
+    });
     setChrome('#4a8fd8');
     playMusic('title');
     titleBackdrop(this, W, H);
@@ -93,6 +103,7 @@ export class TitleScene extends Phaser.Scene {
 
 
   private newPage(): Phaser.GameObjects.Container {
+    this.onHome = false;
     this.page?.destroy();
     this.page = this.add.container(0, 0);
     return this.page;
@@ -101,6 +112,7 @@ export class TitleScene extends Phaser.Scene {
   private showHome(): void {
     this.current = () => this.showHome();
     const p = this.newPage();
+    this.onHome = true;
     // 招牌字直接立在天上，下面一条红绸带
     p.add(this.add.image(W / 2, 112, logoTex(this, '像素三国')).setScale(2));
     const rg = this.add.graphics();
@@ -170,8 +182,8 @@ export class TitleScene extends Phaser.Scene {
     const p = this.newPage();
     const top = SAFE_TOP + 10 + Math.max(0, Math.round((H - SAFE_TOP - 20 - 330) / 2));
     const g = this.add.graphics();
-    frame(g, 10, top, 340, 330, 'paper');
-    frame(g, 14, top + 4, 332, 22, 'dark');
+    frame(g, 10, top, W - 20, 330, 'paper');
+    frame(g, 14, top + 4, W - 28, 22, 'dark');
     p.add(g);
     p.add(text(this, W / 2, top + 9, '存档位', { align: 'center', color: C.paper }));
     const names = ['一', '二', '三'];
@@ -179,7 +191,7 @@ export class TitleScene extends Phaser.Scene {
       const info = store.peek(i);
       const y = top + 36 + i * 84;
       const rg = this.add.graphics();
-      frame(rg, 20, y, 320, 76, i === store.slot ? 'red' : 'tan');
+      frame(rg, 20, y, W - 40, 76, i === store.slot ? 'red' : 'tan');
       p.add(rg);
       p.add(text(this, 30, y + 8, `存档${names[i]}${i === store.slot ? '（当前）' : ''}`, { color: i === store.slot ? 0xfff0c0 : C.darkBrown }));
       if (info) {
@@ -187,11 +199,11 @@ export class TitleScene extends Phaser.Scene {
         const when = d ? `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
         p.add(text(this, 30, y + 28, `${info.name} · ${info.level}级${classes[info.classId as ClassId]?.name ?? ''}`, { color: i === store.slot ? UI.cream : C.darkRed }));
         p.add(text(this, 30, y + 48, `${locations[info.location]?.name ?? ''}${when ? ` · ${when}` : ''}`, { color: i === store.slot ? 0xe8c8a0 : C.brown }));
-        p.add(new Button(this, 214, y + 14, 56, 24, '读取', () => {
+        p.add(new Button(this, W - 146, y + 14, 56, 24, '读取', () => {
           store.useSlot(i);
           this.scene.start('Main');
         }, { style: 'red' }));
-        p.add(new Button(this, 276, y + 14, 56, 24, '删除', () => confirm(this, `删除存档${names[i]}（${info.name} ${info.level}级）？删了找不回来，建议先进游戏在「功能 → 设置」导出。`, () => {
+        p.add(new Button(this, W - 84, y + 14, 56, 24, '删除', () => confirm(this, `删除存档${names[i]}（${info.name} ${info.level}级）？删了找不回来，建议先进游戏在「功能 → 设置」导出。`, () => {
           store.removeSlot(i);
           forgetSlot(i);
           if (i === store.slot) store.useSlot(i);
@@ -199,14 +211,14 @@ export class TitleScene extends Phaser.Scene {
         }, '删除')));
       } else {
         p.add(text(this, 30, y + 34, '空', { color: i === store.slot ? UI.cream : C.gray }));
-        p.add(new Button(this, 214, y + 26, 118, 24, '在这里新建角色', () => {
+        p.add(new Button(this, W - 146, y + 26, 118, 24, '在这里新建角色', () => {
           const prev = store.slot;
           store.useSlot(i);
           this.showCreate(() => store.useSlot(prev));
         }, { style: 'red' }));
       }
     }
-    p.add(new Button(this, 120, top + 294, 120, 28, '返回', () => this.showHome()));
+    p.add(new Button(this, W / 2 - 60, top + 294, 120, 28, '返回', () => this.showHome()));
   }
 
   private importSave(): void {
@@ -237,16 +249,16 @@ export class TitleScene extends Phaser.Scene {
     const oy = top - 30;
     p.setY(oy);
     const g = this.add.graphics();
-    frame(g, 10, 30, 340, 530, 'paper');
-    frame(g, 14, 34, 332, 22, 'dark');
+    frame(g, 10, 30, W - 20, 530, 'paper');
+    frame(g, 14, 34, W - 28, 22, 'dark');
     p.add(g);
     p.add(text(this, W / 2, 39, '创建角色', { align: 'center', color: C.paper }));
     p.add(text(this, 24, 72, '名称', { color: C.brown }));
     const g2 = this.add.graphics();
-    frame(g2, 70, 66, 180, 24, 'ink');
+    frame(g2, 70, 66, W - 180, 24, 'ink');
     p.add(g2);
-    const input = overlayInput(this, 72, 68 + oy, 176, 20, aiName(rng), 6);
-    p.add(new Button(this, 258, 66, 72, 24, '随机', () => (input.value = aiName(rng))));
+    const input = overlayInput(this, 72, 68 + oy, W - 184, 20, aiName(rng), 6);
+    p.add(new Button(this, W - 102, 66, 72, 24, '随机', () => (input.value = aiName(rng))));
 
     const dyn = this.add.container(0, 0);
     p.add(dyn);
@@ -260,14 +272,16 @@ export class TitleScene extends Phaser.Scene {
         }, { style: st.gender === gd ? 'red' : 'tan' }));
       });
       dyn.add(text(this, 24, 144, '职业', { color: C.brown }));
+      // 三个职业按钮铺到右边（画面放大时窄一点）
+      const cw = Math.min(80, Math.floor((W - 102) / 3));
       CLASS_IDS.forEach((c, i) => {
-        dyn.add(new Button(this, 70 + i * 86, 138, 80, 24, classes[c].name, () => {
+        dyn.add(new Button(this, 70 + i * (cw + 6), 138, cw, 24, classes[c].name, () => {
           st.classId = c;
           render();
         }, { style: st.classId === c ? 'red' : 'tan' }));
       });
       const sk = classSkills(st.classId, st.gender).map((id) => skills[id].name).join('、');
-      dyn.add(text(this, 24, 172, `${CLASS_TRAIT[st.classId]}\n技能：${sk}`, { wrap: 310, color: C.darkBrown }));
+      dyn.add(text(this, 24, 172, `${CLASS_TRAIT[st.classId]}\n技能：${sk}`, { wrap: W - 50, color: C.darkBrown }));
       dyn.add(text(this, 24, 222, '头像', { color: C.brown }));
       const look = heroLookKey(st.classId, st.gender);
       for (let v = 0; v < 3; v++) {
@@ -282,10 +296,10 @@ export class TitleScene extends Phaser.Scene {
         }));
       }
       const pg = this.add.graphics();
-      goldFrame(pg, 88, 288, 184, 214, null);
+      goldFrame(pg, W / 2 - 92, 288, 184, 214, null);
       dyn.add(pg);
-      dyn.add(this.add.image(0, 0, sceneTex(this, 'grass', 88, 102, 0.45)).setOrigin(0).setScale(2).setPosition(92, 292));
-      const hero = this.add.image(180 - (BX - UNIT_W / 2) * 3, 292 + 196, unitTex(this, look, st.avatar, 'idle')).setOrigin(0.5, FEET_Y / UNIT_H).setScale(3);
+      dyn.add(this.add.image(0, 0, sceneTex(this, 'grass', 88, 102, 0.45)).setOrigin(0).setScale(2).setPosition(W / 2 - 88, 292));
+      const hero = this.add.image(W / 2 - (BX - UNIT_W / 2) * 3, 292 + 196, unitTex(this, look, st.avatar, 'idle')).setOrigin(0.5, FEET_Y / UNIT_H).setScale(3);
       dyn.add(hero);
       this.tweens.add({ targets: hero, y: hero.y - 4, duration: 600, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
     };
@@ -296,12 +310,14 @@ export class TitleScene extends Phaser.Scene {
       onBack?.();
       this.showHome();
     }));
-    p.add(new Button(this, 210, 516, 120, 32, '进入游戏', () => {
+    p.add(new Button(this, W - 150, 516, 120, 32, '进入游戏', () => {
       const name = input.value.trim();
       if (!name) return toast(this, '请输入名称');
       if (name.length > 6) return toast(this, '名称最多6个字');
       input.remove();
       const s = newSave({ server: '豫州', name, gender: st.gender, classId: st.classId, avatar: st.avatar, seed: randomSeed() });
+      // 新角色默认开振动（老玩家不动，免得更新后手机突然震起来；设置里能开关）
+      if (!hasVibrateChoice()) saveSettings({ vibrate: canVibrate() });
       log(s, `${name}踏上了江湖路。`);
       store.set(s);
       this.newPage();

@@ -12,8 +12,7 @@ import * as G4 from './p4';
 import type { Host } from './panels';
 import { talkTo } from './panels';
 import { battlefieldPanel, casinoPanel } from './town';
-import { fit } from './textfit';
-import { Button, Modal, ScrollArea, frame, text, toast } from './widgets';
+import { Button, Modal, ScrollArea, fitText, frame, text, toast } from './widgets';
 
 // 离得最近的、有这个设施或这位 NPC 的地方
 function nearest(from: string, ok: (id: string) => boolean): string | null {
@@ -70,7 +69,7 @@ export function dailyPanel(h: Host): void {
   const s = store.save;
   const list = dailyItems(s);
   const todo = list.filter((x) => x.todo).length;
-  const m = new Modal(h, '今日事务');
+  const m = new Modal(h, '今日事务', { help: '每天' });
   m.inner.add(text(h, m.cx, m.cy, todo ? `今天还有${todo}件事没办。${tomorrowHint(s)}。` : `今天的都办完了，${tomorrowHint(s)}。`, { wrap: m.cw, color: C.brown }));
   const top = m.cy + 24;
   const area = new ScrollArea(h, m.cx, top, m.cw, m.py + m.ph - 16 - top, m.inner);
@@ -80,7 +79,7 @@ export function dailyPanel(h: Host): void {
     frame(g, 0, y, m.cw - 6, 34, it.todo ? 'paper' : 'disabled');
     area.content.add(g);
     area.content.add(text(h, 8, y + 3, it.name, { color: it.todo ? C.darkRed : C.gray }));
-    area.content.add(text(h, 8, y + 18, fit(it.detail, m.cw - 80), { color: it.todo ? C.darkBrown : C.gray }));
+    area.content.add(fitText(h, 8, y + 18, it.detail, m.cw - 80, { color: it.todo ? C.darkBrown : C.gray }, area));
     area.content.add(new Button(h, m.cw - 62, y + 6, 52, 22, '去办', () => {
       m.close();
       open(h, it.go);

@@ -35,6 +35,24 @@ jobs:
           path: dist
           retention-days: 3
 
+  # 排版巡检：无头 Chrome 打开开发版，所有面板（连同分页）、每个地点的主界面在两种屏高下量一遍，
+  # 字出框、出按钮、叠在一起就标红。不挡发布（发布不等它），出了问题看这一步的输出改
+  layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: pip install websocket-client
+      - name: 排版巡检
+        run: |
+          npx vite --host 127.0.0.1 --port 5173 > vite.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:5173/ > /dev/null && break; sleep 1; done
+          python3 tools/layout-probe/run.py http://127.0.0.1:5173/
+
   # 安卓套壳：Capacitor 把网页包进 App（离线可玩），固定签名，新版能直接覆盖安装
   apk:
     if: github.event_name != 'pull_request'
@@ -70,6 +88,9 @@ jobs:
           rm -rf android/app/src/main/res/mipmap-anydpi-v26
           # 竖屏
           sed -i 's/<activity/<activity android:screenOrientation="portrait"/' android/app/src/main/AndroidManifest.xml
+          # 振动（暴击、升级时轻震一下，设置里能关）
+          grep -q 'android.permission.VIBRATE' android/app/src/main/AndroidManifest.xml || sed -i 's#</manifest>#    <uses-permission android:name="android.permission.VIBRATE" />\n</manifest>#' android/app/src/main/AndroidManifest.xml
+          grep -n "VIBRATE\|screenOrientation" android/app/src/main/AndroidManifest.xml
           # 版本号：versionCode 用 CI 运行序号（只增不减才能覆盖安装）
           VER=$(node -p "require('./package.json').version")
           sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"$VER.${{ github.run_number }}\"/" android/app/build.gradle

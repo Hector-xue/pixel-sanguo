@@ -1,6 +1,7 @@
 // 舆图：一整张宣纸地图，按出口方向排好的所有地点，城镇画城墙、野外画当地的小景（树、帐篷、石头……），
 // 中间墨线连着路；没去过的地方罩在云里，和去过的相邻的露个影子。拖动看全图，点一个地方看详情，「前往」自动寻路
 import Phaser from 'phaser';
+import { pushBack } from './back';
 import { locations, npcs } from '../data';
 import type { PropKind } from '../art/props';
 import { avatarTex, heroLookKey, propTex } from '../art/textures';
@@ -226,6 +227,7 @@ export function worldMap(scene: Phaser.Scene, onGo: (dest: string) => void): voi
       maskG.destroy();
     } });
   };
+  root.once(Phaser.GameObjects.Events.DESTROY, pushBack(close));
   const showInfo = (id: string) => {
     info.removeAll(true);
     const loc = locations[id];

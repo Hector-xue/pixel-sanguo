@@ -1,11 +1,18 @@
 // 像素界面小部件：全部用整数坐标的实心矩形画，保证放大后边缘干净
 import Phaser from 'phaser';
+import { settings } from './settings';
+import { pushBack } from './back';
 import { sfx } from './audio';
 import { C, css, hex } from '../art/palette';
 import { PAPER, UI, drawFace, faceText, paperTex, sealBox, titlePlaque, woodFrame } from '../art/chrome';
 import type { Face } from '../art/chrome';
 
-export const W = 360;
+// 逻辑宽度：标准 360；设置里选了「画面放大」是 320（整屏按宽度缩放，东西就大一成）。
+// 画面最矮 640：屏幕要够长（高宽比 2 以上，18:9 及更长的手机）放大才真起作用，不够长的照旧 360
+export function bigFits(): boolean {
+  return window.innerHeight / Math.max(1, window.innerWidth) >= 2;
+}
+export const W = settings().big && bigFits() ? 320 : 360;
 // 高度随手机屏幕比例伸缩（640～860，覆盖到 21:9 的长屏），多出来的给聊天区；宽度固定 360
 export function calcH(): number {
   const ratio = window.innerHeight / Math.max(1, window.innerWidth);
@@ -22,7 +29,7 @@ export function setSafeTop(v: number): void {
   SAFE_TOP = v;
 }
 export { FONT, charWidth, textWidth, wrap } from './textfit';
-import { FONT, textWidth, wrap } from './textfit';
+import { FONT, fit, textWidth, wrap } from './textfit';
 
 export type FrameStyle = 'paper' | 'tan' | 'dark' | 'red' | 'pressed' | 'disabled' | 'ink' | 'blue' | 'magenta' | 'orange' | 'steel' | 'row';
 
@@ -120,6 +127,27 @@ export function text(scene: Phaser.Scene, x: number, y: number, s: string, o: Te
 
 export function textLines(s: string, max: number, gap = 3): number {
   return wrap(s, max).length * (12 + gap);
+}
+
+// 一行放不下就截断加省略号；截过的点一下弹出整句（clip：在滚动列表里时，拖动不算点）
+export function fitText(scene: Phaser.Scene, x: number, y: number, s: string, maxW: number, o: TextOpts = {}, clip?: Clip): Phaser.GameObjects.Text {
+  const short = fit(s, maxW);
+  const t = text(scene, x, y, short, o);
+  if (short !== s) {
+    t.setInteractive({ useHandCursor: true });
+    t.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (clip && (!clip.contains(p.x, p.y) || clip.dragging())) return;
+      toast(scene, s, 2800);
+    });
+  }
+  return t;
+}
+
+// 换分页：新的一页从淡到实浮出来（120ms），不是整块一下子换掉
+export function tabFade(scene: Phaser.Scene, c: Phaser.GameObjects.Container): void {
+  scene.tweens.killTweensOf(c);
+  c.setAlpha(0.2);
+  scene.tweens.add({ targets: c, alpha: 1, duration: 120, ease: 'Quad.easeOut' });
 }
 
 export interface Clip {
@@ -248,12 +276,23 @@ export class ScrollArea implements Clip {
   private dragStart: { y: number; scroll: number } | null = null;
   private moved = false;
   private handlers: [string, Function][] = [];
+  // 外面那层（弹窗）往下挪了多少：遮罩和点按判断跟着挪（弹窗按内容缩短后会居中下移）
+  private offY = 0;
 
   constructor(private scene: Phaser.Scene, public x: number, public y: number, public w: number, public h: number, parent?: Phaser.GameObjects.Container) {
     this.content = scene.add.container(x, y);
     this.maskG = scene.make.graphics({}, false);
     this.maskG.fillStyle(0xffffff).fillRect(x, y, w, h);
     this.content.setMask(this.maskG.createGeometryMask());
+    (this.content as unknown as { __area: ScrollArea }).__area = this;
+    const follow = () => {
+      const p = this.content.parentContainer;
+      const ty = p ? Math.round(p.getWorldTransformMatrix().ty) : 0;
+      this.offY = ty;
+      this.maskG.y = ty;
+    };
+    scene.events.on('postupdate', follow);
+    this.handlers.push(['__postupdate', follow]);
     this.bar = scene.add.graphics();
     if (parent) parent.add([this.content, this.bar]);
     const on = (ev: string, fn: Function) => {
@@ -285,7 +324,13 @@ export class ScrollArea implements Clip {
   }
 
   private containsRaw(px: number, py: number): boolean {
-    return px >= this.x && px < this.x + this.w && py >= this.y && py < this.y + this.h;
+    const y = this.y + this.offY;
+    return px >= this.x && px < this.x + this.w && py >= y && py < y + this.h;
+  }
+
+  // 内容实际占到哪儿（弹窗按内容定高用）：内容比可视区短就到内容底
+  get usedBottom(): number {
+    return this.y + Math.min(this.h, this.contentH);
   }
 
   contains(px: number, py: number): boolean {
@@ -324,7 +369,10 @@ export class ScrollArea implements Clip {
   }
 
   private dispose(): void {
-    for (const [ev, fn] of this.handlers) this.scene.input.off(ev, fn as never);
+    for (const [ev, fn] of this.handlers) {
+      if (ev === '__postupdate') this.scene.events.off('postupdate', fn as never);
+      else this.scene.input.off(ev, fn as never);
+    }
     this.handlers = [];
     this.maskG.destroy();
   }
@@ -352,7 +400,7 @@ export class Modal extends Phaser.GameObjects.Container {
   private fitted = false;
   lift = 6;
 
-  constructor(scene: Phaser.Scene, title: string, opts: { x?: number; y?: number; w?: number; h?: number; close?: string | null; onClose?: () => void; dim?: boolean } = {}) {
+  constructor(scene: Phaser.Scene, title: string, opts: { x?: number; y?: number; w?: number; h?: number; close?: string | null; onClose?: () => void; dim?: boolean; help?: string } = {}) {
     super(scene, 0, 0);
     this.pw = opts.w ?? W - 16;
     // 默认高度：顶上让开刘海、摄像头那条，最高按普通手机的样子来（长屏手机上不拉得老长，内容少的空一大截）
@@ -414,6 +462,26 @@ export class Modal extends Phaser.GameObjects.Container {
         this.add([cg, z]);
       }
     }
+    // 左上角「？」：打开攻略里讲这个的那一条
+    if (opts.help && helpOpener) {
+      const topic = opts.help;
+      const hx = this.px + 8;
+      const hy = this.py + 4;
+      const hg = scene.add.graphics();
+      sealBox(hg, hx, hy, 18, false);
+      const hz = scene.add.zone(hx - 4, hy - 4, 28, 26).setOrigin(0).setInteractive({ useHandCursor: true });
+      hz.on('pointerup', () => {
+        sfx('click');
+        helpOpener?.(scene, topic);
+      });
+      this.add([hg, text(scene, hx + 9, hy + 3, '?', { align: 'center', color: 0xfff0c0 }), hz]);
+    }
+    // 返回键：有关闭钮的弹窗就关掉（没有的要在里面选，返回键不动它，也不让它漏到底下）
+    const offBack = pushBack(opts.close !== null ? () => {
+      this.close();
+      opts.onClose?.();
+    } : () => undefined);
+    this.once(Phaser.GameObjects.Events.DESTROY, offBack);
     this.setDepth(100 + modalDepth++);
     scene.add.existing(this);
     // 淡入 + 轻轻上浮
@@ -435,7 +503,7 @@ export class Modal extends Phaser.GameObjects.Container {
     let sum = 0;
     const each = (o: Phaser.GameObjects.GameObject) => {
       n++;
-      sum += Math.round((o as unknown as { y: number }).y ?? 0);
+      sum += Math.round((o as unknown as { y: number }).y ?? 0) + ((o as unknown as { __area?: ScrollArea }).__area?.usedBottom ?? 0);
       const list = (o as Phaser.GameObjects.Container).list;
       if (list) list.forEach(each);
     };
@@ -448,7 +516,13 @@ export class Modal extends Phaser.GameObjects.Container {
     const measure = (o: Phaser.GameObjects.GameObject) => {
       const any = o as unknown as { visible?: boolean; mask?: unknown; list?: Phaser.GameObjects.GameObject[]; commandBuffer?: number[]; getBounds?: () => Phaser.Geom.Rectangle; type: string };
       if (any.visible === false) return;
-      if (any.mask) masked = true;
+      if (any.mask) {
+        // 滚动列表：内容少就量到内容底，满了就铺满
+        const area = (o as unknown as { __area?: ScrollArea }).__area;
+        if (area && area.usedBottom < area.y + area.h) bottom = Math.max(bottom, area.usedBottom);
+        else masked = true;
+        return;
+      }
       if (any.type === 'Graphics' && any.commandBuffer) {
         const m = (o as Phaser.GameObjects.Graphics).getWorldTransformMatrix();
         const yb = graphicsBottom(any.commandBuffer);
@@ -492,6 +566,11 @@ export class Modal extends Phaser.GameObjects.Container {
   }
 }
 let modalDepth = 0;
+// 攻略面板在 panels.ts（它又引用这里），由它开机时登记进来
+let helpOpener: ((scene: Phaser.Scene, topic: string) => void) | null = null;
+export function setHelpOpener(fn: (scene: Phaser.Scene, topic: string) => void): void {
+  helpOpener = fn;
+}
 
 // 一个 Graphics 画到的最下沿（读它的绘图指令：矩形、线、弧、三角）；什么都没画返回 -Infinity
 const ARGS: Record<number, number> = { 0: 7, 1: 0, 2: 0, 3: 4, 4: 2, 5: 2, 6: 3, 7: 2, 8: 0, 9: 0, 10: 6, 11: 6, 14: 0, 15: 0, 16: 2, 17: 2, 18: 1, 21: 8, 22: 6 };
@@ -510,13 +589,19 @@ function graphicsBottom(buf: number[]): number {
   return y;
 }
 
-let lastToast: Phaser.GameObjects.Container | null = null;
+// 提示条：几条接连出来时往下摞（最多三条，最老的先收），不再把上一条直接顶掉；一模一样的不重复出
+let toasts: { c: Phaser.GameObjects.Container; msg: string; h: number }[] = [];
 export function toast(scene: Phaser.Scene, msg: string, ms = 1600): void {
-  if (lastToast?.active) lastToast.destroy();
+  toasts = toasts.filter((x) => x.c.active && x.c.scene === scene);
+  const same = toasts.find((x) => x.msg === msg);
+  if (same) same.c.destroy();
+  toasts = toasts.filter((x) => x.c.active);
+  while (toasts.length >= 3) toasts.shift()!.c.destroy();
   const lines = wrap(msg, 240);
   const w = Math.min(268, Math.max(...lines.map(textWidth)) + 28);
   const h = lines.length * 15 + 14;
-  const c = scene.add.container(Math.round((W - w) / 2), Math.round(H * 0.3)).setDepth(1000);
+  const y0 = Math.round(H * 0.3) + toasts.reduce((a, x) => a + x.h + 4, 0);
+  const c = scene.add.container(Math.round((W - w) / 2), y0).setDepth(1000);
   const g = scene.add.graphics();
   // 墨色底，上下两道金线，两端各一个小菱形
   g.fillStyle(0x000000, 0.35).fillRect(2, 3, w, h);
@@ -524,10 +609,63 @@ export function toast(scene: Phaser.Scene, msg: string, ms = 1600): void {
   g.fillStyle(UI.gold).fillRect(6, 2, w - 12, 1).fillRect(6, h - 3, w - 12, 1);
   for (const x of [3, w - 4]) g.fillStyle(UI.goldHi).fillRect(x, 1, 1, 3).fillRect(x - 1, 2, 3, 1).fillRect(x, h - 4, 1, 3).fillRect(x - 1, h - 3, 3, 1);
   c.add([g, text(scene, w / 2, 7, lines.join('\n'), { align: 'center', color: 0xfbefd0 })]);
-  lastToast = c;
+  toasts.push({ c, msg, h });
   c.setAlpha(0).setY(c.y + 6);
   scene.tweens.add({ targets: c, alpha: 1, y: c.y - 6, duration: 140, ease: 'Quad.easeOut' });
   scene.tweens.add({ targets: c, alpha: 0, delay: ms, duration: 300, onComplete: () => c.destroy() });
+}
+
+// 成就横幅：从顶上滑下来一条，一次一条按顺序播（一下子达成好几个也不挤成一大块、不挡面板中间）
+const bannerQ: string[] = [];
+let bannerOn = false;
+export function achvBanner(scene: Phaser.Scene, lines: string[]): void {
+  bannerQ.push(...lines);
+  if (!bannerOn) nextBanner(scene);
+}
+
+function nextBanner(scene: Phaser.Scene): void {
+  if (!scene.sys.isActive()) {
+    bannerOn = false;
+    return;
+  }
+  const msg = bannerQ.shift();
+  if (!msg) {
+    bannerOn = false;
+    return;
+  }
+  bannerOn = true;
+  sfx('level');
+  const w = W - 32;
+  const lines = wrap(msg, w - 56);
+  const h = Math.max(34, lines.length * 15 + 12);
+  const y = SAFE_TOP + 4;
+  const c = scene.add.container(16, -h - 4).setDepth(1001);
+  const g = scene.add.graphics();
+  g.fillStyle(0x000000, 0.4).fillRect(2, 3, w, h);
+  g.fillStyle(0x2a0a04, 0.95).fillRect(0, 0, w, h);
+  g.fillStyle(UI.gold).fillRect(0, 0, w, 1).fillRect(0, h - 1, w, 1).fillRect(0, 0, 1, h).fillRect(w - 1, 0, 1, h);
+  sealBox(g, 6, Math.round(h / 2) - 12, 24);
+  c.add([g, text(scene, 18, Math.round(h / 2) - 7, '成', { align: 'center', color: 0xfff0c0 }), text(scene, 38, 6, lines.join('\n'), { color: 0xffe9a8, lineGap: 3 })]);
+  c.add(scene.add.zone(0, 0, w, h).setOrigin(0).setInteractive().on('pointerup', () => done()));
+  let gone = false;
+  const done = () => {
+    if (gone || !c.active) return;
+    gone = true;
+    scene.tweens.add({ targets: c, y: -h - 4, duration: 200, ease: 'Quad.easeIn', onComplete: () => {
+      c.destroy();
+      nextBanner(scene);
+    } });
+  };
+  scene.tweens.add({ targets: c, y, duration: 220, ease: 'Quad.easeOut' });
+  scene.time.delayedCall(2600, done);
+  // 场景切走了（进了战斗）：这条算播过，剩下的等回到主界面接着播
+  c.once(Phaser.GameObjects.Events.DESTROY, () => {
+    if (!gone) bannerOn = false;
+  });
+}
+
+export function resumeBanner(scene: Phaser.Scene): void {
+  if (!bannerOn && bannerQ.length) nextBanner(scene);
 }
 
 export function confirm(scene: Phaser.Scene, msg: string, onYes: () => void, yes = '确定', no = '取消'): Modal {
