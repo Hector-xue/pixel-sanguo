@@ -1,5 +1,6 @@
 // 福利（江湖行记、战备补给、节日）、招贤、跑环、挖宝的对话，以及杂物的使用（宝箱、心法书、技能书……）
 import { C } from '../art/palette';
+import { fit } from './textfit';
 import { avatarTex, iconTex } from '../art/textures';
 import { classes, items, skills, systems } from '../data';
 import type { Reward } from '../data';
@@ -278,7 +279,7 @@ export function generalSkillPanel(h: Host, uid: string): void {
       frame(bg, 0, y, m.cw - 6, 36, r.level ? 'paper' : 'tan');
       area.content.add(bg);
       area.content.add(text(h, 8, y + 3, `${def.name}（${classes[r.cls].name}）`, { color: r.cls === g.classId ? C.darkRed : C.darkBrown }));
-      area.content.add(text(h, 8, y + 19, r.level ? `${skillLevelText(r.level)} 熟练度${r.prof}` : r.reason || (r.changesClass ? `学了变成${classes[r.cls].name}` : def.desc.slice(0, 14)), { color: r.action ? C.brown : C.gray }));
+      area.content.add(text(h, 8, y + 19, r.level ? `${skillLevelText(r.level)} 熟练度${r.prof}` : r.reason || (r.changesClass ? `学了变成${classes[r.cls].name}` : fit(def.desc, 200)), { color: r.action ? C.brown : C.gray }));
       if (r.action) area.content.add(new Button(h, m.cw - 62, y + 7, 52, 22, r.action === 'learn' ? '学习' : '升级', () => {
         const run = () => {
           const msg = r.action === 'learn' ? generalLearn(s, uid, r.id) : generalUpgrade(s, uid, r.id);

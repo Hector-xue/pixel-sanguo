@@ -44,3 +44,26 @@ describe('本机设置', () => {
     expect(st.shake).toBe(true);
   });
 });
+
+describe('折行', () => {
+  it('每行都不超宽、标点不打头、开括号不收尾，拼回去和原文一样', async () => {
+    const { wrap, textWidth } = await import('../src/ui/textfit');
+    const samples = [
+      '每天三阵，你赢得越多本教派越可能拿下这一轮（赢3阵约95%）。结果第二天揭晓。',
+      '「战」：每场战斗带它上场；其余随行副将在战斗中用「招将」换上来。',
+      '【国战】60级以后「功能 → 国战」投奔魏、蜀、吴其中一国。AI 跟着补兵、打邻城；七天一个赛季。',
+      '一路上做到的几件事能领奖了：「功能 → 福利 → 江湖行记」。一共七件，第七件送大乔。',
+    ];
+    for (const max of [120, 200, 280, 328]) {
+      for (const s of samples) {
+        const lines = wrap(s, max);
+        expect(lines.join('')).toBe(s);
+        lines.forEach((l, i) => {
+          expect(textWidth(l), `${max}「${l}」`).toBeLessThanOrEqual(max);
+          if (i > 0) expect('，。！？、；：）」』%'.includes(l[0]), `行首「${l}」`).toBe(false);
+          if (i < lines.length - 1) expect('（「『【'.includes(l[l.length - 1]), `行尾「${l}」`).toBe(false);
+        });
+      }
+    }
+  });
+});

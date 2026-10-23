@@ -163,8 +163,14 @@ export function smithPanel(h: Host): void {
           render();
         }, { disabled: have < c.n || s.player.silver < c.silver });
       }
-      for (const id of ['tiekuang', 'jingtie', 'jinggang', 'xuantie']) r.area.content.add(text(h, 4, r.y + 4 + ['tiekuang', 'jingtie', 'jinggang', 'xuantie'].indexOf(id) * 16, `${items[id].name}：${bagCount(s, id)}块　${items[id].desc}`, { color: C.gray }));
-      r.area.setContentHeight(r.y + 70);
+      // 四种矿各一段说明，长的自己折行
+      let oy = r.y + 4;
+      for (const id of ['tiekuang', 'jingtie', 'jinggang', 'xuantie']) {
+        const t = text(h, 4, oy, `${items[id].name}：${bagCount(s, id)}块　${items[id].desc}`, { color: C.gray, wrap: r.area.w - 14 });
+        r.area.content.add(t);
+        oy += t.height + 2;
+      }
+      r.area.setContentHeight(oy + 6);
     } else {
       gemTab(h, m, dyn, render);
     }

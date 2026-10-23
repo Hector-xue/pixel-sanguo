@@ -1,5 +1,6 @@
 // P3 的界面：擂台/斗将台/决斗场、教派、训练、宝库、转职、排行榜、成就称号、银两环、组队、婚姻结拜、文曲星、幸运王、摆摊、抢宝、节日、战斗录像
 import Phaser from 'phaser';
+import { fit } from './textfit';
 import { C } from '../art/palette';
 import { avatarTex, heroLookKey, iconTex } from '../art/textures';
 import { CLASS_IDS, balance, classSkills, classes, items, locations, recruits, skills, systems } from '../data';
@@ -288,7 +289,7 @@ export function vaultPanel(h: Host, tab?: number): void {
       const r = rows(h, m, dyn, m.cy + 52);
       for (const g of systems.shop.goods) {
         const it = items[g.item];
-        row(h, r, iconTex(h, g.item), `${it.name}　${g.gold}金砖`, (it.desc ?? '').slice(0, 17), '购买', () => chooseCount(h, `购买${it.name}（${g.gold}金砖）`, Math.floor(s.player.gold / g.gold), (n) => act(() => shopBuy(s, g.item, n))), { disabled: s.player.gold < g.gold, scale: 2 });
+        row(h, r, iconTex(h, g.item), `${it.name}　${g.gold}金砖`, fit(it.desc ?? '', 210), '购买', () => chooseCount(h, `购买${it.name}（${g.gold}金砖）`, Math.floor(s.player.gold / g.gold), (n) => act(() => shopBuy(s, g.item, n))), { disabled: s.player.gold < g.gold, scale: 2 });
       }
       r.area.setContentHeight(r.y);
     } else if (vaultTab === 1) {

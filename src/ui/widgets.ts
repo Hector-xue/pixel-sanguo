@@ -21,7 +21,8 @@ export let SAFE_TOP = 0;
 export function setSafeTop(v: number): void {
   SAFE_TOP = v;
 }
-export const FONT = 'FusionPixel';
+export { FONT, charWidth, textWidth, wrap } from './textfit';
+import { FONT, textWidth, wrap } from './textfit';
 
 export type FrameStyle = 'paper' | 'tan' | 'dark' | 'red' | 'pressed' | 'disabled' | 'ink' | 'blue' | 'magenta' | 'orange' | 'steel' | 'row';
 
@@ -86,38 +87,6 @@ export function goldFrame(g: Phaser.GameObjects.Graphics, x: number, y: number, 
 
 export function rect(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, color: number): void {
   g.fillStyle(color > 31 ? color : hex(color)).fillRect(x, y, w, h);
-}
-
-// 等宽点阵字：中文 12 像素，ASCII 6 像素
-export function charWidth(ch: string): number {
-  return ch.charCodeAt(0) < 0x2e80 && !/[—‘-”…·]/.test(ch) ? 6 : 12;
-}
-
-export function textWidth(s: string): number {
-  let w = 0;
-  for (const ch of s) w += charWidth(ch);
-  return w;
-}
-
-export function wrap(s: string, max: number): string[] {
-  const out: string[] = [];
-  for (const para of s.split('\n')) {
-    let line = '';
-    let w = 0;
-    for (const ch of para) {
-      const cw = charWidth(ch);
-      // 标点不放行首
-      if (w + cw > max && line && !'，。！？、；：）」』”'.includes(ch)) {
-        out.push(line);
-        line = '';
-        w = 0;
-      }
-      line += ch;
-      w += cw;
-    }
-    out.push(line);
-  }
-  return out;
 }
 
 export interface TextOpts {

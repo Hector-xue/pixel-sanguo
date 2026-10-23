@@ -22,6 +22,7 @@ import { finishBattle } from '../game/encounter';
 import type { BattleSummary } from '../game/encounter';
 import { store } from '../game/store';
 import { Button, H, SAFE_TOP, W, drawBar, sfx, text, textWidth, wrap } from '../ui/widgets';
+import { fit } from '../ui/textfit';
 import { PAPER, UI, paperTex, titlePlaque, vgrad, woodFrame } from '../art/chrome';
 import { FORMS, clashText } from '../game/formation';
 import { playMusic } from '../ui/audio';
@@ -48,6 +49,13 @@ function layout(): void {
 // 站位：敌人两列（前排 x=100、后排 x=44），我方站右边；纵向按人数在地面上均匀排开
 const ROW_X: Record<0 | 1, number> = { 0: 120, 1: 50 };
 const SPREAD: Record<number, number[]> = { 1: [0.5], 2: [0.22, 0.78], 3: [0, 0.5, 1] };
+// 后排插在前排的空当里（两排名牌横着挨得近，站在同一高度会叠字）：按前排几个人选
+const BACK_SPREAD: Record<number, Record<number, number[]>> = {
+  0: SPREAD,
+  1: { 1: [0.12], 2: [0.12, 0.88], 3: [0, 0.25, 1] },
+  2: { 1: [0.5], 2: [0, 0.5], 3: [0, 0.5, 1] },
+  3: { 1: [0.25], 2: [0.25, 0.75], 3: [0.25, 0.75, 0.75] },
+};
 // 主角、出战副将、雇来的队友
 const ALLY_SLOTS: [number, number][] = [[302, 0.48], [244, 0.92], [250, 0.06]];
 const gy = (v: number) => Math.round(G_TOP + v * (G_BOT - G_TOP));
@@ -358,7 +366,9 @@ export class BattleScene extends Phaser.Scene {
   private slotOf(u: BUnit): [number, number] {
     if (u.side === 'enemy') {
       const same = this.b.units.filter((x) => x.side === 'enemy' && x.row === u.row);
-      const sp = SPREAD[Math.min(3, same.length)] ?? SPREAD[3];
+      const front = this.b.units.filter((x) => x.side === 'enemy' && x.row === 0).length;
+      const table = u.row === 1 ? BACK_SPREAD[Math.min(3, front)] : SPREAD;
+      const sp = table[Math.min(3, same.length)] ?? SPREAD[3];
       return [ROW_X[u.row], gy(sp[Math.min(same.indexOf(u), sp.length - 1)])];
     }
     const [x, v] = ALLY_SLOTS[u.kind === 'player' ? 0 : u.kind === 'mirror' ? 2 : 1];
@@ -545,14 +555,19 @@ export class BattleScene extends Phaser.Scene {
     if (u.side === 'enemy') img.setFlipX(true);
     this.panel.add(img);
     const st = controlOf(u);
-    this.panel.add(text(this, x, y + 82, u.name, { color: PAPER.ink }));
-    this.panel.add(text(this, x + 70, y + 82, `${u.level}级`, { align: 'right', color: 0x8a6a40 }));
+    // 名字占满框宽，等级挪到立绘右下角一块小牌上（四个字的名字加等级挤一行会叠在一起）
+    this.panel.add(text(this, x, y + 82, fit(u.name, 70), { color: PAPER.ink }));
+    const lv = `${u.level}级`;
+    const lw = textWidth(lv) + 6;
+    const lg = this.add.graphics();
+    lg.fillStyle(0x0a0604, 0.78).fillRect(x + 68 - lw, y + 61, lw, 15);
+    this.panel.add([lg, text(this, x + 65, y + 61, lv, { align: 'right', color: UI.cream })]);
     const bg = this.add.graphics();
     drawBar(bg, x, y + 98, 70, 7, u.hp / Math.max(1, u.maxHp), C.red, C.darkRed);
     const mg = this.add.graphics();
     drawBar(mg, x, y + 106, 70, 5, u.mp / Math.max(1, u.maxMp), C.lightBlue, C.navy);
     this.panel.add([bg, mg]);
-    if (st) this.panel.add(text(this, x + 35, y + 60, STATUS_NAMES[st], { align: 'center', color: UI.yellow, stroke: 0x000000 }));
+    if (st) this.panel.add(text(this, x + 35, y + 44, STATUS_NAMES[st], { align: 'center', color: UI.yellow, stroke: 0x000000 }));
   }
 
   // 指令钮：上面小图标，下面两个字
@@ -713,7 +728,8 @@ export class BattleScene extends Phaser.Scene {
       c.add(text(this, tx, ry + 3, r.label, { color: ink }));
       if (r.sub) c.add(text(this, tx + textWidth(r.label) + 6, ry + 3, r.sub, { color: r.enabled ? 0x8a6a40 : 0xb8aa90 }));
       c.add(text(this, x + w - 20, ry + 3, r.right, { align: 'right', color: r.enabled ? 0x2c50b0 : 0xa89a80 }));
-      const d = wrap(r.desc, w - 40 - (tx - x - 18))[0] ?? '';
+      // 说明只放一行，放不下就截断加省略号
+      const d = fit(r.desc, w - 40 - (tx - x - 18));
       c.add(text(this, tx, ry + 19, d, { color: r.enabled ? 0x8a7458 : 0xb8aa90 }));
     });
     this.popup = c;
@@ -747,7 +763,7 @@ export class BattleScene extends Phaser.Scene {
       this.panel.add(text(this, 96, top + 60, `精力 ${t.mp}/${t.maxMp}`, { color: 0x2c50b0 }));
       this.panel.add(text(this, 96, top + 76, `出手顺序 第${order}`, { color: 0x8a5aa0 }));
       const tp = passiveOf(t.passive);
-      this.panel.add(text(this, 96, top + 96, tp ? `「${tp.name}」${tp.desc.length > 12 ? tp.desc.slice(0, 12) + '…' : tp.desc}` : '点场上的人换目标', { color: tp ? 0xb07800 : 0x9a8460 }));
+      this.panel.add(text(this, 96, top + 96, tp ? fit(`「${tp.name}」${tp.desc}`, W - 96 - 12) : '点场上的人换目标', { color: tp ? 0xb07800 : 0x9a8460 }));
       this.panel.add(new Button(this, W - 100, top + 22, 86, 40, '出手', () => {
         const id = this.selected!;
         this.clearSelect();
