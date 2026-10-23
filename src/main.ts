@@ -7,6 +7,7 @@ import { H, W, toast } from './ui/widgets';
 import { store } from './game/store';
 import { installBack, setBackWarn } from './ui/back';
 import { autoFullscreen, fitZoom, syncHeight } from './ui/screen';
+import { installServiceWorker } from './ui/swupdate';
 
 async function boot(): Promise<void> {
   try {
@@ -50,6 +51,7 @@ async function boot(): Promise<void> {
   (window as unknown as { __game: Phaser.Game }).__game = game;
   // 存档写不进去（存储满了）：在眼下的场景里提示
   installBack();
+  installServiceWorker(game);
   setBackWarn((msg) => {
     const sc = game.scene.getScenes(true)[0];
     if (sc) toast(sc, msg, 1800);
