@@ -3,6 +3,7 @@ import { APP_VERSION, changelogPanel } from './changelog';
 import { buzz, canVibrate } from './haptics';
 import { PASSIVES } from '../core/passives';
 import { XINFA_LEVEL, chooseXinfa, xinfaChoices, xinfaCost, xinfaReason } from '../game/growth';
+import { epilogue } from '../game/story';
 import { FACTION_NAMES, campMods, campSummary, factionOf } from '../game/camp';
 import Phaser from 'phaser';
 import { C } from '../art/palette';
@@ -982,8 +983,8 @@ export function talkTo(h: Host, npcId: string): void {
     return;
   }
   if (q && mark === '?') {
-    showDialog(h, q.finish, [], () => {
-      const r = turnInQuest(s);
+    const finish = (choice: number) => {
+      const r = turnInQuest(s, choice);
       if (r) {
         const got = [r.exp ? `经验${r.exp}` : '', r.silver ? `银两${r.silver}` : '', ...Object.entries(r.items).map(([id, n]) => `${items[id].name}×${n}`)].filter(Boolean).join('、');
         sfx(r.lines.some((l) => l.includes('升到')) ? 'level' : 'heal');
@@ -991,7 +992,12 @@ export function talkTo(h: Host, npcId: string): void {
       }
       h.refresh();
       if (npcMark(s, npcId) === '!') h.time.delayedCall(400, () => talkTo(h, npcId));
-    });
+    };
+    // 剧情抉择：说完先选，选完听回话再交任务；主线最后一段带上一路上的抉择
+    const lines = q.id === 'm103' ? [...q.finish, ...epilogue(s)] : q.finish;
+    if (q.type === 'choice' && q.choices?.length) {
+      showDialog(h, lines, q.choices.map((c, i) => ({ label: c.label, fn: () => showDialog(h, c.reply, [], () => finish(i)) })));
+    } else showDialog(h, lines, [], () => finish(0));
     return;
   }
   const n = npcs[npcId];

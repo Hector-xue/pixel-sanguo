@@ -3,6 +3,7 @@ import { LOYALTY_EVERY, decayLoyalty } from './generals';
 import { trainAfterBattle } from './training';
 import { campMods } from './camp';
 import { xinfaKey } from './growth';
+import { TAOFA_MUL, afterDuel } from './story';
 import { PASSIVES, passiveOf } from '../core/passives';
 import { feastBonus, feastTick } from './life';
 import { applyFormation, clash, enemyFormation, myFormation } from './formation';
@@ -177,7 +178,7 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
   // 切磋（擂台、斗将台、决斗场）：不掉血不掉药，打完原样；结果另算
   if (b.spar) {
     const kind = (b.tag ?? '').split(':')[0];
-    sum.lines.push(...(kind === 'tower' ? afterTower(s, b, tick) : kind === 'league' || kind === 'kuaqu' ? afterContest(s, b, tick) : afterArena(s, b, tick)));
+    sum.lines.push(...(kind === 'tower' ? afterTower(s, b, tick) : kind === 'duel' ? afterDuel(s, b) : kind === 'league' || kind === 'kuaqu' ? afterContest(s, b, tick) : afterArena(s, b, tick)));
     for (const l of sum.lines) log(s, l);
     return sum;
   }
@@ -246,7 +247,7 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
       sum.drops.push({ name: items[id].name, n: n - lost });
       if (lost) sum.lines.push(`负重已满，丢掉了${lost}个${items[id].name}`);
     }
-    sum.lines.push(...onBattleKills(s, rewards.kills));
+    sum.lines.push(...onBattleKills(s, rewards.kills, b.tag === 'taofa' ? TAOFA_MUL : 1));
     const ring = onRingKills(s, rewards.kills);
     if (ring) sum.lines.push(ring);
     const sect = onSectKills(s, rewards.kills);

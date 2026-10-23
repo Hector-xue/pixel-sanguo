@@ -1621,6 +1621,72 @@
       "chapter": "陈留篇"
     },
     {
+      "id": "m44a",
+      "title": "义兵",
+      "giver": "caocao",
+      "turnIn": "caocao",
+      "type": "choice",
+      "hint": "听曹操说说募兵的难处，替他拿个主意。",
+      "goal": "与陈留的曹操对话",
+      "accept": [
+        {
+          "who": "caocao",
+          "text": "你来得巧。陈留义兵一呼百应，可军饷只够半个月。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "caocao",
+          "text": "孝廉卫兹愿散家财助我，又怕人说他依附权贵、坏了名声。"
+        },
+        {
+          "who": "caocao",
+          "text": "你在江湖上走动，替我拿个主意：这钱，收还是不收？"
+        }
+      ],
+      "reward": {
+        "exp": 25300,
+        "silver": 1700
+      },
+      "chapter": "陈留篇",
+      "choices": [
+        {
+          "label": "劝卫兹倾囊相助",
+          "reply": [
+            {
+              "who": "caocao",
+              "text": "好！为天下散财，谁敢说他半个不字。卫公那边，我亲自去谢。"
+            },
+            {
+              "who": "caocao",
+              "text": "这口宝箱是卫公托我转交的，说给那位替他说话的义士。"
+            }
+          ],
+          "reward": {
+            "items": {
+              "gaojibaoxiang": 1
+            }
+          }
+        },
+        {
+          "label": "剿匪缴获充作军饷",
+          "reply": [
+            {
+              "who": "caocao",
+              "text": "以战养战，倒也爽快！不让卫公为难，也不让弟兄们饿着。"
+            },
+            {
+              "who": "caocao",
+              "text": "前些日子缴来的银子，先分你一份。"
+            }
+          ],
+          "reward": {
+            "silver": 4000
+          }
+        }
+      ]
+    },
+    {
       "id": "m45",
       "title": "力士",
       "giver": "caocao",
@@ -1787,6 +1853,45 @@
         "monster": "xianfenglingjun",
         "count": 1,
         "at": "xianfenglingjun"
+      }
+    },
+    {
+      "id": "m49a",
+      "title": "元让试刀",
+      "giver": "caocao",
+      "turnIn": "caocao",
+      "type": "duel",
+      "hint": "去先锋三营和夏侯惇比试一场（到了点「挑战」）。",
+      "goal": "胜过夏侯惇（先锋三营）",
+      "accept": [
+        {
+          "who": "caocao",
+          "text": "先锋领军一死，西凉兵退了三十里。元让听说是你打的，不服气。"
+        },
+        {
+          "who": "caocao",
+          "text": "他在先锋三营等你。点到为止，别伤了和气。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "caocao",
+          "text": "哈哈哈，元让输得心服口服，回来就跟我讨你去当先锋。"
+        },
+        {
+          "who": "caocao",
+          "text": "你志不在此，我知道。东边定陶也乱，你替我去看看。"
+        }
+      ],
+      "reward": {
+        "exp": 86500,
+        "silver": 2200
+      },
+      "chapter": "陈留篇",
+      "target": {
+        "monster": "gz_xiahoudun",
+        "count": 1,
+        "at": "xianfeng3"
       }
     },
     {
@@ -2155,6 +2260,72 @@
       }
     },
     {
+      "id": "m60a",
+      "title": "降卒",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "choice",
+      "hint": "渠帅手下的降卒怎么处置，回去和濮阳太守商量。",
+      "goal": "与濮阳的濮阳太守对话",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "渠帅一死，黄巾大营里剩下几千人跪了一地。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "这些人大半是活不下去的庄稼汉。杀了，后患是没了；留着，又得管饭。"
+        },
+        {
+          "who": "puyangtaishou",
+          "text": "你打下来的，你说了算。"
+        }
+      ],
+      "reward": {
+        "exp": 45400,
+        "silver": 3000
+      },
+      "chapter": "濮阳篇",
+      "choices": [
+        {
+          "label": "分田屯垦，让他们种地",
+          "reply": [
+            {
+              "who": "puyangtaishou",
+              "text": "屯田……也好。东郡荒地多的是，有了人，明年就有粮。"
+            },
+            {
+              "who": "puyangtaishou",
+              "text": "百姓听说了，凑了些东西给你，收下吧。"
+            }
+          ],
+          "reward": {
+            "items": {
+              "gaojibaoxiang": 1
+            }
+          }
+        },
+        {
+          "label": "挑精壮的编进郡兵",
+          "reply": [
+            {
+              "who": "puyangtaishou",
+              "text": "郡兵正缺人手。这些人打过仗，练一练就能用。"
+            },
+            {
+              "who": "puyangtaishou",
+              "text": "郡里拨的赏钱，你拿着。"
+            }
+          ],
+          "reward": {
+            "silver": 7000
+          }
+        }
+      ]
+    },
+    {
       "id": "m61",
       "title": "三环",
       "giver": "puyangtaishou",
@@ -2423,6 +2594,45 @@
       }
     },
     {
+      "id": "m68a",
+      "title": "虎痴",
+      "giver": "puyangtaishou",
+      "turnIn": "puyangtaishou",
+      "type": "duel",
+      "hint": "去巨野泽和许褚比一场（到了点「挑战」）。",
+      "goal": "胜过许褚（巨野泽）",
+      "accept": [
+        {
+          "who": "puyangtaishou",
+          "text": "巨野泽来了个壮汉，一手拽着牛尾巴倒走了百步，大盗见了他都绕道。"
+        },
+        {
+          "who": "puyangtaishou",
+          "text": "听说他在找个能打的人比一比。你去会会他。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "puyangtaishou",
+          "text": "许褚？原来是他。谯县的许仲康，聚了几千乡兵守着坞堡，黄巾都不敢靠近。"
+        },
+        {
+          "who": "puyangtaishou",
+          "text": "他说你是他见过最能打的人。往后若是再遇上，必是一员猛将。"
+        }
+      ],
+      "reward": {
+        "exp": 190200,
+        "silver": 4800
+      },
+      "chapter": "濮阳篇",
+      "target": {
+        "monster": "gz_xuchu",
+        "count": 1,
+        "at": "juyeze"
+      }
+    },
+    {
       "id": "m69",
       "title": "会盟",
       "giver": "puyangtaishou",
@@ -2560,6 +2770,72 @@
       }
     },
     {
+      "id": "m72a",
+      "title": "辕门",
+      "giver": "yuanshao",
+      "turnIn": "yuanshao",
+      "type": "choice",
+      "hint": "诸侯在帐中议功，回酸枣大营见袁绍。",
+      "goal": "与酸枣大营的袁绍对话",
+      "accept": [
+        {
+          "who": "yuanshao",
+          "text": "华雄的首级挂在辕门上了。诸侯们都在帐中，你也来。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yuanshao",
+          "text": "后将军袁术说，你一个无名小卒抢了诸侯的头功，该治个僭越之罪。"
+        },
+        {
+          "who": "yuanshao",
+          "text": "众人都看着你。你怎么说？"
+        }
+      ],
+      "reward": {
+        "exp": 77900,
+        "silver": 5200
+      },
+      "chapter": "洛阳篇",
+      "choices": [
+        {
+          "label": "当众据理力争",
+          "reply": [
+            {
+              "who": "yuanshao",
+              "text": "（帐中一阵骚动）……好胆量！得功者赏，何计贵贱。公路，你也少说两句。"
+            },
+            {
+              "who": "yuanshao",
+              "text": "这是盟中的赏赐，本该是你的。"
+            }
+          ],
+          "reward": {
+            "items": {
+              "dajiangjunling": 1
+            }
+          }
+        },
+        {
+          "label": "一笑了之，把功劳让给盟军",
+          "reply": [
+            {
+              "who": "yuanshao",
+              "text": "（曹操在一旁大笑）不居功的人，比能斩将的人还少见。"
+            },
+            {
+              "who": "yuanshao",
+              "text": "孟德让我把这个给你，说是他私人的心意。"
+            }
+          ],
+          "reward": {
+            "silver": 9000
+          }
+        }
+      ]
+    },
+    {
       "id": "m73",
       "title": "并州狼骑",
       "giver": "yuanshao",
@@ -2624,6 +2900,45 @@
       "target": {
         "monster": "feixiongjun",
         "count": 15,
+        "at": "hulaoguan"
+      }
+    },
+    {
+      "id": "m74a",
+      "title": "张文远",
+      "giver": "yuanshao",
+      "turnIn": "yuanshao",
+      "type": "duel",
+      "hint": "去虎牢关和张辽交手（到了点「挑战」）。",
+      "goal": "胜过张辽（虎牢关）",
+      "accept": [
+        {
+          "who": "yuanshao",
+          "text": "虎牢关下有一员骁将，单骑来回冲了三阵，盟军折了好几个校尉。"
+        },
+        {
+          "who": "yuanshao",
+          "text": "探马说是吕布帐下的张辽。不拔掉他，城楼上的吕布我们碰都碰不到。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yuanshao",
+          "text": "张辽退回城楼了。听说他回去对吕布说：「盟军里有个不要命的。」"
+        },
+        {
+          "who": "yuanshao",
+          "text": "下一个，就是吕布了。"
+        }
+      ],
+      "reward": {
+        "exp": 221200,
+        "silver": 5500
+      },
+      "chapter": "洛阳篇",
+      "target": {
+        "monster": "gz_zhangliao",
+        "count": 1,
         "at": "hulaoguan"
       }
     },
@@ -2860,6 +3175,75 @@
       }
     },
     {
+      "id": "m81a",
+      "title": "传国玉玺",
+      "giver": "wangyun",
+      "turnIn": "wangyun",
+      "type": "choice",
+      "hint": "你在洛阳宫废墟的井里捞上来一个锦囊，拿去给王允看看。",
+      "goal": "与洛阳的王允对话",
+      "accept": [
+        {
+          "who": "wangyun",
+          "text": "你在洛阳宫废墟里捞上来一个锦囊？打开我看看。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "wangyun",
+          "text": "这……这是传国玉玺！「受命于天，既寿永昌」。董卓逃得急，竟落在了井里。"
+        },
+        {
+          "who": "wangyun",
+          "text": "此物关系天下。交给盟主，还是……你自己收着？"
+        }
+      ],
+      "reward": {
+        "exp": 105000,
+        "silver": 7000
+      },
+      "chapter": "洛阳篇",
+      "choices": [
+        {
+          "label": "交给盟主袁绍",
+          "reply": [
+            {
+              "who": "wangyun",
+              "text": "也好。玉玺归了盟主，诸侯的心就还拴在汉室上。"
+            },
+            {
+              "who": "wangyun",
+              "text": "老夫代天子谢你。这些你拿去。"
+            }
+          ],
+          "reward": {
+            "items": {
+              "gaojibaoxiang": 2
+            }
+          }
+        },
+        {
+          "label": "悄悄收进行囊",
+          "reply": [
+            {
+              "who": "wangyun",
+              "text": "（王允看了你很久）……老夫什么也没看见。"
+            },
+            {
+              "who": "wangyun",
+              "text": "只是记着：怀璧其罪。拿着它的人，没有一个有好下场。"
+            }
+          ],
+          "reward": {
+            "items": {
+              "gaojibaoxiang": 1,
+              "dajiangjunling": 1
+            }
+          }
+        }
+      ]
+    },
+    {
       "id": "m82",
       "title": "函谷关",
       "giver": "wangyun",
@@ -3001,6 +3385,45 @@
       }
     },
     {
+      "id": "m85a",
+      "title": "锦马超",
+      "giver": "jingzhaoyin",
+      "turnIn": "jingzhaoyin",
+      "type": "duel",
+      "hint": "回潼关和马超交手（到了点「挑战」）。",
+      "goal": "胜过马超（潼关）",
+      "accept": [
+        {
+          "who": "jingzhaoyin",
+          "text": "潼关外来了一支西凉骑兵，打的是马字旗。领头的少年将军白袍银枪，一个人挑了我三个哨卡。"
+        },
+        {
+          "who": "jingzhaoyin",
+          "text": "他是马腾的儿子马超，不是董卓的人，可也不听朝廷的。去潼关会会他，让他知道长安还有人。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "jingzhaoyin",
+          "text": "马超收兵回西凉了。走之前留话：「长安有这样的人，我马家不来添乱。」"
+        },
+        {
+          "who": "jingzhaoyin",
+          "text": "少了一路麻烦，现在可以专心对付李傕、郭汜了。"
+        }
+      ],
+      "reward": {
+        "exp": 317500,
+        "silver": 7900
+      },
+      "chapter": "长安篇",
+      "target": {
+        "monster": "gz_machao",
+        "count": 1,
+        "at": "tongguan"
+      }
+    },
+    {
       "id": "m86",
       "title": "李傕",
       "giver": "jingzhaoyin",
@@ -3101,6 +3524,45 @@
         "count": 6,
         "at": "weishui",
         "monster": "xiliangqibing"
+      }
+    },
+    {
+      "id": "m88a",
+      "title": "毒士",
+      "giver": "jingzhaoyin",
+      "turnIn": "jingzhaoyin",
+      "type": "duel",
+      "hint": "去渭水和贾诩过招（到了点「挑战」）。",
+      "goal": "胜过贾诩（渭水）",
+      "accept": [
+        {
+          "who": "jingzhaoyin",
+          "text": "军令符上的字迹查出来了：是贾诩的手笔。李傕、郭汜敢打长安，全是他出的主意。"
+        },
+        {
+          "who": "jingzhaoyin",
+          "text": "他就在渭水边的营里。这个人一肚子计策，你小心别被他算计了。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "jingzhaoyin",
+          "text": "贾诩认输了，却笑着说「我只为保命，不为谁卖命」，转身就走了。"
+        },
+        {
+          "who": "jingzhaoyin",
+          "text": "也罢。没了他出谋划策，李傕郭汜就是两个莽夫。"
+        }
+      ],
+      "reward": {
+        "exp": 363200,
+        "silver": 9100
+      },
+      "chapter": "长安篇",
+      "target": {
+        "monster": "gz_jiaxu",
+        "count": 1,
+        "at": "weishui"
       }
     },
     {
@@ -3209,6 +3671,68 @@
         "count": 1,
         "at": "meiwu"
       }
+    },
+    {
+      "id": "m91a",
+      "title": "郿坞金银",
+      "giver": "jingzhaoyin",
+      "turnIn": "jingzhaoyin",
+      "type": "choice",
+      "hint": "郿坞抄出来的金银怎么处置，京兆尹在等你的意思。",
+      "goal": "与长安的京兆尹对话",
+      "accept": [
+        {
+          "who": "jingzhaoyin",
+          "text": "郿坞抄出来了：黄金二三万斤，白银八九万斤，锦绮堆得像山。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "jingzhaoyin",
+          "text": "这些都是董卓从百姓身上刮来的。朝廷说你是首功，怎么处置，问你的意思。"
+        }
+      ],
+      "reward": {
+        "exp": 159200,
+        "silver": 10600
+      },
+      "chapter": "长安篇",
+      "choices": [
+        {
+          "label": "开仓散给长安百姓",
+          "reply": [
+            {
+              "who": "jingzhaoyin",
+              "text": "长安城里的人，三年没吃过一顿饱饭了。今天你让他们记住了你的名字。"
+            },
+            {
+              "who": "jingzhaoyin",
+              "text": "百姓们凑了些东西，非要我转交给你。"
+            }
+          ],
+          "reward": {
+            "items": {
+              "gaojibaoxiang": 2
+            }
+          }
+        },
+        {
+          "label": "充作军资，西去汉中",
+          "reply": [
+            {
+              "who": "jingzhaoyin",
+              "text": "有了这笔钱，汉中那一路的粮草就不愁了。"
+            },
+            {
+              "who": "jingzhaoyin",
+              "text": "这是朝廷拨给你的那一份。"
+            }
+          ],
+          "reward": {
+            "silver": 20000
+          }
+        }
+      ]
     },
     {
       "id": "m92",
@@ -3348,6 +3872,45 @@
       "target": {
         "monster": "weijungongqi",
         "count": 15,
+        "at": "dingjunshan"
+      }
+    },
+    {
+      "id": "m95a",
+      "title": "老当益壮",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "duel",
+      "hint": "去定军山和黄忠比试（到了点「挑战」）。",
+      "goal": "胜过黄忠（定军山）",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "定军山上有个老将，须发都白了，还拉得开三石的弓。魏军的弓骑被他射退了好几回。"
+        },
+        {
+          "who": "yanpu",
+          "text": "他说要试试来帮汉中的人有几斤几两。去吧，别看他老。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "黄汉升说你是条汉子，还说等天下太平了，要请你喝酒。"
+        },
+        {
+          "who": "yanpu",
+          "text": "有他守着定军山，魏军一时过不来。我们专心对付五斗米道。"
+        }
+      ],
+      "reward": {
+        "exp": 470500,
+        "silver": 11800
+      },
+      "chapter": "汉中篇",
+      "target": {
+        "monster": "gz_huangzhong",
+        "count": 1,
         "at": "dingjunshan"
       }
     },
@@ -3595,6 +4158,74 @@
         "count": 1,
         "at": "tianshitan"
       }
+    },
+    {
+      "id": "m102a",
+      "title": "府库",
+      "giver": "yanpu",
+      "turnIn": "yanpu",
+      "type": "choice",
+      "hint": "张鲁封存的府库怎么处置，回汉中和阎圃商量。",
+      "goal": "与汉中的阎圃对话",
+      "accept": [
+        {
+          "who": "yanpu",
+          "text": "张鲁降了。他出城前封了府库，说「本欲归命国家，宝货仓库，国家之有」。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "yanpu",
+          "text": "府库里的东西原样都在。只是汉中百姓被五斗米道折腾了这么多年……"
+        },
+        {
+          "who": "yanpu",
+          "text": "你说，是原封不动献给朝廷，还是先拿出来救济百姓？"
+        }
+      ],
+      "reward": {
+        "exp": 230400,
+        "silver": 15400
+      },
+      "chapter": "汉中篇",
+      "choices": [
+        {
+          "label": "原封不动献给朝廷",
+          "reply": [
+            {
+              "who": "yanpu",
+              "text": "张鲁封库是为了表忠心，你不动它，是成全了他，也成全了朝廷的体面。"
+            },
+            {
+              "who": "yanpu",
+              "text": "朝廷的赏赐到了，一并给你。"
+            }
+          ],
+          "reward": {
+            "items": {
+              "dajiangjunling": 1
+            }
+          }
+        },
+        {
+          "label": "开一半府库救济百姓",
+          "reply": [
+            {
+              "who": "yanpu",
+              "text": "义舍里又有米了。汉中的人说，五斗米道之后，总算等来一个讲道理的。"
+            },
+            {
+              "who": "yanpu",
+              "text": "这是百姓托我转交的。"
+            }
+          ],
+          "reward": {
+            "items": {
+              "gaojibaoxiang": 2
+            }
+          }
+        }
+      ]
     },
     {
       "id": "m103",

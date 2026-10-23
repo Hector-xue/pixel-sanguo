@@ -9,6 +9,7 @@
 """
 import json
 import os
+import re
 
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'src', 'data')
 
@@ -256,8 +257,8 @@ NPCS = {
 
 
 # ===================== 主线 =====================
-def q(qid, title, giver, turn, typ, chapter, lv, hint, goal, accept, finish, target=None, flag=None, items=None, k=None):
-    kk = k if k is not None else {'kill': 0.5, 'collect': 0.6, 'capture': 0.5, 'talk': 0.12, 'flag': 0.25}[typ]
+def q(qid, title, giver, turn, typ, chapter, lv, hint, goal, accept, finish, target=None, flag=None, items=None, k=None, choices=None):
+    kk = k if k is not None else {'kill': 0.5, 'collect': 0.6, 'capture': 0.5, 'talk': 0.12, 'flag': 0.25, 'choice': 0.3, 'duel': 0.8}[typ]
     if typ == 'kill' and target and MONSTERS[target['monster']][7].get('boss'):
         kk = 1.0
     rew = {'exp': int(round(exp_to_next(lv) * kk / 100.0) * 100), 'silver': int(round(lv * lv * (1.2 if typ in ('kill', 'collect') else 0.6) / 100.0) * 100)}
@@ -270,7 +271,14 @@ def q(qid, title, giver, turn, typ, chapter, lv, hint, goal, accept, finish, tar
         d['target'] = target
     if flag:
         d['flag'] = flag
+    if choices:
+        # 剧情抉择：(按钮字, [(谁, 回话)...], 额外奖励)
+        d['choices'] = [{'label': lb, 'reply': [{'who': w, 'text': t} for w, t in rep], **({'reward': rw} if rw else {})} for lb, rep, rw in choices]
     return d
+
+
+def duel(gid, at):
+    return {'monster': gid, 'count': 1, 'at': at}
 
 
 def kill(m, n, at):
@@ -314,6 +322,11 @@ QUESTS = [
     q('m44', '孟德', 'chenliutaishou', 'caocao', 'talk', '陈留篇', 52, '去见陈留的曹操。', '与陈留的曹操对话',
       [('chenliutaishou', '曹操散了家财在陈留募兵，要讨董卓。他在城里。')],
       [('caocao', '我听说了，乱葬岗是你平的。'), ('caocao', '董卓的西凉先锋就扎在北边，三座营盘。帮我拔了它。')]),
+    q('m44a', '义兵', 'caocao', 'caocao', 'choice', '陈留篇', 53, '听曹操说说募兵的难处，替他拿个主意。', '与陈留的曹操对话',
+      [('caocao', '你来得巧。陈留义兵一呼百应，可军饷只够半个月。')],
+      [('caocao', '孝廉卫兹愿散家财助我，又怕人说他依附权贵、坏了名声。'), ('caocao', '你在江湖上走动，替我拿个主意：这钱，收还是不收？')],
+      choices=[('劝卫兹倾囊相助', [('caocao', '好！为天下散财，谁敢说他半个不字。卫公那边，我亲自去谢。'), ('caocao', '这口宝箱是卫公托我转交的，说给那位替他说话的义士。')], {'items': {'gaojibaoxiang': 1}}),
+               ('剿匪缴获充作军饷', [('caocao', '以战养战，倒也爽快！不让卫公为难，也不让弟兄们饿着。'), ('caocao', '前些日子缴来的银子，先分你一份。')], {'silver': 4000})]),
     q('m45', '力士', 'caocao', 'caocao', 'kill', '陈留篇', 54, '去先锋一营打败12个力士。陈留往上走。', '打败力士 ×12（先锋一营）',
       [('caocao', '先锋一营的力士力气大，脑子慢。打败十二个。')],
       [('caocao', '好！西凉兵不过如此。')], kill('lishi', 12, 'xianfeng1'), items=ore(54)),
@@ -329,6 +342,9 @@ QUESTS = [
     q('m49', '先锋领军', 'caocao', 'caocao', 'kill', '陈留篇', 59, '去先锋领军打败西凉先锋领军。先锋三营往上走。', '打败西凉先锋领军（先锋领军）',
       [('caocao', '领军身边有斧手护着，抗物理堆高点再去。')],
       [('caocao', '先锋一破，董卓就知道关东有人了。'), ('caocao', '我要去会盟诸侯。你先往东，定陶、濮阳那边也乱，你去看看。')], kill('xianfenglingjun', 1, 'xianfenglingjun'), items={'gaojibaoxiang': 1, 'dajiangjunling': 1}),
+    q('m49a', '元让试刀', 'caocao', 'caocao', 'duel', '陈留篇', 60, '去先锋三营和夏侯惇比试一场（到了点「挑战」）。', '胜过夏侯惇（先锋三营）',
+      [('caocao', '先锋领军一死，西凉兵退了三十里。元让听说是你打的，不服气。'), ('caocao', '他在先锋三营等你。点到为止，别伤了和气。')],
+      [('caocao', '哈哈哈，元让输得心服口服，回来就跟我讨你去当先锋。'), ('caocao', '你志不在此，我知道。东边定陶也乱，你替我去看看。')], duel('gz_xiahoudun', 'xianfeng3')),
     q('m50', '东去定陶', 'caocao', 'dingtaoling', 'talk', '濮阳篇', 59, '从陈留往左走，到定陶见定陶令。', '与定陶的定陶令对话',
       [('caocao', '定陶令是我的旧识，你拿我的信去。')],
       [('dingtaoling', '曹公的信我看了。'), ('dingtaoling', '南边濮阳南郊有户大族，家里的恶仆比强盗还凶。')]),
@@ -348,8 +364,8 @@ QUESTS = [
     q('m55', '凶徒', 'puyangtaishou', 'puyangtaishou', 'kill', '濮阳篇', 61, '去濮阳郊外打败12个凶徒。', '打败凶徒 ×12（濮阳郊外）',
       [('puyangtaishou', '凶徒下手狠，舍命一击打人不留余地，多备药。')],
       [('puyangtaishou', '城里新开了训练场，交银子就能挂着练，出远门前去练练。')], kill('xiongtu', 12, 'puyangjiaowai'), items={'jiuzhuan': 8}),
-    q('m56', '训练', 'puyangtaishou', 'puyangtaishou', 'flag', '濮阳篇', 61, '在「功能 → 训练」开始一次训练。', '开始一次训练',
-      [('puyangtaishou', '训练按时辰收银子，人不在也照样涨经验。')],
+    q('m56', '训练', 'puyangtaishou', 'puyangtaishou', 'flag', '濮阳篇', 61, '在「功能 → 训练」挑一员不出战的副将随军操练。', '安排一员副将随军操练',
+      [('puyangtaishou', '带兵的人，歇着的弟兄也得练。挑一个跟着你操练，你打一仗，他也长一分本事。')],
       [('puyangtaishou', '好。剩下的恶棍交给你了。')], flag='trained'),
     q('m57', '恶棍', 'puyangtaishou', 'puyangtaishou', 'kill', '濮阳篇', 62, '去濮阳郊外打败12个恶棍。', '打败恶棍 ×12（濮阳郊外）',
       [('puyangtaishou', '恶棍皮糙肉厚，耐心点打。')],
@@ -363,6 +379,11 @@ QUESTS = [
     q('m60', '渠帅', 'puyangtaishou', 'puyangtaishou', 'kill', '濮阳篇', 71, '去黄巾大营打败黄巾渠帅。', '打败黄巾渠帅（黄巾大营）',
       [('puyangtaishou', '渠帅会呼风唤雨，身边带着精兵。多带几个副将。')],
       [('puyangtaishou', '东郡平了。可黄巾的宝藏还在，听说埋在巨野泽那边。'), ('puyangtaishou', '跑环使者说三环也开了，六十级以上能接。')], kill('huangjinqushuai', 1, 'huangjindaying'), items={'gaojibaoxiang': 2, 'jiangjunling': 1}),
+    q('m60a', '降卒', 'puyangtaishou', 'puyangtaishou', 'choice', '濮阳篇', 71, '渠帅手下的降卒怎么处置，回去和濮阳太守商量。', '与濮阳的濮阳太守对话',
+      [('puyangtaishou', '渠帅一死，黄巾大营里剩下几千人跪了一地。')],
+      [('puyangtaishou', '这些人大半是活不下去的庄稼汉。杀了，后患是没了；留着，又得管饭。'), ('puyangtaishou', '你打下来的，你说了算。')],
+      choices=[('分田屯垦，让他们种地', [('puyangtaishou', '屯田……也好。东郡荒地多的是，有了人，明年就有粮。'), ('puyangtaishou', '百姓听说了，凑了些东西给你，收下吧。')], {'items': {'gaojibaoxiang': 1}}),
+               ('挑精壮的编进郡兵', [('puyangtaishou', '郡兵正缺人手。这些人打过仗，练一练就能用。'), ('puyangtaishou', '郡里拨的赏钱，你拿着。')], {'silver': 7000})]),
     q('m61', '三环', 'puyangtaishou', 'puyangtaishou', 'flag', '濮阳篇', 72, '在许昌跑环使者那里接三环，跑完第21环。', '跑完三环第21环',
       [('puyangtaishou', '巨野泽里大盗多，先去跑跑三环练练手。')],
       [('puyangtaishou', '好身手。巨野泽在濮阳右边。')], flag='ring3'),
@@ -387,6 +408,9 @@ QUESTS = [
     q('m68', '大盗首领', 'puyangtaishou', 'puyangtaishou', 'kill', '濮阳篇', 89, '去宝窟深处打败黄巾大盗首领。黄巾宝窟往下走。', '打败黄巾大盗首领（宝窟深处）',
       [('puyangtaishou', '首领会力劈华山，还有黄巾大盗护着。这是濮阳最后一仗。')],
       [('puyangtaishou', '黄巾宝藏充了军饷，濮阳总算太平。'), ('puyangtaishou', '曹公派人来，说十八路诸侯在酸枣会盟，请你过去。')], kill('dadaoshouling', 1, 'baokushenchu'), items={'gaojibaoxiang': 2, 'dajiangjunling': 1}),
+    q('m68a', '虎痴', 'puyangtaishou', 'puyangtaishou', 'duel', '濮阳篇', 89, '去巨野泽和许褚比一场（到了点「挑战」）。', '胜过许褚（巨野泽）',
+      [('puyangtaishou', '巨野泽来了个壮汉，一手拽着牛尾巴倒走了百步，大盗见了他都绕道。'), ('puyangtaishou', '听说他在找个能打的人比一比。你去会会他。')],
+      [('puyangtaishou', '许褚？原来是他。谯县的许仲康，聚了几千乡兵守着坞堡，黄巾都不敢靠近。'), ('puyangtaishou', '他说你是他见过最能打的人。往后若是再遇上，必是一员猛将。')], duel('gz_xuchu', 'juyeze')),
     q('m69', '会盟', 'puyangtaishou', 'yuanshao', 'talk', '洛阳篇', 86, '去酸枣大营见盟主袁绍。陈留往上到先锋三营，再往左。', '与酸枣大营的袁绍对话',
       [('puyangtaishou', '酸枣在先锋三营西边。')],
       [('yuanshao', '曹孟德举荐的人？'), ('yuanshao', '董卓派华雄守汜水关，已经斩了我们好几员将。')]),
@@ -400,12 +424,20 @@ QUESTS = [
     q('m72', '斩华雄', 'yuanshao', 'yuanshao', 'kill', '洛阳篇', 93, '去汜水关打败华雄。', '打败华雄（汜水关）',
       [('yuanshao', '酒还温着，等你回来喝。')],
       [('yuanshao', '酒尚温时斩华雄！诸侯都在传你的名字。'), ('yuanshao', '下一关是虎牢关，守关的是吕布。')], kill('huaxiong', 1, 'sishuiguan'), items={'gaojibaoxiang': 2}),
+    q('m72a', '辕门', 'yuanshao', 'yuanshao', 'choice', '洛阳篇', 93, '诸侯在帐中议功，回酸枣大营见袁绍。', '与酸枣大营的袁绍对话',
+      [('yuanshao', '华雄的首级挂在辕门上了。诸侯们都在帐中，你也来。')],
+      [('yuanshao', '后将军袁术说，你一个无名小卒抢了诸侯的头功，该治个僭越之罪。'), ('yuanshao', '众人都看着你。你怎么说？')],
+      choices=[('当众据理力争', [('yuanshao', '（帐中一阵骚动）……好胆量！得功者赏，何计贵贱。公路，你也少说两句。'), ('yuanshao', '这是盟中的赏赐，本该是你的。')], {'items': {'dajiangjunling': 1}}),
+               ('一笑了之，把功劳让给盟军', [('yuanshao', '（曹操在一旁大笑）不居功的人，比能斩将的人还少见。'), ('yuanshao', '孟德让我把这个给你，说是他私人的心意。')], {'silver': 9000})]),
     q('m73', '并州狼骑', 'yuanshao', 'yuanshao', 'kill', '洛阳篇', 94, '去虎牢关打败15个并州狼骑。汜水关往左走。', '打败并州狼骑 ×15（虎牢关）',
       [('yuanshao', '吕布的并州狼骑快得很，出手总在你前头。')],
       [('yuanshao', '狼骑散了，飞熊军还守着关。')], kill('bingzhoulangqi', 15, 'hulaoguan'), items=ore(94)),
     q('m74', '飞熊军', 'yuanshao', 'yuanshao', 'kill', '洛阳篇', 95, '去虎牢关打败15个飞熊军。', '打败飞熊军 ×15（虎牢关）',
       [('yuanshao', '飞熊军是董卓的亲兵，甲厚。')],
       [('yuanshao', '吕布亲自上城楼了。百级以下的人，别去送死。')], kill('feixiongjun', 15, 'hulaoguan'), items={'gaojibaoxiang': 1}),
+    q('m74a', '张文远', 'yuanshao', 'yuanshao', 'duel', '洛阳篇', 96, '去虎牢关和张辽交手（到了点「挑战」）。', '胜过张辽（虎牢关）',
+      [('yuanshao', '虎牢关下有一员骁将，单骑来回冲了三阵，盟军折了好几个校尉。'), ('yuanshao', '探马说是吕布帐下的张辽。不拔掉他，城楼上的吕布我们碰都碰不到。')],
+      [('yuanshao', '张辽退回城楼了。听说他回去对吕布说：「盟军里有个不要命的。」'), ('yuanshao', '下一个，就是吕布了。')], duel('gz_zhangliao', 'hulaoguan')),
     q('m75', '三英', 'yuanshao', 'yuanshao', 'kill', '洛阳篇', 100, '去虎牢关城楼打败吕布。虎牢关往上走。', '打败吕布（虎牢关城楼）',
       [('yuanshao', '人中吕布，马中赤兔。你要是能胜他，天下谁还敢小看你。')],
       [('yuanshao', '吕布退了！董卓烧了洛阳，挟天子去了长安。'), ('yuanshao', '洛阳城里王司徒还在，你去看看。')], kill('lvbu', 1, 'hulaochenglou'), items={'gaojibaoxiang': 2, 'dajiangjunling': 1}),
@@ -428,6 +460,11 @@ QUESTS = [
       [('wangyun', '李儒是董卓的谋主，烧洛阳就是他出的主意。')],
       [('wangyun', '李儒伏诛。董卓在长安，你往西去。函谷关、潼关都有西凉兵。')], kill('liru', 1, 'luoyanggong'), items={'gaojibaoxiang': 2}),
     # —— 长安篇 ——
+    q('m81a', '传国玉玺', 'wangyun', 'wangyun', 'choice', '洛阳篇', 108, '你在洛阳宫废墟的井里捞上来一个锦囊，拿去给王允看看。', '与洛阳的王允对话',
+      [('wangyun', '你在洛阳宫废墟里捞上来一个锦囊？打开我看看。')],
+      [('wangyun', '这……这是传国玉玺！「受命于天，既寿永昌」。董卓逃得急，竟落在了井里。'), ('wangyun', '此物关系天下。交给盟主，还是……你自己收着？')],
+      choices=[('交给盟主袁绍', [('wangyun', '也好。玉玺归了盟主，诸侯的心就还拴在汉室上。'), ('wangyun', '老夫代天子谢你。这些你拿去。')], {'items': {'gaojibaoxiang': 2}}),
+               ('悄悄收进行囊', [('wangyun', '（王允看了你很久）……老夫什么也没看见。'), ('wangyun', '只是记着：怀璧其罪。拿着它的人，没有一个有好下场。')], {'items': {'gaojibaoxiang': 1, 'dajiangjunling': 1}})]),
     q('m82', '函谷关', 'wangyun', 'wangyun', 'kill', '长安篇', 109, '去函谷关打败15个西凉守军。洛阳往左走。', '打败西凉守军 ×15（函谷关）',
       [('wangyun', '函谷关是西去长安的门户。')],
       [('wangyun', '守军退了，关上还有箭手。')], kill('xiliangshoujun', 15, 'hanguguan'), items=ore(109)),
@@ -440,6 +477,9 @@ QUESTS = [
     q('m85', '羌族巫师', 'wangyun', 'jingzhaoyin', 'kill', '长安篇', 114, '去潼关打败12个羌族巫师，然后去长安见京兆尹。', '打败羌族巫师 ×12（潼关）',
       [('wangyun', '过了潼关就是长安。京兆尹是我的人，你去找他。')],
       [('jingzhaoyin', '王司徒的信我收到了。'), ('jingzhaoyin', '城外全是李傕、郭汜的部曲。')], kill('qiangwushi', 12, 'tongguan'), items={'gaojibaoxiang': 1}),
+    q('m85a', '锦马超', 'jingzhaoyin', 'jingzhaoyin', 'duel', '长安篇', 115, '回潼关和马超交手（到了点「挑战」）。', '胜过马超（潼关）',
+      [('jingzhaoyin', '潼关外来了一支西凉骑兵，打的是马字旗。领头的少年将军白袍银枪，一个人挑了我三个哨卡。'), ('jingzhaoyin', '他是马腾的儿子马超，不是董卓的人，可也不听朝廷的。去潼关会会他，让他知道长安还有人。')],
+      [('jingzhaoyin', '马超收兵回西凉了。走之前留话：「长安有这样的人，我马家不来添乱。」'), ('jingzhaoyin', '少了一路麻烦，现在可以专心对付李傕、郭汜了。')], duel('gz_machao', 'tongguan')),
     q('m86', '李傕', 'jingzhaoyin', 'jingzhaoyin', 'kill', '长安篇', 118, '去长安郊外打败15个李傕部曲。长安往右走。', '打败李傕部曲 ×15（长安郊外）',
       [('jingzhaoyin', '李傕的兵抢了半个长安。')],
       [('jingzhaoyin', '郭汜那边也得收拾。')], kill('lijuebuqu', 15, 'changanjiaowai'), items=ore(118)),
@@ -449,6 +489,9 @@ QUESTS = [
     q('m88', '军令符', 'jingzhaoyin', 'jingzhaoyin', 'collect', '长安篇', 122, '去渭水打败西凉骑兵，夺回6块军令符。长安往上走。', '夺回军令符 ×6（渭水）',
       [('jingzhaoyin', '有了军令符，就能调开郿坞的守卫。')],
       [('jingzhaoyin', '军令符齐了。')], collect('junlingfu', 6, 'weishui', 'xiliangqibing'), items=ore(122)),
+    q('m88a', '毒士', 'jingzhaoyin', 'jingzhaoyin', 'duel', '长安篇', 123, '去渭水和贾诩过招（到了点「挑战」）。', '胜过贾诩（渭水）',
+      [('jingzhaoyin', '军令符上的字迹查出来了：是贾诩的手笔。李傕、郭汜敢打长安，全是他出的主意。'), ('jingzhaoyin', '他就在渭水边的营里。这个人一肚子计策，你小心别被他算计了。')],
+      [('jingzhaoyin', '贾诩认输了，却笑着说「我只为保命，不为谁卖命」，转身就走了。'), ('jingzhaoyin', '也罢。没了他出谋划策，李傕郭汜就是两个莽夫。')], duel('gz_jiaxu', 'weishui')),
     q('m89', '渭水', 'jingzhaoyin', 'jingzhaoyin', 'kill', '长安篇', 123, '去渭水打败15个西凉骑兵。', '打败西凉骑兵 ×15（渭水）',
       [('jingzhaoyin', '骑兵不除，郿坞随时有援兵。')],
       [('jingzhaoyin', '董卓就在郿坞，渭水往左。')], kill('xiliangqibing', 15, 'weishui'), items={'gaojibaoxiang': 1}),
@@ -459,6 +502,11 @@ QUESTS = [
       [('jingzhaoyin', '这一仗，天下人都看着。')],
       [('jingzhaoyin', '国贼伏诛！'), ('jingzhaoyin', '长安的事完了。汉中的阎圃派人来求援，说五斗米道作乱。子午谷往下就是汉中。')], kill('dongzhuo', 1, 'meiwu'), items={'gaojibaoxiang': 3, 'dajiangjunling': 1}),
     # —— 汉中篇 ——
+    q('m91a', '郿坞金银', 'jingzhaoyin', 'jingzhaoyin', 'choice', '长安篇', 133, '郿坞抄出来的金银怎么处置，京兆尹在等你的意思。', '与长安的京兆尹对话',
+      [('jingzhaoyin', '郿坞抄出来了：黄金二三万斤，白银八九万斤，锦绮堆得像山。')],
+      [('jingzhaoyin', '这些都是董卓从百姓身上刮来的。朝廷说你是首功，怎么处置，问你的意思。')],
+      choices=[('开仓散给长安百姓', [('jingzhaoyin', '长安城里的人，三年没吃过一顿饱饭了。今天你让他们记住了你的名字。'), ('jingzhaoyin', '百姓们凑了些东西，非要我转交给你。')], {'items': {'gaojibaoxiang': 2}}),
+               ('充作军资，西去汉中', [('jingzhaoyin', '有了这笔钱，汉中那一路的粮草就不愁了。'), ('jingzhaoyin', '这是朝廷拨给你的那一份。')], {'silver': 20000})]),
     q('m92', '子午谷', 'jingzhaoyin', 'yanpu', 'kill', '汉中篇', 133, '去子午谷打败15个栈道守卒，然后到汉中见阎圃。长安往下走。', '打败栈道守卒 ×15（子午谷）',
       [('jingzhaoyin', '子午谷的栈道被五斗米道的人把守着。')],
       [('yanpu', '你从子午谷过来的？那条路可不好走。'), ('yanpu', '谷里还有山魈，夜里会学人说话。')], kill('zhandaoshouzu', 15, 'ziwugu'), items=ore(133)),
@@ -471,6 +519,9 @@ QUESTS = [
     q('m95', '魏军弓骑', 'yanpu', 'yanpu', 'kill', '汉中篇', 139, '去定军山打败15个魏军弓骑。', '打败魏军弓骑 ×15（定军山）',
       [('yanpu', '弓骑来去快，躲避高。')],
       [('yanpu', '定军山清了。阳平关里是五斗米道的鬼卒。')], kill('weijungongqi', 15, 'dingjunshan'), items={'gaojibaoxiang': 1}),
+    q('m95a', '老当益壮', 'yanpu', 'yanpu', 'duel', '汉中篇', 140, '去定军山和黄忠比试（到了点「挑战」）。', '胜过黄忠（定军山）',
+      [('yanpu', '定军山上有个老将，须发都白了，还拉得开三石的弓。魏军的弓骑被他射退了好几回。'), ('yanpu', '他说要试试来帮汉中的人有几斤几两。去吧，别看他老。')],
+      [('yanpu', '黄汉升说你是条汉子，还说等天下太平了，要请你喝酒。'), ('yanpu', '有他守着定军山，魏军一时过不来。我们专心对付五斗米道。')], duel('gz_huangzhong', 'dingjunshan')),
     q('m96', '鬼卒', 'yanpu', 'yanpu', 'kill', '汉中篇', 145, '去阳平关打败15个五斗米鬼卒。汉中往右走。', '打败五斗米鬼卒 ×15（阳平关）',
       [('yanpu', '入道的人头一年叫鬼卒。张天师手下有上万。')],
       [('yanpu', '祭酒身上带着符箓，拿来我认认。')], kill('guizu', 15, 'yangpingguan'), items=ore(145)),
@@ -492,6 +543,11 @@ QUESTS = [
     q('m102', '天师', 'yanpu', 'yanpu', 'kill', '汉中篇', 160, '去天师坛打败张鲁。', '打败张鲁（天师坛）',
       [('yanpu', '张天师在汉中二十多年，五斗米道的法术都在他身上。这是最后一仗。')],
       [('yanpu', '张天师认输了，愿意散了道众。'), ('yanpu', '从新手村一路走到汉中，你已经是天下有名的人物。')], kill('zhanglu', 1, 'tianshitan'), items={'gaojibaoxiang': 3, 'dajiangjunling': 2}),
+    q('m102a', '府库', 'yanpu', 'yanpu', 'choice', '汉中篇', 160, '张鲁封存的府库怎么处置，回汉中和阎圃商量。', '与汉中的阎圃对话',
+      [('yanpu', '张鲁降了。他出城前封了府库，说「本欲归命国家，宝货仓库，国家之有」。')],
+      [('yanpu', '府库里的东西原样都在。只是汉中百姓被五斗米道折腾了这么多年……'), ('yanpu', '你说，是原封不动献给朝廷，还是先拿出来救济百姓？')],
+      choices=[('原封不动献给朝廷', [('yanpu', '张鲁封库是为了表忠心，你不动它，是成全了他，也成全了朝廷的体面。'), ('yanpu', '朝廷的赏赐到了，一并给你。')], {'items': {'dajiangjunling': 1}}),
+               ('开一半府库救济百姓', [('yanpu', '义舍里又有米了。汉中的人说，五斗米道之后，总算等来一个讲道理的。'), ('yanpu', '这是百姓托我转交的。')], {'items': {'gaojibaoxiang': 2}})]),
     q('m103', '天下', 'yanpu', 'yanpu', 'talk', '汉中篇', 160, '主线全部完成。', '与阎圃对话',
       [('yanpu', '往后的天下，就看你自己了。')],
       [('yanpu', '擂台、斗将台、排行榜、跑环……想去哪就去哪吧。')]),
@@ -573,7 +629,7 @@ def main():
         xc['facilities'].append('market')
 
     # 主线：m35 改成真正的过渡，m36 以后整段重建
-    main_q = [x for x in quests['main'] if int(x['id'][1:]) <= 35]
+    main_q = [x for x in quests['main'] if int(re.match(r'\d+', x['id'][1:]).group(0)) <= 35]
     m35 = main_q[-1]
     m35['finish'] = [{'who': 'xuling', 'text': '陈留的路打通了。歇够了，就往西去吧。'}]
     m35['hint'] = '许昌篇完成了，回许昌令那里交差。'

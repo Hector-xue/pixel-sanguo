@@ -10,6 +10,8 @@ import type { Daypart } from '../art/props';
 import { balance, classes, items, locations, monsters, npcs } from '../data';
 import type { MonsterGroup } from '../data';
 import { randomSeed } from '../core/rng';
+import type { Battle } from '../core/battle';
+import { duelBattle, duelReason, taofaBattle, taofaReason } from '../game/story';
 import { expToNext } from '../core/formulas';
 import { playersAt } from '../game/chatter';
 import { groupLabel, startBattle, startGroupBattle } from '../game/encounter';
@@ -26,7 +28,7 @@ import * as F from '../ui/fun';
 import * as R from '../ui/role';
 import { store } from '../game/store';
 import { ChatBox } from '../ui/chat';
-import { Button, H, Modal, SAFE_TOP, W, achvBanner, bar, resumeBanner, hit, sfx, text, textWidth, toast, wrap } from '../ui/widgets';
+import { Button, H, Modal, SAFE_TOP, W, achvBanner, bar, confirm, resumeBanner, hit, sfx, text, textWidth, toast, wrap } from '../ui/widgets';
 import { fit } from '../ui/textfit';
 import { UI, sealBox, timeTint, titlePlaque, vgrad } from '../art/chrome';
 import { showDialog } from '../ui/dialog';
@@ -656,6 +658,12 @@ export class MainScene extends Phaser.Scene implements P.Host {
     if (dest && dest !== s.location) {
       this.layer.add(new Button(this, x + w + 4, y + 2, 40, 20, '前往', () => this.autoPath(dest), { style: 'red' }));
       if (s.player.level <= 3) this.time.delayedCall(1200, () => this.scene.isActive() && !this.walking && pointAt(this, x + w + 24, y + 12, 'goto', true));
+    } else if (!duelReason(s)) {
+      // 名将战：到了地方就能挑战（按切磋算）
+      this.layer.add(new Button(this, x + w + 4, y + 2, 40, 20, '挑战', () => this.startStory(duelBattle(s, randomSeed())), { style: 'red' }));
+    } else if (!taofaReason(s)) {
+      // 讨伐战：一拨满编的，打倒一个算两个
+      this.layer.add(new Button(this, x + w + 4, y + 2, 40, 20, '讨伐', () => confirm(this, `讨伐战：一次来${5}个、高一级，打倒一个算两个。打得过就快得多。`, () => this.startStory(taofaBattle(s, randomSeed())), '开打'), { style: 'red' }));
     }
   }
 
@@ -1053,6 +1061,13 @@ export class MainScene extends Phaser.Scene implements P.Host {
       return;
     }
     this.enterBattle(startBattle(s, groupIndex, randomSeed()));
+  }
+
+  private startStory(b: Battle | string): void {
+    if (typeof b === 'string') return toast(this, b);
+    const st = playerStats(store.save);
+    if (!b.spar && store.save.player.hp <= st.maxHp * 0.15) return toast(this, '气血太少了，先吃药或去医馆治疗');
+    this.enterBattle(b);
   }
 
   private enterBattle(b: ReturnType<typeof startGroupBattle>): void {

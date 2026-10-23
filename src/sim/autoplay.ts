@@ -11,6 +11,7 @@ import type { BUnit, Battle, Command } from '../core/battle';
 import { gearBonus, mountPower, tierLevel } from '../core/gear';
 import { lerpLevel } from '../core/formulas';
 import { XINFA_LEVEL, chooseXinfa, xinfaChoices } from '../game/growth';
+import { duelBattle, taofaBattle, taofaReason } from '../game/story';
 import { Rng } from '../core/rng';
 import type { Slot } from '../core/types';
 import { GEM_KINDS, balance, equips, playerSkillIds, gemId, items, locations, mainQuests, monsters, mounts, skills } from '../data';
@@ -633,9 +634,9 @@ export function autoplay(s: Save, seed = 7, maxBattles = 600, untilStep = mainQu
       acceptQuest(s);
       continue;
     }
-    if (s.main.state === 'ready' || q.type === 'talk') {
+    if (s.main.state === 'ready' || q.type === 'talk' || q.type === 'choice') {
       go(s, npcLocation(q.turnIn)!);
-      turnInQuest(s);
+      turnInQuest(s, s.seed % 2);
       extra = 0;
       rep.steps.push({ quest: q.title, level: s.player.level, battles: rep.battles });
       continue;
@@ -645,6 +646,17 @@ export function autoplay(s: Save, seed = 7, maxBattles = 600, untilStep = mainQu
       continue;
     }
     const at = q.target!.at;
+    // 名将战：比主角高两级，打不过就回去练一级再来
+    if (q.type === 'duel') {
+      go(s, at);
+      const b = duelBattle(s, sim.rng.int(0, 2 ** 31));
+      if (typeof b === 'string') throw new Error(b);
+      if (runBattle(sim, b, null) !== 'win') {
+        const lv = s.player.level;
+        for (let k = 0; k < 400 && s.player.level === lv; k++) grind(sim);
+      }
+      continue;
+    }
     const monster = q.target!.monster ?? Object.keys(monsters).find((m) => monsters[m].drops.some((d) => d.item === q.target!.item && d.questOnly === q.id))!;
     const gi = groupFor(at, monster);
     if (gi < 0) throw new Error(`${locations[at].name} 没有 ${monsters[monster].name}`);
@@ -655,7 +667,9 @@ export function autoplay(s: Save, seed = 7, maxBattles = 600, untilStep = mainQu
       continue;
     }
     go(s, at);
-    const out = fight(sim, gi, q.type === 'capture' ? monster : null);
+    // 讨伐战：血够、不是头目就挑满编的打（打倒一个算两个）
+    const tf = q.type === 'kill' && !taofaReason(s) && s.player.hp > playerStats(s).maxHp * 0.7 ? taofaBattle(s, sim.rng.int(0, 2 ** 31)) : null;
+    const out = tf && typeof tf !== 'string' ? runBattle(sim, tf, null) : fight(sim, gi, q.type === 'capture' ? monster : null);
     // 输了就回去多练：头目每输一次多要 1 级；普通怪连输 3 次也多要 1 级
     if (out === 'lose') {
       streak++;

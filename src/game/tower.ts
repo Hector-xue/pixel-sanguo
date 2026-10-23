@@ -71,8 +71,8 @@ function pool(): string[] {
 
 const HISTORIC = Object.keys(monsters).filter((k) => monsters[k].historic).sort();
 
-// 名将守层：同级镜像，带名将自己的技能和专属被动
-function bossUnit(gid: string, lv: number): BUnit {
+// 名将守层：同级镜像，带名将自己的技能和专属被动（主线名将战也用它，见 story.ts）
+export function bossUnit(gid: string, lv: number): BUnit {
   const m = monsters[gid];
   const u = mirrorUnit('e0', m.name, m.class, 'male', 0, lv, 'enemy', lv > 100);
   u.maxHp = Math.round(u.maxHp * (m.hpMul ?? 1) * 0.6);

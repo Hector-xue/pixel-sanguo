@@ -954,13 +954,18 @@ export function npcMark(s: Save, npcId: string): '!' | '?' | null {
   if (!q || s.main.state === 'done') return null;
   if (s.main.state === 'available' && q.giver === npcId) return '!';
   if (s.main.state === 'ready' && q.turnIn === npcId) return '?';
-  if (s.main.state === 'active' && q.type === 'talk' && q.turnIn === npcId) return '?';
+  if (s.main.state === 'active' && (q.type === 'talk' || q.type === 'choice') && q.turnIn === npcId) return '?';
   return null;
 }
 
 // 主线中途插过的任务：版本号 → 那一版新加的任务 id
-const MAIN_INSERTS: Record<number, string[]> = { 2: ['m7a', 'm7b', 'm8a', 'm15a'], 3: ['m10a'] };
-export const MAIN_QV = 3;
+const MAIN_INSERTS: Record<number, string[]> = {
+  2: ['m7a', 'm7b', 'm8a', 'm15a'],
+  3: ['m10a'],
+  // 0.1.4：后面几章的剧情抉择和名将战
+  4: ['m44a', 'm49a', 'm60a', 'm68a', 'm72a', 'm74a', 'm81a', 'm85a', 'm88a', 'm91a', 'm95a', 'm102a'],
+};
+export const MAIN_QV = 4;
 
 // 老存档的 step 是按旧任务表数的，换算成新表里同一个任务的位置（插在前面的新任务就跳过了）
 // （跨了好几版也是一次换算：先按存档那一版的任务表找到是哪个任务，再找它在现在表里的位置）
@@ -992,14 +997,19 @@ export interface QuestReward {
   lines: string[];
 }
 
-export function turnInQuest(s: Save): QuestReward | null {
+// choice：剧情抉择选的第几个（选项各带一份额外奖励）
+export function turnInQuest(s: Save, choice = 0): QuestReward | null {
   const q = currentQuest(s);
   if (!q) return null;
-  const ready = s.main.state === 'ready' || (s.main.state === 'active' && q.type === 'talk');
+  const ready = s.main.state === 'ready' || (s.main.state === 'active' && (q.type === 'talk' || q.type === 'choice'));
   if (!ready) return null;
   if (q.type === 'collect' && q.target?.item) removeItem(s, q.target.item, bagCount(s, q.target.item));
   const r = q.reward;
-  const out: QuestReward = { exp: r.exp ?? 0, silver: r.silver ?? 0, items: r.items ?? {}, lines: [] };
+  const c = q.choices?.[choice];
+  const got: Record<string, number> = { ...(r.items ?? {}) };
+  for (const [id, n] of Object.entries(c?.reward?.items ?? {})) got[id] = (got[id] ?? 0) + n;
+  const out: QuestReward = { exp: (r.exp ?? 0) + (c?.reward?.exp ?? 0), silver: (r.silver ?? 0) + (c?.reward?.silver ?? 0), items: got, lines: [] };
+  if (c) s.flags[`qc_${q.id}_${choice}`] = true;
   s.player.silver += out.silver;
   out.lines.push(...grantPlayerExp(s, out.exp));
   for (const [id, n] of Object.entries(out.items)) {
@@ -1024,6 +1034,7 @@ export function questProgressText(s: Save): string {
   if (s.main.state === 'available') return `去找${npcName(q.giver)}接任务`;
   if (s.main.state === 'ready') return `已完成，回去找${npcName(q.turnIn)}`;
   if (q.type === 'kill' || q.type === 'capture' || q.type === 'collect') return `${q.goal}：${s.main.count}/${questNeed(q)}`;
+  if (q.type === 'duel' && q.target && s.location === q.target.at) return `${q.goal}：点「挑战」`;
   return q.goal;
 }
 
@@ -1036,7 +1047,7 @@ export function questDestination(s: Save): string | null {
   const q = currentQuest(s);
   if (!q || s.main.state === 'done') return null;
   if (s.main.state === 'available') return npcLocation(q.giver);
-  if (s.main.state === 'ready' || q.type === 'talk' || q.type === 'flag') return npcLocation(q.turnIn);
+  if (s.main.state === 'ready' || q.type === 'talk' || q.type === 'flag' || q.type === 'choice') return npcLocation(q.turnIn);
   return q.target?.at ?? null;
 }
 
@@ -1051,13 +1062,14 @@ function setCount(s: Save, q: QuestDef, n: number): string | null {
 }
 
 // 战后更新任务进度，返回要显示的进度句子
-export function onBattleKills(s: Save, kills: Record<string, number>): string[] {
+// questMul：讨伐战打倒一个算几个（只算主线进度）
+export function onBattleKills(s: Save, kills: Record<string, number>, questMul = 1): string[] {
   const out: string[] = [];
   for (const [m, n] of Object.entries(kills)) s.kills[m] = (s.kills[m] ?? 0) + n;
   const q = currentQuest(s);
   if (q && s.main.state === 'active' && q.type === 'kill' && q.target?.monster && kills[q.target.monster]) {
     const name = monsters[q.target.monster].name;
-    const done = setCount(s, q, s.main.count + kills[q.target.monster]);
+    const done = setCount(s, q, s.main.count + kills[q.target.monster] * questMul);
     out.push(done ?? `已经打败${s.main.count}个${name}，还差${questNeed(q) - s.main.count}个`);
   }
   if (s.bounty) {

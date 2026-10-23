@@ -67,7 +67,8 @@ export interface DialogLine {
   text: string;
 }
 
-export type QuestType = 'talk' | 'kill' | 'capture' | 'collect' | 'flag';
+// choice：交任务时二选一（各有回话和额外奖励）；duel：到地方和一位名将过招（切磋，输了不掉东西）
+export type QuestType = 'talk' | 'kill' | 'capture' | 'collect' | 'flag' | 'choice' | 'duel';
 export interface QuestDef {
   id: string;
   title: string;
@@ -82,6 +83,7 @@ export interface QuestDef {
   finish: DialogLine[];
   reward: { exp?: number; silver?: number; items?: Record<string, number> };
   chapter?: string;
+  choices?: { label: string; reply: DialogLine[]; reward?: { exp?: number; silver?: number; items?: Record<string, number> } }[];
 }
 
 export interface BountyOption {

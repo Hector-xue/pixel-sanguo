@@ -58,7 +58,13 @@ describe('P3 数据', () => {
       expect(Object.values(monsters).some((m) => m.drops.some((d) => d.item === q.target!.item && d.questOnly === q.id)), q.id).toBe(true);
     }
     // 主线的击杀目标都在任务写的地图上
-    for (const q of mainQuests.filter((x) => x.target?.monster)) expect(locations[q.target!.at].groups.some((g) => g.monster === q.target!.monster), q.id).toBe(true);
+    for (const q of mainQuests.filter((x) => x.target?.monster && x.type !== 'duel')) expect(locations[q.target!.at].groups.some((g) => g.monster === q.target!.monster), q.id).toBe(true);
+    // 名将战：名将是演武塔、国战那套历史名将，地方得存在
+    for (const q of mainQuests.filter((x) => x.type === 'duel')) {
+      expect(monsters[q.target!.monster!]?.historic, q.id).toBe(true);
+      expect(locations[q.target!.at], q.id).toBeTruthy();
+    }
+    for (const q of mainQuests.filter((x) => x.type === 'choice')) expect(q.choices?.length, q.id).toBe(2);
   });
 
   it('装备 16 档，矿石链跟着档走，按等级给矿', () => {
