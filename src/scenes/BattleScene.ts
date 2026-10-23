@@ -394,7 +394,9 @@ export class BattleScene extends Phaser.Scene {
     // 脚下影子带一圈颜色：我方蓝、敌方红，一眼分得清哪边是自己人
     const ally = u.side !== 'enemy';
     const shadow = this.add.ellipse(hx, hy + 1, 46, 10, 0x000000, 0.3).setStrokeStyle(1, ally ? 0x7fb0e0 : 0xe05030, 0.7).setDepth(spriteDepth(hy) - 0.5);
-    const spr = this.add.image(hx + (flip ? OFF : -OFF), hy, unitTex(this, u.look, u.variant ?? 0, u.alive ? 'idle' : 'down')).setOrigin(0.5, FEET_Y / UNIT_H).setScale(SC).setFlipX(flip).setDepth(spriteDepth(hy));
+    // 自己的副将和对面的怪长一个样时，换一身蓝的
+    const look = ally && u.kind === 'general' && this.b.units.some((e) => e.side === 'enemy' && e.look === u.look) ? `ally:${u.look}` : u.look;
+    const spr = this.add.image(hx + (flip ? OFF : -OFF), hy, unitTex(this, look, u.variant ?? 0, u.alive ? 'idle' : 'down')).setOrigin(0.5, FEET_Y / UNIT_H).setScale(SC).setFlipX(flip).setDepth(spriteDepth(hy));
     const bars = this.add.graphics().setDepth(200);
     // 名牌：脚下一块暗色小牌，写名字和等级
     const general = u.kind === 'general';
@@ -409,7 +411,7 @@ export class BattleScene extends Phaser.Scene {
     const badge = text(this, hx, hy - 122, '', { align: 'center', color: C.yellow, stroke: C.ink }).setDepth(201);
     const zone = this.add.zone(hx - 30, hy - 104, 60, 128).setOrigin(0).setInteractive().setDepth(230);
     zone.on('pointerup', () => this.selecting && this.candidates.has(u.id) && this.selecting(u.id));
-    const v: View = { id: u.id, spr, shadow, bars, plate, name, badge, zone, hx, hy, hp: u.hp, mp: u.mp, maxHp: u.maxHp, maxMp: u.maxMp, dead: !u.alive, look: u.look, variant: u.variant ?? 0, flip, weapon: lookFor(u.look, u.variant ?? 0).weapon };
+    const v: View = { id: u.id, spr, shadow, bars, plate, name, badge, zone, hx, hy, hp: u.hp, mp: u.mp, maxHp: u.maxHp, maxMp: u.maxMp, dead: !u.alive, look, variant: u.variant ?? 0, flip, weapon: lookFor(u.look, u.variant ?? 0).weapon };
     this.views.set(u.id, v);
     if (v.dead) spr.setAlpha(0.6);
     else {

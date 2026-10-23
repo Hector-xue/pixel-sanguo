@@ -433,7 +433,13 @@ function classedLook(base: Look, cls: string): Look {
   return { ...base, outfit: h.outfit, trim: h.trim, belt: h.belt, weapon: h.weapon, armor: h.armor, orb: h.orb, metal: undefined, accent: base.accent ?? h.accent };
 }
 
+// 我方副将和同种怪站在一个战场上时换一身「自己人」的颜色：腰带、镶边、头巾、披风染成蓝的
+function allyLook(base: Look): Look {
+  return { ...base, belt: C.blue, trim: C.lightBlue, accent: base.accent !== undefined ? C.lightBlue : undefined, cape: base.cape !== undefined ? C.blue : undefined };
+}
+
 export function lookFor(key: string, variant = 0): Look {
+  if (key.startsWith('ally:')) return allyLook(lookFor(key.slice(5), variant));
   if (key.startsWith('cls:')) {
     const [, base, cls] = key.split(':');
     return classedLook(lookFor(base, variant), cls);
