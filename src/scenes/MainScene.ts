@@ -284,10 +284,11 @@ export class MainScene extends Phaser.Scene implements P.Host {
     return out;
   }
 
-  // 站位：交错排开，前排靠下；人少就站中间一点
+  // 站位：左右中交错排开。挨得近的两格上下至少差一个人高，名牌（在脚下、比人宽）才不会压到下一个人身上
+  // （按 640、783 两种屏高逐格算过：前十格两两都不叠）
   private actorSpots(n: number, top: number, bottom: number): [number, number][] {
     const slots: [number, number][] = [
-      [0.26, 0.18], [0.74, 0.24], [0.42, 0.42], [0.62, 0.5], [0.16, 0.6], [0.86, 0.66], [0.32, 0.82], [0.7, 0.88], [0.5, 1], [0.1, 0.96],
+      [0.22, 0.14], [0.78, 0.16], [0.5, 0.46], [0.12, 0.7], [0.88, 0.7], [0.5, 1], [0.5, 0], [0.18, 1], [0.84, 1], [0.14, 0.42],
     ];
     const span = bottom - top;
     return slots.slice(0, n).map(([u, v]) => [Math.round(20 + u * (W - 40)), Math.round(top + v * span)]);
@@ -436,16 +437,20 @@ export class MainScene extends Phaser.Scene implements P.Host {
   private passersby(top: number): void {
     const s = store.save;
     const ps = playersAt(s.location).slice(0, locations[s.location].town ? 3 : 1);
+    // 每人一段：屏幕横着分成几份，各在自己那段里来回走（不然几个人会挤在一处叠成一团）
+    const seg = (W - 60) / ps.length;
+    const lane = (i: number) => 30 + seg * i + 8 + Math.random() * Math.max(0, seg - 16);
     ps.forEach((pl, i) => {
       const y = Math.round(top - 26 + i * 6);
       const look = heroLookKey(pl.classId, pl.gender);
-      let x = 30 + Math.random() * (W - 60);
-      const img = this.add.image(x, y, unitTex(this, look, pl.variant, 'idle')).setOrigin(0.5, FEET_Y / UNIT_H).setDepth(y).setAlpha(0.95);
+      let x = lane(i);
+      // 名字叫 walker：排版巡检不管走来走去的人（位置每次都不一样）
+      const img = this.add.image(x, y, unitTex(this, look, pl.variant, 'idle')).setOrigin(0.5, FEET_Y / UNIT_H).setDepth(y).setAlpha(0.95).setName('walker');
       this.stage.add(img);
       const nm = this.add.ellipse(x, y + 1, 18, 4, 0x000000, 0.22).setDepth(y - 1);
       this.stage.add(nm);
       const walk = () => {
-        const nx = 30 + Math.random() * (W - 60);
+        const nx = lane(i);
         const dur = Math.abs(nx - x) * 40 + 400;
         img.setFlipX(nx > x);
         let f = false;

@@ -623,9 +623,23 @@ export function achvBanner(scene: Phaser.Scene, lines: string[]): void {
   if (!bannerOn) nextBanner(scene);
 }
 
+// 江湖指引卡开着的时候成就横幅先等一等（两样在同一个位置），反过来指引卡也等横幅播完
+let tipOpen = false;
+export function setTipOpen(on: boolean): void {
+  tipOpen = on;
+}
+export function bannerBusy(): boolean {
+  return bannerOn;
+}
+
 function nextBanner(scene: Phaser.Scene): void {
   if (!scene.sys.isActive()) {
     bannerOn = false;
+    return;
+  }
+  if (tipOpen) {
+    bannerOn = true;
+    scene.time.delayedCall(800, () => nextBanner(scene));
     return;
   }
   const msg = bannerQ.shift();
@@ -635,11 +649,12 @@ function nextBanner(scene: Phaser.Scene): void {
   }
   bannerOn = true;
   sfx('level');
-  const w = W - 32;
-  const lines = wrap(msg, w - 56);
+  // 放在任务栏下面、右边一列快捷钮的左边，从左边滑进来（不压地名、任务栏和快捷钮）
+  const w = W - 52;
+  const lines = wrap(msg, w - 46);
   const h = Math.max(34, lines.length * 15 + 12);
-  const y = SAFE_TOP + 4;
-  const c = scene.add.container(16, -h - 4).setDepth(1001);
+  const y = SAFE_TOP + 92;
+  const c = scene.add.container(-w - 8, y).setDepth(1001);
   const g = scene.add.graphics();
   g.fillStyle(0x000000, 0.4).fillRect(2, 3, w, h);
   g.fillStyle(0x2a0a04, 0.95).fillRect(0, 0, w, h);
@@ -651,12 +666,12 @@ function nextBanner(scene: Phaser.Scene): void {
   const done = () => {
     if (gone || !c.active) return;
     gone = true;
-    scene.tweens.add({ targets: c, y: -h - 4, duration: 200, ease: 'Quad.easeIn', onComplete: () => {
+    scene.tweens.add({ targets: c, x: -w - 8, duration: 200, ease: 'Quad.easeIn', onComplete: () => {
       c.destroy();
       nextBanner(scene);
     } });
   };
-  scene.tweens.add({ targets: c, y, duration: 220, ease: 'Quad.easeOut' });
+  scene.tweens.add({ targets: c, x: 12, duration: 220, ease: 'Quad.easeOut' });
   scene.time.delayedCall(2600, done);
   // 场景切走了（进了战斗）：这条算播过，剩下的等回到主界面接着播
   c.once(Phaser.GameObjects.Events.DESTROY, () => {

@@ -6,7 +6,7 @@ import { PAPER, paperTex, sealBox, woodFrame } from '../art/chrome';
 import { pendingTips } from '../game/guide';
 import type { Tip } from '../game/guide';
 import { store } from '../game/store';
-import { Modal, SAFE_TOP, W, sfx, text, wrap } from './widgets';
+import { Modal, SAFE_TOP, W, bannerBusy, setTipOpen, sfx, text, wrap } from './widgets';
 
 let showing: Phaser.GameObjects.Container | null = null;
 
@@ -20,7 +20,8 @@ export function markTip(key: string): void {
 export function showTip(scene: Phaser.Scene, tip: Tip, onClose?: () => void): void {
   if (showing?.active) return;
   markTip(tip.key);
-  const w = W - 24;
+  // 右边留出快捷钮那一列（今日、福利、国战）
+  const w = W - 52;
   // 正文从 x+46 写起，右边留出木框和纸边（原来按 w-56 折行，最后一个字会出框）
   const tw = w - 64;
   const bodyH = wrap(tip.body, tw).length * 17;
@@ -43,6 +44,7 @@ export function showTip(scene: Phaser.Scene, tip: Tip, onClose?: () => void): vo
   scene.tweens.add({ targets: c, alpha: 1, y: 0, duration: 220, ease: 'Quad.easeOut' });
   sfx('click');
   showing = c;
+  setTipOpen(true);
   // 弹窗打开时提示卡会压住弹窗的标题和关闭钮：先收起，这条不算看过，弹窗关了再出
   const onAdd = (o: Phaser.GameObjects.GameObject) => {
     if (!(o instanceof Modal) || !c.active) return;
@@ -55,18 +57,32 @@ export function showTip(scene: Phaser.Scene, tip: Tip, onClose?: () => void): vo
     scene.events.off(Phaser.Scenes.Events.ADDED_TO_SCENE, onAdd);
     scene.tweens.add({ targets: c, alpha: 0, y: -10, duration: 160, onComplete: () => {
       c.destroy();
-      if (showing === c) showing = null;
+      if (showing === c) {
+        showing = null;
+        setTipOpen(false);
+      }
       onClose?.();
     } });
   };
   z.on('pointerup', close);
   c.once(Phaser.GameObjects.Events.DESTROY, pushBack(close));
+  // 场景切走时卡片跟着没了（没走 close）：也要放开成就横幅
+  c.once(Phaser.GameObjects.Events.DESTROY, () => {
+    if (showing === c) {
+      showing = null;
+      setTipOpen(false);
+    }
+  });
   scene.time.delayedCall(9000, close);
 }
 
 // 主界面刷新时调用：有该出的就出第一条，收起后再看下一条
 export function runTips(scene: Phaser.Scene): void {
   if (!store.has() || showing?.active) return;
+  if (bannerBusy()) {
+    scene.time.delayedCall(1500, () => scene.scene.isActive() && runTips(scene));
+    return;
+  }
   // 对话、弹窗、小游戏、舆图开着的时候先不打扰，过一会儿再看
   const busy = scene.children.list.some((o) => o instanceof Modal || ((o as unknown as { depth: number }).depth >= 400 && (o as unknown as { depth: number }).depth < 880));
   if (busy) {

@@ -70,9 +70,16 @@ const BACK_SPREAD: Record<number, Record<number, number[]>> = {
   2: { 1: [0.5], 2: [0, 0.5], 3: [0, 0.5, 1] },
   3: { 1: [0.25], 2: [0.25, 0.75], 3: [0.25, 0.75, 0.75] },
 };
-// 主角站右边中间；副将（最多三个）和雇来的队友按上场顺序占后面这几格
-const HERO_SLOT: [number, number] = [Math.round(302 * SX), 0.52];
-const ALLY_SLOTS: [number, number][] = ([[244, 0.92], [250, 0.04], [196, 0.3], [196, 0.7]] as [number, number][]).map(([x, v]) => [Math.round(x * SX), v]);
+// 我方和敌方一样分两列：主角站后列，副将（最多三个）和雇来的队友站前列，按人数排开；
+// 两列上下错开（名牌横着挨得近，站在同一高度会叠字）。第四个人站回后列
+const ALLY_X = { front: Math.round(236 * SX), back: Math.round(302 * SX) };
+const ALLY_LAYOUT: Record<number, { hero: number; slots: [keyof typeof ALLY_X, number][] }> = {
+  0: { hero: 0.5, slots: [] },
+  1: { hero: 0.3, slots: [['front', 0.78]] },
+  2: { hero: 0.5, slots: [['front', 0.04], ['front', 0.96]] },
+  3: { hero: 0.25, slots: [['front', 0], ['front', 0.5], ['front', 1]] },
+  4: { hero: 0.25, slots: [['front', 0], ['front', 0.5], ['front', 1], ['back', 0.78]] },
+};
 const gy = (v: number) => Math.round(G_TOP + v * (G_BOT - G_TOP));
 
 interface View {
@@ -164,6 +171,7 @@ export class BattleScene extends Phaser.Scene {
   private replayAt = 0;
   private speed = 1;
   // 我方各人占哪一格
+  private allyCount = -1;
   private allySlot = new Map<string, number>();
   // 这一仗里已经亮过相的被动（只第一次放特写）
   private seenPassive = new Set<string>();
@@ -183,6 +191,7 @@ export class BattleScene extends Phaser.Scene {
     this.b = data.replay ? createBattle(JSON.parse(JSON.stringify(data.replay.init))) : data.battle!;
     this.views.clear();
     this.allySlot = new Map();
+    this.allyCount = -1;
     this.auto = !data.replay && st.keepAuto && st.lastAuto;
     this.popup = null;
     this.banner = null;
@@ -293,7 +302,7 @@ export class BattleScene extends Phaser.Scene {
     const hz = FIELD_Y + Math.round(FIELD_H * HORIZON);
     // 站位附近不摆东西；大件只摆在人物后面（靠地平线），中间留给出招
     const keep: [number, number][] = [];
-    for (const x of [ROW_X[0], ROW_X[1], ALLY_SLOTS[0][0], HERO_SLOT[0]]) for (let v = 0; v <= 1; v += 0.25) keep.push([x, gy(v)]);
+    for (const x of [ROW_X[0], ROW_X[1], ALLY_X.front, ALLY_X.back]) for (let v = 0; v <= 1; v += 0.25) keep.push([x, gy(v)]);
     const props = layoutProps(art, key, W, hz + 6, PANEL_Y - 4, keep).filter((p) => (BIG.has(p.kind) ? p.y < G_TOP - 18 : !(p.x > 130 && p.x < 230 && p.y > G_TOP)));
     const dp = daypart();
     const dark = OUTDOOR_DARK.has(art);
@@ -429,17 +438,20 @@ export class BattleScene extends Phaser.Scene {
       const sp = table[Math.min(3, same.length)] ?? SPREAD[3];
       return [ROW_X[u.row], gy(sp[Math.min(same.indexOf(u), sp.length - 1)])];
     }
-    if (u.kind === 'player') return [HERO_SLOT[0], gy(HERO_SLOT[1])];
+    // 站法按开打时我方有几个人定（换人、倒下不重排）
+    if (this.allyCount < 0) this.allyCount = Math.min(4, this.b.units.filter((x) => x.side === 'ally' && x.kind !== 'player').length);
+    const lay = ALLY_LAYOUT[this.allyCount];
+    if (u.kind === 'player') return [ALLY_X.back, gy(lay.hero)];
     // 第一次上场按顺序占一格；招将换上来的接替换下去那位的位置
     let k = this.allySlot.get(u.id);
     if (k === undefined) {
       const used = new Set(this.allySlot.values());
-      k = ALLY_SLOTS.findIndex((_, i) => !used.has(i));
-      if (k < 0) k = ALLY_SLOTS.length - 1;
+      k = lay.slots.findIndex((_, i) => !used.has(i));
+      if (k < 0) k = Math.max(0, lay.slots.length - 1);
       this.allySlot.set(u.id, k);
     }
-    const [x, v] = ALLY_SLOTS[k];
-    return [x, gy(v)];
+    const [col, v] = lay.slots[k] ?? ['front', 0.5];
+    return [ALLY_X[col], gy(v)];
   }
 
   private makeView(u: BUnit, entering = false): View {

@@ -101,8 +101,11 @@ def run_height(height: int, big: bool = False) -> list[str]:
         p.ev(open(os.path.join(HERE, 'probe.js'), encoding='utf-8').read() + '\n1')
         panels = p.ev('window.__probePanels()')
         main = p.ev('window.__probeMain()')
-        print(f'[{tag}] 面板 {panels["opened"]} 页，地点 {main["places"]} 处（{main["texts"]} 段字）')
-        out = [f'[{tag}] {x}' for x in panels['issues'] + main['issues']]
+        p.ev("__main.scene.restart(); 1")
+        time.sleep(1.5)
+        field = p.ev('window.__probeBattle()')
+        print(f'[{tag}] 面板 {panels["opened"]} 页，地点 {main["places"]} 处（{main["texts"]} 段字），战场 {field["fields"]} 种站法')
+        out = [f'[{tag}] {x}' for x in panels['issues'] + main['issues'] + field['issues']]
         out += [f'[{tag}] 页面报错 {e}' for e in p.errors]
         return out
     finally:
