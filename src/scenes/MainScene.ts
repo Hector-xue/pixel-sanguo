@@ -26,7 +26,8 @@ import * as F from '../ui/fun';
 import * as R from '../ui/role';
 import { store } from '../game/store';
 import { ChatBox } from '../ui/chat';
-import { Button, H, Modal, SAFE_TOP, W, bar, hit, sfx, text, textWidth, toast } from '../ui/widgets';
+import { Button, H, Modal, SAFE_TOP, W, bar, hit, sfx, text, textWidth, toast, wrap } from '../ui/widgets';
+import { fit } from '../ui/textfit';
 import { UI, sealBox, titlePlaque, vgrad } from '../art/chrome';
 import { showDialog } from '../ui/dialog';
 import { worldMap } from '../ui/worldmap';
@@ -548,7 +549,10 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const w = 196;
     const ready = s.main.state === 'ready';
     const body = s.main.state === 'available' ? `去找${npcs[q.giver]?.name ?? ''}接任务` : questProgressText(s);
-    const lines = Math.min(2, Math.ceil(textWidth(body) / (w - 16)));
+    // 按真实折行算高度，最多两行，放不下第二行末尾加省略号
+    const all = wrap(body, w - 16);
+    const shown = all.length > 2 ? [all[0], fit(all.slice(1).join(''), w - 16)] : all;
+    const lines = shown.length;
     const h = 22 + lines * 14 + 4;
     const g = this.add.graphics();
     g.fillStyle(0x0a0604, 0.62).fillRect(x, y, w, h).fillRect(x + 1, y - 1, w - 2, h + 2);
@@ -559,8 +563,8 @@ export class MainScene extends Phaser.Scene implements P.Host {
     tg.fillStyle(0xb42c18).fillRect(x + 6, y + 4, 28, 14);
     this.layer.add(tg);
     this.layer.add(text(this, x + 20, y + 5, '主线', { align: 'center', color: 0xfff0c0 }));
-    this.layer.add(text(this, x + 40, y + 5, q.title, { color: ready ? 0x8af060 : UI.yellow, stroke: 0x000000 }));
-    this.layer.add(text(this, x + 8, y + 22, body, { color: 0xfbefd0, wrap: w - 16, lineGap: 2 }));
+    this.layer.add(text(this, x + 40, y + 5, fit(q.title, w - 46), { color: ready ? 0x8af060 : UI.yellow, stroke: 0x000000 }));
+    this.layer.add(text(this, x + 8, y + 22, shown.join('\n'), { color: 0xfbefd0, lineGap: 2 }));
     this.layer.add(hit(this, x, y, w, h, () => P.questPanel(this)));
     const dest = questDestination(s);
     if (dest && dest !== s.location) {

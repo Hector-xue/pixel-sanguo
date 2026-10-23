@@ -127,7 +127,8 @@ export function showDialog(scene: Phaser.Scene, lines: DialogLine[], options: Di
     scene.tweens.add({ targets: arrow, y: arrow.y + 2, duration: 300, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
     // 跳过：一句没说完也能直接走
     if (!(i === lines.length - 1 && options.length)) {
-      page.add(new Button(scene, W - 58, boxY + 6, 44, 16, '跳过', () => {
+      // 放在对话框左下角（原来在右上角，满一行的字会钻到它底下）
+      page.add(new Button(scene, 18, boxY + BOX_H - 26, 44, 16, '跳过', () => {
         if (options.length) {
           i = lines.length - 1;
           render();

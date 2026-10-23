@@ -1476,11 +1476,22 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private showSummary(sum: BattleSummary): void {
+    const big = (n: number) => (n >= 100000 ? `${(n / 10000).toFixed(1).replace(/\.0$/, '')}万` : `${n}`);
     const win = sum.outcome === 'win';
     const lines = sum.lines;
     const w = 320;
     const x = (W - w) / 2;
-    const dropH = sum.drops.length ? 44 : 0;
+    // 缴获按宽度排成几行（原来只排一行，多出来的就不见了）
+    const dropRows: { id?: string; label: string; w: number }[][] = [];
+    for (const d of sum.drops) {
+      const id = Object.keys(items).find((k) => items[k].name === d.name);
+      const label = `${d.name}×${d.n}`;
+      const iw = (id ? 20 : 0) + textWidth(label) + 10;
+      const row = dropRows[dropRows.length - 1];
+      if (row && row.reduce((a, r) => a + r.w, 0) + iw <= w - 66) row.push({ id, label, w: iw });
+      else dropRows.push([{ id, label, w: iw }]);
+    }
+    const dropH = dropRows.length ? dropRows.length * 20 + 8 : 0;
     const linesH = lines.reduce((a, l) => a + wrap(l, w - 40).length * 16, 0);
     const h = Math.min(H - 60, 124 + sum.rows.length * 34 + dropH + linesH + 50);
     const c = this.scroll(h, '战果');
@@ -1508,26 +1519,30 @@ export class BattleScene extends Phaser.Scene {
       rg.fillStyle(0xe8d6ae).fillRect(x + 17, yy + 1, w - 34, 28);
       c.add(rg);
       c.add(text(this, x + 26, yy + 8, r.name, { color: PAPER.ink }));
-      c.add(this.add.image(x + w - 150, yy + 9, uiIconTex(this, 'scroll')).setOrigin(0));
-      c.add(text(this, x + w - 134, yy + 8, `经验+${r.exp}`, { color: 0x8a5a10 }));
+      // 从右往左排：银两、经验，按字宽算位置，大数写成「万」，不会叠在一起
+      let rx = x + w - 26;
       if (r.silver) {
-        c.add(this.add.image(x + w - 70, yy + 9, uiIconTex(this, 'coin')).setOrigin(0));
-        c.add(text(this, x + w - 56, yy + 8, `${r.silver}`, { color: 0x5a5a6a }));
+        const sv = big(r.silver);
+        c.add(text(this, rx, yy + 8, sv, { color: 0x5a5a6a, align: 'right' }));
+        rx -= textWidth(sv) + 12;
+        c.add(this.add.image(rx, yy + 9, uiIconTex(this, 'coin')).setOrigin(0));
+        rx -= 10;
       }
+      const ex = `经验+${big(r.exp)}`;
+      c.add(text(this, rx, yy + 8, ex, { color: 0x8a5a10, align: 'right' }));
+      c.add(this.add.image(rx - textWidth(ex) - 16, yy + 9, uiIconTex(this, 'scroll')).setOrigin(0));
       yy += 34;
     }
-    if (sum.drops.length) {
+    if (dropRows.length) {
       c.add(text(this, x + 18, yy, '缴获', { color: 0x8a6a40 }));
-      let dx = x + 50;
-      for (const d of sum.drops) {
-        const id = Object.keys(items).find((k) => items[k].name === d.name);
-        const label = `${d.name}×${d.n}`;
-        const iw = (id ? 20 : 0) + textWidth(label) + 10;
-        if (dx + iw > x + w - 16) break;
-        if (id) c.add(this.add.image(dx, yy + 7, iconTex(this, id)).setOrigin(0, 0.5));
-        c.add(text(this, dx + (id ? 20 : 0), yy, label, { color: 0x1a3a90 }));
-        dx += iw;
-      }
+      dropRows.forEach((row, k) => {
+        let dx = x + 50;
+        for (const d of row) {
+          if (d.id) c.add(this.add.image(dx, yy + k * 20 + 7, iconTex(this, d.id)).setOrigin(0, 0.5));
+          c.add(text(this, dx + (d.id ? 20 : 0), yy + k * 20, d.label, { color: 0x1a3a90 }));
+          dx += d.w;
+        }
+      });
       yy += dropH;
     }
     for (const l of lines) {
