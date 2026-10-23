@@ -91,6 +91,134 @@ const UI_ICONS: Record<string, string[]> = {
   gift: ['..kk.kk...', '.krrkrrk..', 'kkkkkkkkkk', 'krrrgyrrrk', 'kkkkkkkkkk', '.krrgyrrk.', '.krrgyrrk.', '.krrgyrrk.', '.kkkkkkkk.'],
   flag: ['kk........', 'kbkkkkkk..', 'kbrrrrrrk.', 'kbrrwwrrrk', 'kbrrrrrrk.', 'kbkkkkkk..', 'kb........', 'kb........', 'kk........'],
 };
+// 功能菜单的图标：16×16 字符画，比上面的小图标多几种颜色（f 肤、F 肤影、c 浅褐、q 浅蓝、v 天青）
+const FUNC_PAL: Record<string, number> = { ...ICON_PAL, f: C.skin, F: C.skinShade, c: C.lightBrown, q: C.lightBlue, v: C.sky };
+export const FUNC_ICONS: Record<string, string[]> = {
+  // 状态 半身像
+  status: [
+    '................', '......kkkk......', '.....kBBBBk.....', '....kBBBBBBk....',
+    '...kBBffffBBk...', '...kBfkffkfBk...', '...kBffffffBk...', '....kfFffFfk....',
+    '.....kffffk.....', '....kkrrrrkk....', '...krrwrrwrrk...', '..krrrwyywrrrk..',
+    '..krrrrwwrrrrk..', '..krrRrrrrRrrk..', '..kkkkkkkkkkkk..', '................',
+  ],
+  // 物品 葫芦
+  items: [
+    '................', '........kk......', '.......kbbk.....', '......kkkkk.....',
+    '.....kggggk.....', '....kgyyggok....', '....kgygggok....', '.....kggook.....',
+    '....kkrrrrkk....', '...kggggggggk...', '..kgyyggggggok..', '..kgyggggggook..',
+    '..kggggggggook..', '...kgggggoook...', '....kkkkkkkk....', '................',
+  ],
+  // 副将 红缨盔
+  generals: [
+    '................', '.......kk.......', '......krrk......', '.....krork......',
+    '......krk.......', '.....kkgkk......', '....kLLLLLLk....', '...kLwwLLLLGk...',
+    '..kLwLLLLLLLGk..', '..kLLLLLLLLLGk..', '..kggggggggggk..', '..kGLk....kLGk..',
+    '..kGLk....kLGk..', '..kGLkk..kkLGk..', '...kkk....kkk...', '................',
+  ],
+  // 任务 卷轴朱印
+  quest: [
+    '................', '..kkkkkkkkkkkk..', '.kcbbbbbbbbbbck.', '..kPPPPPPPPPPk..',
+    '..kPkkkkkkkPPk..', '..kPPPPPPPPPPk..', '..kPkkkkkPPPPk..', '..kPPPPPPPPPPk..',
+    '..kPkkkkkkPPPk..', '..kPPPPPPPrrrk..', '..kPkkkkPPrwrk..', '..kPPPPPPPrrrk..',
+    '.kcbbbbbbbbbbck.', '..kkkkkkkkkkkk..', '................', '................',
+  ],
+  // 组队 两人
+  team: [
+    '................', '...kkkk.........', '..kBBBBk..kkkk..', '..kBffBk.kBBBBk.',
+    '..kffffk.kBffBk.', '...kffk..kffffk.', '..kkuukk..kffk..', '.kuuuuuukkkrrkk.',
+    '.kuquuuqukrrrrrk', '.kuquuuqukrorrok', '.kuuuuuuukrrrrrk', '.kuuuuuuukrrrrrk',
+    '..kkkkkkkkkkkkk.', '................', '................', '................',
+  ],
+  // 排行 领奖台
+  rank: [
+    '................', '......k.k.k.....', '......kykyk.....', '......kyyyk.....',
+    '......kgggk.....', '......kkkkk.....', '.....kgggggk....', '.....kgyyggk....',
+    '.kkkkkgyggokkkk.', '.kLLLkgggggkccck', '.kLwLkgggggkcsck', '.kLLLkgggggkccck',
+    '.kLLLkgggggkccck', '.kkkkkkkkkkkkkkk', '................', '................',
+  ],
+  // 国战 城头战旗
+  guozhan: [
+    '................', '......kk........', '......kbkkkkk...', '......kbrrrrrk..',
+    '......kbrryrrrk.', '......kbrrrrrk..', '......kbkkkkk...', '......kb........',
+    '.kk.kkkbkk.kk...', '.kGkkGkbGkkGk...', '.kGGGGGbGGGGGk..', '.kGLLGGGGLLGGk..',
+    '.kGGGGkkkGGGGk..', '.kGLLGkBkGLLGk..', '.kkkkkkkkkkkkk..', '................',
+  ],
+  // 福利 红包
+  welfare: [
+    '................', '...kkkkkkkkkk...', '..krrrrrrrrrrk..', '..kRrrrrrrrrRk..',
+    '..krRrrrrrrRrk..', '..krrRRggRRrrk..', '..krrrkgykrrrk..', '..krrrkyykrrrk..',
+    '..krrrrkkrrrrk..', '..krrrrrrrrrrk..', '..krrgyyyygrrk..', '..krrrrrrrrrrk..',
+    '..krrrrrrrrrrk..', '..kRRRRRRRRRRk..', '...kkkkkkkkkk...', '................',
+  ],
+  // 擂台 双剑
+  arena: [
+    '................', '.kk..........kk.', '.kwk........kwk.', '..kwk......kwk..',
+    '...kwk....kwk...', '....kwk..kwk....', '.....kwkkwk.....', '......kwwk......',
+    '......kwwk......', '.....kwkkwk.....', '...kkkk..kkkk...', '...kgk....kgk...',
+    '..kbk......kbk..', '.kbk........kbk.', '.kk..........kk.', '................',
+  ],
+  // 帮派 牌坊
+  sect: [
+    '................', '.kkkkkkkkkkkkkk.', 'kRRRRRRRRRRRRRRk', '.kkkkkkkkkkkkkk.',
+    '..krk.kkkk.krk..', '..krk.kygk.krk..', '..krk.kkkk.krk..', '.kkkkkkkkkkkkkk.',
+    '.kRRRRRRRRRRRRk.', '.kkkkkkkkkkkkkk.', '..krk......krk..', '..krk......krk..',
+    '..krk......krk..', '..krk......krk..', '.kkkkk....kkkkk.', '................',
+  ],
+  // 训练 木人桩
+  train: [
+    '................', '.......kkk......', '......kcttk.....', '......kcttk.....',
+    '.......kck......', '...kkkkcckkkk...', '...kttcccttck...', '...kkkkcckkkk...',
+    '......kcttk.....', '..kkkkkcttkkkk..', '..kttttcctttck..', '..kkkkkcttkkkk..',
+    '......kcttk.....', '....kkkcttkkk...', '...kbbbbbbbbbk..', '...kkkkkkkkkkk..',
+  ],
+  // 宝库 宝箱
+  vault: [
+    '................', '................', '...kkkkkkkkkk...', '..kcccccccccck..',
+    '..kcbbbbbbbbck..', '..kcbbbbbbbbck..', '.kkkkkkkkkkkkkk.', '.kggggkyykggggk.',
+    '.kcbbbkgykbbbck.', '.kcbbbbkkbbbbck.', '.kcbbbbbbbbbbck.', '.kggggggggggggk.',
+    '.kcbbbbbbbbbbck.', '.kkkkkkkkkkkkkk.', '................', '................',
+  ],
+  // 生活 鱼
+  life: [
+    '................', '................', '................', '.....kkkkk......',
+    '...kkqqqqqkk..kk', '..kvvqqqqqqqkkqk', '.kvwkvqqqqqqqqqk', 'kvvkkvqqqqqqquk.',
+    'kqvvvvqqqqqqquk.', '.kqqqqqqqqqqqqqk', '..kuqqqqqqquukuk', '...kkuuuuuukk.kk',
+    '.....kkkkkk.....', '................', '................', '................',
+  ],
+  // 阵法 太极
+  formation: [
+    '................', '.....kkkkkk.....', '...kkPPPPPrkk...', '..kPPPPPPPPrrk..',
+    '.kPPPPPrrPPPrrk.', '.kPPPPPrrPPPrrk.', '.kPPPPPPPPPrrrk.', '.kPPPPPPPrrrrrk.',
+    '.kPPPPPrrrrrrrk.', '.kPPPrrrrrrrrrk.', '.kPPrrrrPPrrrrk.', '.kPPrrrrPPrrrrk.',
+    '..kPPrrrrrrrrk..', '...kkPrrrrrkk...', '.....kkkkkk.....', '................',
+  ],
+  // 攻略 线装书
+  guide: [
+    '................', '..kkkkkkkkkkk...', '..kbPPPPPPPPPk..', '..kbPPkkkkkPPk..',
+    '..kbPPPPPPPPPk..', '..kRPPrrrrPPPk..', '..kbPPrwwrPPPk..', '..kbPPrrrrPPPk..',
+    '..kRPPPPPPPPPk..', '..kbPPkkkkPPPk..', '..kbPPPPPPPPPk..', '..kRPPkkkPPPPk..',
+    '..kbPPPPPPPPPk..', '..kkkkkkkkkkkk..', '................', '................',
+  ],
+  // 设置 铜齿轮
+  settings: [
+    '................', '......kkkk......', '..kk..kggk..kk..', '..kgkkkggkkkgk..',
+    '...kgggggggggk..', '...kggkkkkggk...', '.kkkgkk..kkgkkk.', '.kgggk....kgggk.',
+    '.kgggk....kgggk.', '.kkkgkk..kkgkkk.', '...kggkkkkggk...', '...kgggggggggk..',
+    '..kgkkkggkkkgk..', '..kk..kggk..kk..', '......kkkk......', '................',
+  ],
+};
+export function funcIconTex(scene: Phaser.Scene, name: string): string {
+  return ensure(scene, `fn:${name}`, () => {
+    const rows = FUNC_ICONS[name];
+    const g = new Grid(16, 16);
+    rows.forEach((row, y) => [...row].forEach((ch, x) => {
+      if (ch !== '.') g.set(x, y, FUNC_PAL[ch]);
+    }));
+    return g;
+  });
+}
+
+
 export function uiIconTex(scene: Phaser.Scene, name: string): string {
   return ensure(scene, `ui:${name}`, () => {
     const rows = UI_ICONS[name];

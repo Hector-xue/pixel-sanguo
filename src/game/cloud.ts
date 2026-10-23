@@ -168,7 +168,7 @@ export async function autoTick(s: Save, due = false): Promise<string | null> {
     const err = e as CloudError;
     if (err.code === 'conflict') {
       setAuto(false);
-      return '云端的存档被别的设备更新过，自动同步先停了。去「功能 → 退出 → 云存档」看看要用哪一份。';
+      return '云端的存档被别的设备更新过，自动同步先停了。去「功能 → 设置 → 云存档」看看要用哪一份。';
     }
     if (err.code === 'bad_token' || err.code === 'no_token') return '云存档登录失效了，自动同步停了，请重新登录';
     // 网络不好就下次再试，不打扰

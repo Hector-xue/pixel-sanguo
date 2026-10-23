@@ -362,6 +362,9 @@ export class ScrollArea implements Clip {
 }
 
 // 弹窗：铺一层挡板吃掉下面的点击，上面是宣纸面板
+// 弹窗默认最高多少（普通 640 高的手机上正好铺满）
+export const MODAL_MAX_H = 580;
+
 export class Modal extends Phaser.GameObjects.Container {
   inner: Phaser.GameObjects.Container;
   px: number;
@@ -372,9 +375,11 @@ export class Modal extends Phaser.GameObjects.Container {
   constructor(scene: Phaser.Scene, title: string, opts: { x?: number; y?: number; w?: number; h?: number; close?: string | null; onClose?: () => void; dim?: boolean } = {}) {
     super(scene, 0, 0);
     this.pw = opts.w ?? W - 16;
-    this.ph = opts.h ?? H - 60;
+    // 默认高度：顶上让开刘海、摄像头那条，最高按普通手机的样子来（长屏手机上不拉得老长，内容少的空一大截）
+    const room = H - SAFE_TOP - 40;
+    this.ph = Math.min(opts.h ?? Math.min(room - 20, MODAL_MAX_H), room);
     this.px = opts.x ?? Math.round((W - this.pw) / 2);
-    this.py = opts.y ?? Math.round((H - this.ph) / 2);
+    this.py = opts.y ?? SAFE_TOP + 20 + Math.round((room - this.ph) / 2);
     const block = scene.add.zone(0, 0, W, H).setOrigin(0).setInteractive();
     const g = scene.add.graphics();
     // 底下压暗；面板是漆木框 + 宣纸，标题写在朱漆题签上

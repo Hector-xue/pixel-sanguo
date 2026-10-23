@@ -368,15 +368,20 @@ export class BattleScene extends Phaser.Scene {
   private makeView(u: BUnit, entering = false): View {
     const [hx, hy] = this.slotOf(u);
     const flip = u.side === 'enemy';
-    const shadow = this.add.ellipse(hx, hy + 1, 46, 10, 0x000000, 0.3).setDepth(spriteDepth(hy) - 0.5);
+    // 脚下影子带一圈颜色：我方蓝、敌方红，一眼分得清哪边是自己人
+    const ally = u.side !== 'enemy';
+    const shadow = this.add.ellipse(hx, hy + 1, 46, 10, 0x000000, 0.3).setStrokeStyle(1, ally ? 0x7fb0e0 : 0xe05030, 0.7).setDepth(spriteDepth(hy) - 0.5);
     const spr = this.add.image(hx + (flip ? OFF : -OFF), hy, unitTex(this, u.look, u.variant ?? 0, u.alive ? 'idle' : 'down')).setOrigin(0.5, FEET_Y / UNIT_H).setScale(SC).setFlipX(flip).setDepth(spriteDepth(hy));
     const bars = this.add.graphics().setDepth(200);
     // 名牌：脚下一块暗色小牌，写名字和等级
-    const label = `${u.name} ${u.level}级`;
+    const general = u.kind === 'general';
+    const label = `${general ? '将 ' : ''}${u.name} ${u.level}级`;
     const nw = textWidth(label) + 10;
     const plate = this.add.graphics().setDepth(199);
-    plate.fillStyle(0x0a0604, 0.66).fillRect(hx - nw / 2, hy + 5, nw, 14).fillRect(hx - nw / 2 + 1, hy + 4, nw - 2, 16);
-    plate.fillStyle(u.side === 'enemy' ? 0xb42c18 : UI.goldLo).fillRect(hx - nw / 2 + 1, hy + 19, nw - 2, 1);
+    plate.fillStyle(ally ? 0x0e2238 : 0x2a0a06, 0.8).fillRect(hx - nw / 2, hy + 5, nw, 14).fillRect(hx - nw / 2 + 1, hy + 4, nw - 2, 16);
+    plate.fillStyle(ally ? 0x5f8fc0 : 0xb42c18).fillRect(hx - nw / 2 + 1, hy + 19, nw - 2, 1);
+    // 副将名牌打头的「将」字垫一枚朱红小印
+    if (general) plate.fillStyle(0xb8322a).fillRect(hx - nw / 2 + 3, hy + 5, 15, 14);
     const name = text(this, hx, hy + 5, label, { align: 'center', color: u.side === 'enemy' ? (u.historic ? UI.yellow : 0xfbe0d0) : UI.cream, stroke: 0x000000 }).setDepth(200);
     const badge = text(this, hx, hy - 122, '', { align: 'center', color: C.yellow, stroke: C.ink }).setDepth(201);
     const zone = this.add.zone(hx - 30, hy - 104, 60, 128).setOrigin(0).setInteractive().setDepth(230);

@@ -20,7 +20,9 @@ export function showTip(scene: Phaser.Scene, tip: Tip, onClose?: () => void): vo
   if (showing?.active) return;
   markTip(tip.key);
   const w = W - 24;
-  const bodyH = wrap(tip.body, w - 56).length * 17;
+  // 正文从 x+46 写起，右边留出木框和纸边（原来按 w-56 折行，最后一个字会出框）
+  const tw = w - 64;
+  const bodyH = wrap(tip.body, tw).length * 17;
   const h = Math.max(56, 40 + bodyH);
   const x = 12;
   const y = SAFE_TOP + 92;
@@ -32,7 +34,7 @@ export function showTip(scene: Phaser.Scene, tip: Tip, onClose?: () => void): vo
   sealBox(sg, x + 12, y + 12, 26);
   c.add([sg, text(scene, x + 25, y + 18, '引', { align: 'center', color: 0xfff0c0 })]);
   c.add(text(scene, x + 46, y + 10, tip.title, { color: 0x8c1a0c }));
-  c.add(text(scene, x + 46, y + 28, tip.body, { color: PAPER.ink, wrap: w - 56, lineGap: 3 }));
+  c.add(text(scene, x + 46, y + 28, tip.body, { color: PAPER.ink, wrap: tw, lineGap: 3 }));
   c.add(text(scene, x + w - 12, y + 10, '点一下收起', { align: 'right', color: 0xa89470 }));
   const z = scene.add.zone(x, y, w, h).setOrigin(0).setInteractive({ useHandCursor: true });
   c.add(z);

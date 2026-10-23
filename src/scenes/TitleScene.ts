@@ -13,7 +13,7 @@ import { showDialog } from '../ui/dialog';
 import { overlayInput } from '../ui/input';
 import { cloudPanel } from '../ui/cloud';
 import { isApp } from '../game/cloud';
-import { Button, H, W, confirm, frame, goldFrame, hit, text, toast } from '../ui/widgets';
+import { Button, H, SAFE_TOP, W, confirm, frame, goldFrame, hit, text, toast } from '../ui/widgets';
 import { UI } from '../art/chrome';
 import { playMusic } from '../ui/audio';
 import { iconTitleTex, logoTex, titleBackdrop } from '../art/title';
@@ -115,7 +115,7 @@ export class TitleScene extends Phaser.Scene {
 
     // 右上角留给桃花，左上角是全屏开关
     if (fullscreenSupported()) {
-      p.add(this.iconButton(8, 8, isFullscreen() ? 'unfull' : 'full', '', () => void (isFullscreen() ? exitFullscreen() : enterFullscreen()), 30));
+      p.add(this.iconButton(8, SAFE_TOP + 8, isFullscreen() ? 'unfull' : 'full', '', () => void (isFullscreen() ? exitFullscreen() : enterFullscreen()), 30));
     }
 
     // 底部压暗一点，署名才看得清
@@ -146,7 +146,7 @@ export class TitleScene extends Phaser.Scene {
 
     const icons: [string, string, () => void][] = [];
     if (has) {
-      icons.push(['newrole', '新角色', () => confirm(this, '创建新角色会覆盖现在的存档。建议先在游戏里「功能 → 退出」导出存档。', () => this.showCreate(), '覆盖')]);
+      icons.push(['newrole', '新角色', () => confirm(this, '创建新角色会覆盖现在的存档。建议先在游戏里「功能 → 设置」导出存档。', () => this.showCreate(), '覆盖')]);
     }
     icons.push(['import', '导入存档', () => this.importSave()]);
     icons.push(['cloud', '云存档', () => cloudPanel(this, false, () => this.showHome())]);
@@ -181,8 +181,12 @@ export class TitleScene extends Phaser.Scene {
     const rng = new Rng(randomSeed());
     const st = { gender: 'male' as Gender, classId: 'warrior' as ClassId, avatar: 0 };
     const p = this.newPage();
+    // 面板 530 高，放在刘海、摄像头那条下面，长屏手机上居中
+    const top = SAFE_TOP + 10 + Math.max(0, Math.round((H - SAFE_TOP - 20 - 530) / 2));
+    const oy = top - 30;
+    p.setY(oy);
     const g = this.add.graphics();
-    frame(g, 10, 30, 340, 590, 'paper');
+    frame(g, 10, 30, 340, 530, 'paper');
     frame(g, 14, 34, 332, 22, 'dark');
     p.add(g);
     p.add(text(this, W / 2, 39, '创建角色', { align: 'center', color: C.paper }));
@@ -190,7 +194,7 @@ export class TitleScene extends Phaser.Scene {
     const g2 = this.add.graphics();
     frame(g2, 70, 66, 180, 24, 'ink');
     p.add(g2);
-    const input = overlayInput(this, 72, 68, 176, 20, aiName(rng), 6);
+    const input = overlayInput(this, 72, 68 + oy, 176, 20, aiName(rng), 6);
     p.add(new Button(this, 258, 66, 72, 24, '随机', () => (input.value = aiName(rng))));
 
     const dyn = this.add.container(0, 0);
@@ -236,11 +240,11 @@ export class TitleScene extends Phaser.Scene {
     };
     render();
 
-    p.add(new Button(this, 30, 560, 120, 32, '返回', () => {
+    p.add(new Button(this, 30, 516, 120, 32, '返回', () => {
       input.remove();
       this.showHome();
     }));
-    p.add(new Button(this, 210, 560, 120, 32, '进入游戏', () => {
+    p.add(new Button(this, 210, 516, 120, 32, '进入游戏', () => {
       const name = input.value.trim();
       if (!name) return toast(this, '请输入名称');
       if (name.length > 6) return toast(this, '名称最多6个字');

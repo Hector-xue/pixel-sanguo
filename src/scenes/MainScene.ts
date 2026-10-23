@@ -3,7 +3,7 @@
 import Phaser from 'phaser';
 import { setChrome, syncHeight } from '../ui/screen';
 import { C } from '../art/palette';
-import { avatarTex, bustTex, heroLookKey, propTex, sceneTex, uiIconTex, unitTex } from '../art/textures';
+import { avatarTex, bustTex, funcIconTex, heroLookKey, propTex, sceneTex, uiIconTex, unitTex } from '../art/textures';
 import { FEET_Y, UNIT_H, UNIT_W, BX } from '../art/units';
 import { GLOW, OUTDOOR_DARK, daypart, layoutProps } from '../art/props';
 import type { Daypart } from '../art/props';
@@ -65,6 +65,12 @@ const HORIZON = 0.34;
 const OFF = BX - UNIT_W / 2;
 
 const SHICHEN = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+// 功能菜单：名字对应的图标
+const FUNC_KEYS: Record<string, string> = {
+  状态: 'status', 物品: 'items', 副将: 'generals', 任务: 'quest', 组队: 'team', 排行: 'rank', 国战: 'guozhan', 福利: 'welfare',
+  擂台: 'arena', 帮派: 'sect', 训练: 'train', 宝库: 'vault', 生活: 'life', 阵法: 'formation', 攻略: 'guide', 设置: 'settings',
+};
+
 function shichen(d = new Date()): string {
   return `${SHICHEN[Math.floor(((d.getHours() + 1) % 24) / 2)]}时`;
 }
@@ -657,7 +663,8 @@ export class MainScene extends Phaser.Scene implements P.Host {
 
   // ===== 弹出页 =====
   private sheet(title: string, h: number): Modal {
-    return new Modal(this, title, { h: Math.min(h, H - 40), y: Math.max(20, H - NAV_H - Math.min(h, H - 40) - 8) });
+    const hh = Math.min(h, H - SAFE_TOP - 40);
+    return new Modal(this, title, { h: hh, y: Math.max(SAFE_TOP + 8, H - NAV_H - hh - 8) });
   }
 
   private facilitySheet(): void {
@@ -757,12 +764,18 @@ export class MainScene extends Phaser.Scene implements P.Host {
     items.forEach(([name, fn, dot], i) => {
       const x = m.cx + (i % cols) * cw;
       const y = m.cy + 4 + Math.floor(i / cols) * 58;
+      // 漆木小匾，里面一枚像素图标
       const sg = this.add.graphics();
-      sealBox(sg, x + cw / 2 - 17, y, 34);
+      const bx = x + cw / 2 - 19;
+      sg.fillStyle(0x1a1210).fillRect(bx, y - 2, 38, 38);
+      sg.fillStyle(UI.goldLo).fillRect(bx + 1, y - 1, 36, 36);
+      sg.fillStyle(0x4a2e1a).fillRect(bx + 2, y, 34, 34);
+      sg.fillStyle(0x5c3a20).fillRect(bx + 2, y, 34, 17);
+      sg.fillStyle(0xffffff, 0.12).fillRect(bx + 2, y, 34, 1);
       m.inner.add(sg);
-      m.inner.add(text(this, x + cw / 2, y + 7, name[0], { align: 'center', color: 0xfff0c0, scale: 2 }).setOrigin(0.5, 0).setY(y + 5));
-      m.inner.add(text(this, x + cw / 2, y + 38, name, { align: 'center', color: C.darkBrown }));
-      if (dot) m.inner.add(this.add.circle(x + cw / 2 + 17, y + 1, 4, 0xff3020).setStrokeStyle(1, 0xffffff));
+      m.inner.add(this.add.image(x + cw / 2, y + 17, funcIconTex(this, FUNC_KEYS[name] ?? 'guide')).setScale(2));
+      m.inner.add(text(this, x + cw / 2, y + 39, name, { align: 'center', color: C.darkBrown }));
+      if (dot) m.inner.add(this.add.circle(x + cw / 2 + 18, y, 4, 0xff3020).setStrokeStyle(1, 0xffffff));
       m.inner.add(hit(this, x, y - 2, cw, 56, () => {
         m.close();
         fn();
