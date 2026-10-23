@@ -558,6 +558,21 @@ const ICONS: Record<string, string[]> = {
     '.....nbn....',
     '............',
   ],
+  // 三张叠着的存档卡：存档位
+  slots: [
+    '############',
+    '#pppppppppp#',
+    '#pkkkkkpgpp#',
+    '############',
+    '#pppppppppp#',
+    '#pkkkkpppgp#',
+    '############',
+    '#pppppppppp#',
+    '#pkkkkkkpgp#',
+    '############',
+    '............',
+    '............',
+  ],
   // 手机：安卓版
   phone: [
     '...######...',

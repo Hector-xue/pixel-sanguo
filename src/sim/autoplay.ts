@@ -1,5 +1,8 @@
 // 自动通关模拟：用自动战斗跑主线（新手篇 + 许昌篇），检查任务能不能走通、升级节奏合不合适。单测和数值调整都用它。
-import { cook, gather } from '../game/life';
+import { FEASTS, RECIPES, canCook, cook, cookHere, eatFeast, gather, spotKind, spotLeft } from '../game/life';
+import type { Quality } from '../game/life';
+import { attackTargets, claimSalary, claimSeason, gzBattle, joinNation, ordersLeft, syncWorld } from '../game/guozhan';
+import { claimKuaqu, claimLeague, kuaquBattle, kuaquReason, kuaquView, leagueBattle, leagueView } from '../game/contest';
 import { findBadge } from '../game/badges';
 import { setFormation } from '../game/formation';
 import { bestFormation, enemyFormation } from '../game/formation';
@@ -36,6 +39,23 @@ export interface AutoplayReport {
   rings: number;
   // 在哪儿输的（地点 → 场数），调数值用
   lossAt: Record<string, number>;
+  // 后期玩法的账（只有 endgame 打开时才记）
+  endgame?: EndgameStats;
+}
+
+export interface EndgameStats {
+  gzFights: number;
+  gzWins: number;
+  captures: number;
+  seasonRewards: number[];
+  league: number;
+  leagueWins: number;
+  leagueRewards: number[];
+  kuaqu: number;
+  kuaquWins: number;
+  kuaquRewards: number[];
+  gathers: number;
+  cooks: number;
 }
 
 interface Sim {
@@ -46,6 +66,8 @@ interface Sim {
   lastSmith: number;
   badSpot: Record<string, number>;
   badLevel: number;
+  endgame: boolean;
+  lastCook: number;
 }
 
 function go(s: Save, to: string): void {
@@ -73,9 +95,10 @@ export function playerCommand(b: Battle, u: BUnit, s: Save, captureId: string | 
     const mpDrug = Object.keys(b.items).filter((k) => b.items[k] > 0 && items[k].mp).sort((a, c) => items[c].mp! - items[a].mp!)[0];
     if (mpDrug) return { actor: u.id, type: 'item', item: mpDrug, target: u.id };
   }
-  const aoe = castable.find((id) => skills[id].kind === 'aoe');
-  if (aoe && foes.length >= 2) return { actor: u.id, type: 'skill', skill: aoe };
   const busy = captureId && foes.some((f) => f.monsterId === captureId);
+  // 要招降的还在场上就不放群攻，免得把它打死
+  const aoe = castable.find((id) => skills[id].kind === 'aoe');
+  if (aoe && !busy && foes.length >= 2) return { actor: u.id, type: 'skill', skill: aoe };
   const ctl = castable.find((id) => skills[id].kind === 'control');
   const free = foes.filter((f) => !controlOf(f)).sort((a, c) => c.hp - a.hp);
   if (ctl && !busy && free.length && foes.length > 1) return { actor: u.id, type: 'skill', skill: ctl, target: free[0].id };
@@ -86,8 +109,12 @@ export function playerCommand(b: Battle, u: BUnit, s: Save, captureId: string | 
 
 export function generalCommand(b: Battle, u: BUnit, captureId: string | null): Command {
   if (captureId && foesOf(b, u).some((f) => f.monsterId === captureId)) {
-    const t = foesOf(b, u).find((f) => f.monsterId === captureId && f.hp > f.maxHp * 0.5);
-    return t ? { actor: u.id, type: 'attack', target: t.id } : { actor: u.id, type: 'defend' };
+    // 要招降的那个别打死：副将先收拾别的；只剩它了，就由第一个副将把它磨到一半，其余防御
+    const others = foesOf(b, u).filter((f) => f.monsterId !== captureId);
+    if (others.length) return { actor: u.id, type: 'attack', target: others.sort((a, c) => a.hp - c.hp)[0].id };
+    const first = b.units.find((x) => x.side === u.side && x.kind === 'general' && x.alive);
+    const t = foesOf(b, u).find((f) => f.monsterId === captureId && f.hp > f.maxHp * 0.6);
+    return t && first === u ? { actor: u.id, type: 'attack', target: t.id } : { actor: u.id, type: 'defend' };
   }
   const sk = u.skills.map((x) => x.id).filter((id) => canCast(u, id) && skills[id].target !== 'allies');
   if (sk.length) {
@@ -472,8 +499,87 @@ function doFlag(sim: Sim, flag: string): boolean {
   return false;
 }
 
-export function autoplay(s: Save, seed = 7, maxBattles = 600, untilStep = mainQuests.length): AutoplayReport {
-  const sim: Sim = { s, rng: new Rng(seed), rep: { finished: false, battles: 0, wins: 0, losses: 0, level: 1, steps: [], generals: 0, rings: 0, lossAt: {} }, now: Date.UTC(2026, 2, 10, 2), lastSmith: 0, badSpot: {}, badLevel: 0 };
+// ===== 后期玩法：会玩的人顺手做的事（采集烹饪、国战、军团争霸、诸州会武），用来看这几样的节奏 =====
+function endgame(sim: Sim): void {
+  const { s, rng } = sim;
+  const eg = sim.rep.endgame!;
+  // 采集：路过有采集点就采一下（小游戏按一般手感，打中为主、偶尔正中或打空）
+  const kind = spotKind(s.location);
+  if (kind && spotLeft(s, s.location) > 0 && bagUsed(s) < bagCap(s) - 8) {
+    const q = (): Quality => (rng.chance(0.15) ? 0 : rng.chance(0.3) ? 2 : 1);
+    const r = gather(s, kind, kind === 'mine' ? [q(), q(), q()] : [q()]);
+    if (r.ok) eg.gathers++;
+  }
+  // 烹饪：在城里就把会做、材料够的最好那道做一份
+  if (cookHere(s) && sim.rep.battles - sim.lastCook >= 20) {
+    const r = [...RECIPES].reverse().find((x) => canCook(s, x));
+    if (r && cook(s, r.id).startsWith('做好')) {
+      eg.cooks++;
+      sim.lastCook = sim.rep.battles;
+    }
+  }
+  // 药膳做出来就吃（管几场战斗）
+  if (!s.p5.life.feast) {
+    const f = Object.keys(FEASTS).find((id) => bagCount(s, id) > 0);
+    if (f) eatFeast(s, f);
+  }
+  if (s.player.level >= 60 && !s.p4.nation) joinNation(s, 'shu');
+  if (s.p4.nation) {
+    claimSalary(s);
+    if (s.p4.seasonClaim) {
+      eg.seasonRewards.push(s.p4.seasonClaim.rank);
+      claimSeason(s);
+    }
+    const st = playerStats(s);
+    if (ordersLeft(s) > 0 && s.player.hp > st.maxHp * 0.6) {
+      const w = syncWorld(s);
+      const ts = attackTargets(s, w);
+      const broken = ts.find((id) => w.cities[id].troops <= 0);
+      const id = broken ?? ts.sort((a, c) => w.cities[a].troops - w.cities[c].troops)[0];
+      if (id) {
+        const b = gzBattle(s, id, broken ? 'boss' : 'atk', rng.int(0, 2 ** 31));
+        if (typeof b !== 'string') {
+          const before = s.life.gzCaptures ?? 0;
+          eg.gzFights++;
+          if (runBattle(sim, b, null) === 'win') eg.gzWins++;
+          if ((s.life.gzCaptures ?? 0) > before) eg.captures++;
+        }
+      }
+    }
+  }
+  if (s.p3.sect.id) {
+    if (s.p4.league.claim) {
+      eg.leagueRewards.push(s.p4.league.claim.rank);
+      claimLeague(s);
+    }
+    if (leagueView(s).left > 0) {
+      const b = leagueBattle(s, rng.int(0, 2 ** 31));
+      if (typeof b !== 'string') {
+        eg.league++;
+        if (runBattle(sim, b, null) === 'win') eg.leagueWins++;
+      }
+    }
+  }
+  if (s.p4.kuaqu.claim) {
+    eg.kuaquRewards.push(s.p4.kuaqu.claim.rank);
+    claimKuaqu(s);
+  }
+  if (!kuaquReason(s)) {
+    const v = kuaquView(s);
+    const f = v.foes.find((x) => !v.fought.includes(x.idx));
+    if (f) {
+      const b = kuaquBattle(s, f.idx, rng.int(0, 2 ** 31));
+      if (typeof b !== 'string') {
+        eg.kuaqu++;
+        if (runBattle(sim, b, null) === 'win') eg.kuaquWins++;
+      }
+    }
+  }
+}
+
+export function autoplay(s: Save, seed = 7, maxBattles = 600, untilStep = mainQuests.length, opts: { endgame?: boolean } = {}): AutoplayReport {
+  const sim: Sim = { s, rng: new Rng(seed), rep: { finished: false, battles: 0, wins: 0, losses: 0, level: 1, steps: [], generals: 0, rings: 0, lossAt: {} }, now: Date.UTC(2026, 2, 10, 2), lastSmith: 0, badSpot: {}, badLevel: 0, endgame: !!opts.endgame, lastCook: -99 };
+  if (sim.endgame) sim.rep.endgame = { gzFights: 0, gzWins: 0, captures: 0, seasonRewards: [], league: 0, leagueWins: 0, leagueRewards: [], kuaqu: 0, kuaquWins: 0, kuaquRewards: [], gathers: 0, cooks: 0 };
   const { rep } = sim;
   s.staminaAt = sim.now;
   let guard = 0;
@@ -487,6 +593,7 @@ export function autoplay(s: Save, seed = 7, maxBattles = 600, untilStep = mainQu
       break;
     }
     upkeep(sim);
+    if (sim.endgame) endgame(sim);
     if (s.main.state === 'available') {
       go(s, npcLocation(q.giver)!);
       acceptQuest(s);

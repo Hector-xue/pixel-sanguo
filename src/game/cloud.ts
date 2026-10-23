@@ -3,6 +3,7 @@
 // 版本号 rev = 本机存档对应云端的哪个版本。上传带上它，云端更新过就会被拒（409），由玩家决定覆盖还是先下载。
 import type { Save } from './state';
 import { serialize } from './state';
+import { store } from './store';
 
 // 套壳 App（Capacitor）里跑：页面来自 https://localhost
 export function isApp(): boolean {
@@ -20,6 +21,8 @@ export interface CloudCred {
   auto: boolean;
   // 上次同步成功的时间、那时存档的指纹（没变就不传）
   syncedAt: number;
+  // 和云端对上的是第几个存档位（老凭据没有，按第一个算）
+  slot?: number;
   hash: string;
 }
 
@@ -121,7 +124,7 @@ export async function upload(s: Save, force = false): Promise<{ rev: number; at:
   if (!c) throw new CloudError('no_token', '还没登录');
   const text = serialize(s);
   const out = await call<{ rev: number; at: number }>('upload', { save: text, base: c.rev, force }, c.token);
-  saveCred({ ...c, rev: out.rev, syncedAt: Date.now(), hash: fingerprint(text) });
+  saveCred({ ...c, rev: out.rev, syncedAt: Date.now(), hash: fingerprint(text), slot: store.slot });
   return out;
 }
 
@@ -134,7 +137,7 @@ export async function download(rev?: number): Promise<{ rev: number; at: number;
 
 export function markApplied(rev: number, text: string): void {
   const c = loadCred();
-  if (c) saveCred({ ...c, rev, syncedAt: Date.now(), hash: fingerprint(text) });
+  if (c) saveCred({ ...c, rev, syncedAt: Date.now(), hash: fingerprint(text), slot: store.slot });
 }
 
 export async function changePassword(old: string, password: string): Promise<void> {
@@ -156,6 +159,8 @@ let lastTry = 0;
 export async function autoTick(s: Save, due = false): Promise<string | null> {
   const c = loadCred();
   if (!c?.auto || busy) return null;
+  // 只自动同步和云端对得上的那个存档位（换到别的存档位玩，不会把另一个角色传上去盖掉）
+  if ((c.slot ?? 0) !== store.slot) return null;
   const now = Date.now();
   if (!due && now - Math.max(c.syncedAt, lastTry) < AUTO_MS) return null;
   if (fingerprint(serialize(s)) === c.hash) return null;

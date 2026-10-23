@@ -148,6 +148,16 @@ export function leagueBattle(s: Save, seed: number, t = calTick(s)): Battle | st
     g.row = 1;
     enemies.push(g);
   }
+  // 我方多带一个副将，对面也多一个副将压阵（同门带来的副将，和你的副将一个分量）
+  const extra = Math.max(0, deployedUids(s).length - 1);
+  for (let k = 0; k < extra; k++) {
+    const r = pool[(stage * 2 + 1 + k + v.day * 7) % pool.length];
+    const g = rivalGeneralUnit(s, r, `e${enemies.length}`, 'enemy');
+    for (const key of ['maxHp', 'atk', 'def', 'spd'] as const) g[key] = Math.round(g[key] * 0.85);
+    g.hp = g.maxHp;
+    g.row = 1;
+    enemies.push(g);
+  }
   const { allies, reserve } = sparTeam(s);
   return createBattle({
     seed: (rng.next() * 4294967296) >>> 0, allies, reserve, enemies, items: {},
@@ -263,9 +273,21 @@ export function kuaquBattle(s: Save, idx: number, seed: number, t = calTick(s)):
   for (const key of ['maxHp', 'atk', 'def', 'spd'] as const) g[key] = Math.round(g[key] * 0.8);
   g.hp = g.maxHp;
   g.row = 1;
+  const enemies = [m, g];
+  // 我方多带一个副将，对面多一个副将压阵
+  const extra = Math.max(0, deployedUids(s).length - 1);
+  for (let k = 0; k < extra; k++) {
+    const o = rivals(s)[(idx * 13 + v.day + 7 * (k + 1)) % rivals(s).length];
+    const e = mirrorUnit(`e${enemies.length}`, o.general.name, o.general.classId, o.general.gender, 0, Math.max(1, f.level - 5), 'enemy');
+    e.look = o.general.look;
+    for (const key of ['maxHp', 'atk', 'def', 'spd'] as const) e[key] = Math.round(e[key] * 0.8);
+    e.hp = e.maxHp;
+    e.row = 1;
+    enemies.push(e);
+  }
   const { allies, reserve } = sparTeam(s);
   return createBattle({
-    seed: (rng.next() * 4294967296) >>> 0, allies, reserve, enemies: [m, g], items: {},
+    seed: (rng.next() * 4294967296) >>> 0, allies, reserve, enemies, items: {},
     title: `诸州会武·${f.server} ${f.name}`, spar: true, canFlee: false, tag: `kuaqu:${idx}`,
   });
 }

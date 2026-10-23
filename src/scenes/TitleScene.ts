@@ -3,12 +3,12 @@ import Phaser from 'phaser';
 import { C } from '../art/palette';
 import { avatarTex, heroLookKey, sceneTex, unitTex } from '../art/textures';
 import { BX, FEET_Y, UNIT_H, UNIT_W } from '../art/units';
-import { CLASS_IDS, classSkills, classes, opening, skills } from '../data';
+import { CLASS_IDS, classSkills, classes, locations, opening, skills } from '../data';
 import { Rng, randomSeed } from '../core/rng';
 import type { ClassId, Gender } from '../core/types';
 import { aiName } from '../game/chatter';
 import { acceptQuest, deserialize, log, newSave } from '../game/state';
-import { store } from '../game/store';
+import { SLOTS, store } from '../game/store';
 import { showDialog } from '../ui/dialog';
 import { overlayInput } from '../ui/input';
 import { cloudPanel } from '../ui/cloud';
@@ -145,9 +145,7 @@ export class TitleScene extends Phaser.Scene {
     p.add(text(this, W / 2, by + 9, has ? '继续游戏' : '开始游戏', { align: 'center', color: 0xfff0c0, stroke: 0x4a0804, scale: 2 }));
 
     const icons: [string, string, () => void][] = [];
-    if (has) {
-      icons.push(['newrole', '新角色', () => confirm(this, '创建新角色会覆盖现在的存档。建议先在游戏里「功能 → 设置」导出存档。', () => this.showCreate(), '覆盖')]);
-    }
+    if (has || [0, 1, 2].some((i) => store.peek(i))) icons.push(['slots', '存档位', () => this.showSlots()]);
     icons.push(['import', '导入存档', () => this.importSave()]);
     icons.push(['cloud', '云存档', () => cloudPanel(this, false, () => this.showHome())]);
     if (!isApp() && /Android/i.test(navigator.userAgent)) icons.push(['phone', '安卓版', () => window.open('./download/pixel-sanguo.apk', '_blank')]);
@@ -156,6 +154,50 @@ export class TitleScene extends Phaser.Scene {
     icons.forEach(([ic, label, fn], i) => p.add(this.iconButton(x0 + i * (44 + gap), H - 132, ic, label, fn)));
 
     p.add(text(this, W / 2, H - 20, '画面、剧情为原创 · 字体 Fusion Pixel（OFL）', { align: 'center', color: 0xa8b8a0, stroke: 0x1a2a10 }));
+  }
+
+  // 三个存档位：读取、删除，空位上新建角色
+  private showSlots(): void {
+    this.current = () => this.showSlots();
+    const p = this.newPage();
+    const top = SAFE_TOP + 10 + Math.max(0, Math.round((H - SAFE_TOP - 20 - 330) / 2));
+    const g = this.add.graphics();
+    frame(g, 10, top, 340, 330, 'paper');
+    frame(g, 14, top + 4, 332, 22, 'dark');
+    p.add(g);
+    p.add(text(this, W / 2, top + 9, '存档位', { align: 'center', color: C.paper }));
+    const names = ['一', '二', '三'];
+    for (let i = 0; i < SLOTS; i++) {
+      const info = store.peek(i);
+      const y = top + 36 + i * 84;
+      const rg = this.add.graphics();
+      frame(rg, 20, y, 320, 76, i === store.slot ? 'red' : 'tan');
+      p.add(rg);
+      p.add(text(this, 30, y + 8, `存档${names[i]}${i === store.slot ? '（当前）' : ''}`, { color: i === store.slot ? 0xfff0c0 : C.darkBrown }));
+      if (info) {
+        const d = info.savedAt ? new Date(info.savedAt) : null;
+        const when = d ? `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
+        p.add(text(this, 30, y + 28, `${info.name} · ${info.level}级${classes[info.classId as ClassId]?.name ?? ''}`, { color: i === store.slot ? UI.cream : C.darkRed }));
+        p.add(text(this, 30, y + 48, `${locations[info.location]?.name ?? ''}${when ? ` · ${when}` : ''}`, { color: i === store.slot ? 0xe8c8a0 : C.brown }));
+        p.add(new Button(this, 214, y + 14, 56, 24, '读取', () => {
+          store.useSlot(i);
+          this.scene.start('Main');
+        }, { style: 'red' }));
+        p.add(new Button(this, 276, y + 14, 56, 24, '删除', () => confirm(this, `删除存档${names[i]}（${info.name} ${info.level}级）？删了找不回来，建议先进游戏在「功能 → 设置」导出。`, () => {
+          store.removeSlot(i);
+          if (i === store.slot) store.useSlot(i);
+          this.showSlots();
+        }, '删除')));
+      } else {
+        p.add(text(this, 30, y + 34, '空', { color: i === store.slot ? UI.cream : C.gray }));
+        p.add(new Button(this, 214, y + 26, 118, 24, '在这里新建角色', () => {
+          const prev = store.slot;
+          store.useSlot(i);
+          this.showCreate(() => store.useSlot(prev));
+        }, { style: 'red' }));
+      }
+    }
+    p.add(new Button(this, 120, top + 294, 120, 28, '返回', () => this.showHome()));
   }
 
   private importSave(): void {
@@ -176,8 +218,8 @@ export class TitleScene extends Phaser.Scene {
     el.click();
   }
 
-  private showCreate(): void {
-    this.current = () => this.showCreate();
+  private showCreate(onBack?: () => void): void {
+    this.current = () => this.showCreate(onBack);
     const rng = new Rng(randomSeed());
     const st = { gender: 'male' as Gender, classId: 'warrior' as ClassId, avatar: 0 };
     const p = this.newPage();
@@ -242,6 +284,7 @@ export class TitleScene extends Phaser.Scene {
 
     p.add(new Button(this, 30, 516, 120, 32, '返回', () => {
       input.remove();
+      onBack?.();
       this.showHome();
     }));
     p.add(new Button(this, 210, 516, 120, 32, '进入游戏', () => {

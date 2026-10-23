@@ -168,7 +168,7 @@ def main():
         'guards': guards,
         # AI 每回合：各城自己补兵；每国有一定概率从前线挑一座城去打邻城
         'ai': {'attackChance': 0.6, 'sendPct': 0.6, 'minRatio': 0.85, 'startPct': 0.7, 'qunStartPct': 0.45, 'qunYieldMul': 0.35,
-               'reinforcePct': 0.25, 'bigNationDamp': 0.08, 'luck': [0.8, 1.2]},
+               'reinforcePct': 0.25, 'bigNationDamp': 0.08, 'allyVsLeader': 1.2, 'allyAttackBonus': 0.2, 'luck': [0.8, 1.2]},
         # 主角出征：打赢一场守军减 max×hitPct + 等级×hitPerLevel；驻守打赢补 max×defendPct
         'player': {'hitPct': 0.055, 'hitPerLevel': 2, 'defendPct': 0.06, 'captureTroopsPct': 0.35,
                    'meritAtk': 12, 'meritDef': 8, 'meritBoss': 80, 'guardControlResist': 120, 'guardLevel': 3, 'guardEscorts': 3, 'mirrorChance': 0.35, 'joinCooldownDays': 7},

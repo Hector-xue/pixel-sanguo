@@ -2082,6 +2082,8 @@
       "qunYieldMul": 0.35,
       "reinforcePct": 0.25,
       "bigNationDamp": 0.08,
+      "allyVsLeader": 1.2,
+      "allyAttackBonus": 0.2,
       "luck": [
         0.8,
         1.2

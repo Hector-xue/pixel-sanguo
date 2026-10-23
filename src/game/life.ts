@@ -62,7 +62,7 @@ export function lifeStep(s: Save): void {
 
 // 经验到下一级：越往后越慢
 export function lifeNeed(lv: number): number {
-  return 20 + lv * lv * 12;
+  return 20 + lv * lv * 6;
 }
 
 function gainExp(s: Save, k: LifeKind, n: number): string | null {

@@ -92,6 +92,9 @@ function aiTurn(s: Save, w: GzWorld): void {
     const damp = st.owner === 'qun' ? A.qunYieldMul : Math.max(0.5, 1 - A.bigNationDamp * Math.max(0, counts[st.owner] - 4));
     st.troops = Math.min(k.max, st.troops + Math.round(k.yield * damp));
   }
+  // 合纵：城最多的那一国（领先两座以上）会被另外两国当成头号对手，打它更积极、也更拼命
+  const ranks = nationRanks(w);
+  const leader = ranks[0].cities - ranks[1].cities >= 2 ? ranks[0].id : null;
   for (const n of rng.shuffle([...PLAYABLE])) {
     const mine = citiesOf(w, n);
     if (!mine.length) continue;
@@ -109,14 +112,15 @@ function aiTurn(s: Save, w: GzWorld): void {
         w.cities[weakest].troops += m;
       }
     }
-    if (!rng.chance(A.attackChance)) continue;
+    if (!rng.chance(leader && n !== leader ? Math.min(0.95, A.attackChance + A.allyAttackBonus) : A.attackChance)) continue;
     let best: { from: string; to: string; ratio: number } | null = null;
     for (const from of front) {
       for (const to of neighbors(from)) {
         const t = w.cities[to];
         // 守将正出城和你单挑的城，别家不来插手
         if (t.owner === n || routed(w, to)) continue;
-        const ratio = (w.cities[from].troops * A.sendPct) / Math.max(1, t.troops * kindOf(to).def) * rng.range(0.9, 1.1);
+        const vsLeader = leader && t.owner === leader && n !== leader ? A.allyVsLeader : 1;
+        const ratio = (w.cities[from].troops * A.sendPct * vsLeader) / Math.max(1, t.troops * kindOf(to).def) * rng.range(0.9, 1.1);
         if (!best || ratio > best.ratio) best = { from, to, ratio };
       }
     }
@@ -125,7 +129,7 @@ function aiTurn(s: Save, w: GzWorld): void {
     const tgt = w.cities[best.to];
     const send = Math.round(src.troops * A.sendPct);
     src.troops -= send;
-    const att = send * rng.range(A.luck[0], A.luck[1]);
+    const att = send * rng.range(A.luck[0], A.luck[1]) * (leader && tgt.owner === leader && n !== leader ? A.allyVsLeader : 1);
     const def = Math.max(1, tgt.troops) * kindOf(best.to).def * rng.range(A.luck[0], A.luck[1]);
     const name = cityDef(best.to).name;
     if (att > def && cityDef(best.to).kind === 'capital') {
@@ -438,14 +442,16 @@ export function gzBattle(s: Save, id: string, mode: GzMode, seed: number, t = ca
   const pool = G.soldiers[foe];
   const enemies: BUnit[] = [];
   let title = '';
+  // 我方多带一个副将，对面多一个人（这些仗原来按主角加一个副将配的）
+  const extra = Math.max(0, deployedUids(s).length - 1);
   if (mode === 'boss') {
     const gid = guardOf(w, id);
     enemies.push(guardUnit(gid, lv + G.player.guardLevel));
     // 护卫：步卒、谋士、步卒（方士群攻太狠，不带）
-    for (let i = 1; i <= G.player.guardEscorts; i++) enemies.push(monsterUnit(`e${i}`, pool[[0, 1, 0, 2][i - 1] ?? 0], lv, i < 3 ? 0 : 1));
+    for (let i = 1; i <= Math.min(5, G.player.guardEscorts + extra); i++) enemies.push(monsterUnit(`e${i}`, pool[[0, 1, 0, 2, 0, 1][i - 1] ?? 0], lv, i < 3 ? 0 : 1));
     title = `${cityDef(id).name}守将·${enemies[0].name}`;
   } else {
-    const n = rng.int(3, 5);
+    const n = Math.min(6, rng.int(3, 5) + extra);
     for (let i = 0; i < n; i++) enemies.push(monsterUnit(`e${i}`, rng.pick(pool), Math.max(1, lv + rng.int(-2, 1)), i < 3 ? 0 : 1));
     title = mode === 'atk' ? `出征·${cityDef(id).name}` : `驻守·${cityDef(id).name}`;
     // 有时敌国的 AI 玩家带队
@@ -454,7 +460,7 @@ export function gzBattle(s: Save, id: string, mode: GzMode, seed: number, t = ca
       const r = rng.pick(rs);
       const m = mirrorUnit(`e${enemies.length}`, r.name, r.classId, r.gender, r.variant, Math.max(1, lv + rng.int(-3, 2)), 'enemy', lv > 100);
       m.row = 1;
-      if (enemies.length >= 5) enemies[4] = m;
+      if (enemies.length >= 6) enemies[5] = m;
       else enemies.push(m);
       title = `${title}（${r.name}率${natName(foe)}）`;
     }
