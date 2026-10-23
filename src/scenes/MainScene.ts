@@ -12,6 +12,7 @@ import type { MonsterGroup } from '../data';
 import { randomSeed } from '../core/rng';
 import type { Battle } from '../core/battle';
 import { duelBattle, duelReason, taofaBattle, taofaReason } from '../game/story';
+import { isUnlocked, markUnlocked, nextUnlock, pendingUnlocks } from '../game/unlocks';
 import { expToNext } from '../core/formulas';
 import { playersAt } from '../game/chatter';
 import { groupLabel, startBattle, startGroupBattle } from '../game/encounter';
@@ -189,6 +190,14 @@ export class MainScene extends Phaser.Scene implements P.Host {
     this.chat.refresh();
     // 江湖指引：新东西第一次用得上时提一句（等转场、对话这些先过去）
     this.time.delayedCall(900, () => this.scene.isActive() && runTips(this));
+    // 在主界面里升了级（交任务给的经验）也演新功能开启
+    if (!this.unlockQueued && pendingUnlocks(store.save).length) {
+      this.unlockQueued = true;
+      this.time.delayedCall(1200, () => {
+        this.unlockQueued = false;
+        if (this.scene.isActive()) this.announceUnlocksWhenIdle();
+      });
+    }
   }
 
   private stageSignature(): string {
@@ -607,7 +616,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
       ['today', '今日', () => dailyPanel(this), dailyCount(s)],
       ['gift', '福利', () => welfarePanel(this), welfarePending(s) || X.festivalPending(s)],
       ['flag', '国战', () => G4.guozhanPanel(this), G4.guozhanPending(s)],
-    ];
+    ].filter(([, label]) => isUnlocked(s, label as string)) as [string, string, () => void, boolean | number][];
     if (s.battles >= 10) this.time.delayedCall(1500, () => this.scene.isActive() && pointAt(this, W - 20, T + 50, 'today', true));
     quick.forEach(([icon, label, fn, dot], i) => {
       const x = W - 34;
@@ -850,7 +859,8 @@ export class MainScene extends Phaser.Scene implements P.Host {
     }
   }
 
-  private funcSheet(): void {
+  // 功能菜单里的入口（按等级逐个开放，见 game/unlocks.ts）
+  private funcItems(): [string, () => void, boolean][] {
     const s = store.save;
     const items: [string, () => void, boolean][] = [
       ['状态', () => P.statusPanel(this), s.player.free > 0], ['物品', () => P.bagPanel(this), false], ['副将', () => P.generalsPanel(this), false],
@@ -859,6 +869,13 @@ export class MainScene extends Phaser.Scene implements P.Host {
       ['帮派', () => X.sectPanel(this), false], ['训练', () => X.trainingPanel(this), false], ['宝库', () => X.vaultPanel(this), false],
       ['生活', () => lifePanel(this), false], ['阵法', () => formationPanel(this), false], ['攻略', () => P.helpPanel(this), false], ['设置', () => P.settingsPanel(this), false],
     ];
+    return items.filter(([name]) => isUnlocked(s, name));
+  }
+
+  private funcSheet(): void {
+    const s = store.save;
+    const items = this.funcItems();
+    const next = nextUnlock(s);
     const cols = 5;
     const rows = Math.ceil(items.length / cols);
     const m = this.sheet('功能', 84 + rows * 58);
@@ -887,6 +904,51 @@ export class MainScene extends Phaser.Scene implements P.Host {
       m.close();
       P.talkTo(this, 'bangzhu');
     }));
+    if (next) m.inner.add(text(this, m.cx + m.cw / 2, m.cy + 40 + rows * 58, `${next.lv}级开放：${next.name}`, { align: 'center', color: C.gray }));
+  }
+
+  private unlockQueued = false;
+
+  // 等眼前没有弹窗、对话再演（和引导箭头一样看有没有高层的东西）
+  private announceUnlocksWhenIdle(tries = 0): void {
+    if (!pendingUnlocks(store.save).length) return;
+    const busy = this.children.list.some((o) => (o as unknown as { depth: number }).depth >= 100 && (o as unknown as { depth: number }).depth < 1400);
+    if (busy && tries < 20) {
+      this.time.delayedCall(1500, () => this.scene.isActive() && this.announceUnlocksWhenIdle(tries + 1));
+      return;
+    }
+    this.announceUnlocks();
+  }
+
+  // 新功能开启：刚够级的一样样演（升了好几级一起来的，排着队一个一个演）
+  private announceUnlocks(): void {
+    const s = store.save;
+    const list = pendingUnlocks(s);
+    store.commit();
+    if (!list.length) return;
+    const u = list[0];
+    const m = new Modal(this, '新功能开启', { w: 260, h: 214, close: null });
+    const cx = m.px + m.pw / 2;
+    const ring = this.add.circle(cx, m.cy + 34, 30, 0xf6d36a, 0.35);
+    m.inner.add(ring);
+    this.tweens.add({ targets: ring, scale: { from: 0.4, to: 1.25 }, alpha: { from: 0.8, to: 0 }, duration: 900, repeat: -1 });
+    const icon = this.add.image(cx, m.cy + 34, funcIconTex(this, FUNC_KEYS[u.key] ?? 'guide')).setScale(0.5);
+    m.inner.add(icon);
+    this.tweens.add({ targets: icon, scale: 3, duration: 380, ease: 'Back.easeOut' });
+    m.inner.add(text(this, cx, m.cy + 72, u.name, { align: 'center', color: C.darkRed, scale: 2 }));
+    m.inner.add(text(this, m.cx + 6, m.cy + 102, u.desc, { wrap: m.cw - 12, color: C.darkBrown, lineGap: 2 }));
+    sfx('level');
+    buzz('light');
+    const done = (open: boolean) => {
+      markUnlocked(s, u.key);
+      store.commit();
+      m.close();
+      const fn = open ? this.funcItems().find(([n]) => n === u.key)?.[1] : null;
+      if (fn) fn();
+      else this.time.delayedCall(300, () => this.scene.isActive() && this.announceUnlocks());
+    };
+    m.inner.add(new Button(this, m.cx + 6, m.py + m.ph - 34, 108, 24, '去看看', () => done(true), { style: 'red' }));
+    m.inner.add(new Button(this, m.px + m.pw - 122, m.py + m.ph - 34, 108, 24, '知道了', () => done(false)));
   }
 
   private chatSheet(): void {

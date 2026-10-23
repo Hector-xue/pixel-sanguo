@@ -1033,8 +1033,10 @@ export function questProgressText(s: Save): string {
   if (!q) return '新手任务全部完成';
   if (s.main.state === 'available') return `去找${npcName(q.giver)}接任务`;
   if (s.main.state === 'ready') return `已完成，回去找${npcName(q.turnIn)}`;
-  if (q.type === 'kill' || q.type === 'capture' || q.type === 'collect') return `${q.goal}：${s.main.count}/${questNeed(q)}`;
-  if (q.type === 'duel' && q.target && s.location === q.target.at) return `${q.goal}：点「挑战」`;
+  // 已经到了地方，括号里的地名就不写了（任务栏才两行，省得进度数字被挤到下一行）
+  const goal = q.target && s.location === q.target.at ? q.goal.replace(/（[^）]*）$/, '') : q.goal;
+  if (q.type === 'kill' || q.type === 'capture' || q.type === 'collect') return `${goal}：${s.main.count}/${questNeed(q)}`;
+  if (q.type === 'duel' && q.target && s.location === q.target.at) return `${goal}：点「挑战」`;
   return q.goal;
 }
 

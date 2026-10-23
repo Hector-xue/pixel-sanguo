@@ -7,8 +7,12 @@ import { createBattle, emptyStatus, resolveRound } from '../src/core/battle';
 import type { BUnit, Battle } from '../src/core/battle';
 import { chooseXinfa, xinfaCost, xinfaKey, xinfaReason } from '../src/game/growth';
 import { rebirth } from '../src/game/rebirth';
-import { learnSkill, newSave, skillSchool } from '../src/game/state';
+import { MAIN_QV, acceptQuest, currentQuest, learnSkill, migrateMain, newSave, skillSchool, turnInQuest } from '../src/game/state';
+import { afterDuel, choiceOf, duelBattle, duelReason, epilogue, taofaBattle, taofaReason } from '../src/game/story';
+import { mainQuests } from '../src/data';
+import { UNLOCKS, isUnlocked, markUnlocked, nextUnlock, pendingUnlocks } from '../src/game/unlocks';
 import { playerUnit } from '../src/game/encounter';
+import { autoplay } from '../src/sim/autoplay';
 
 const A = systems.guozhan.player.alert;
 
@@ -133,4 +137,93 @@ describe('新招式结算', () => {
     cast('xixing', [d], [u('e1', 'enemy')], 'e1');
     expect(d.hp).toBeGreaterThan(500);
   });
+});
+
+const stepOf = (id: string) => mainQuests.findIndex((q) => q.id === id);
+
+describe('主线剧情：抉择、名将战、讨伐战', () => {
+  it('老存档（qv3）换算：新插的任务跳过，原来在做的还是那个', () => {
+    const s = hero(100);
+    const oldIds = mainQuests.filter((q) => !/a$/.test(q.id) || ['m7a', 'm7b', 'm8a', 'm15a', 'm10a'].includes(q.id)).map((q) => q.id);
+    s.main = { step: oldIds.indexOf('m75'), state: 'active', count: 0, qv: 3 };
+    migrateMain(s);
+    expect(currentQuest(s)?.id).toBe('m75');
+    expect(s.main.qv).toBe(MAIN_QV);
+  });
+
+  it('抉择：两个选项奖励不同，记下选了哪个，结尾回顾说起', () => {
+    const s = hero(53);
+    s.main = { step: stepOf('m44a'), state: 'available', count: 0, qv: MAIN_QV };
+    acceptQuest(s);
+    const silver = s.player.silver;
+    const r = turnInQuest(s, 1)!;
+    expect(r.silver).toBeGreaterThan(mainQuests[stepOf('m44a')].reward.silver!);
+    expect(s.player.silver - silver).toBe(r.silver);
+    expect(choiceOf(s, 'm44a')).toBe(1);
+    expect(epilogue(s).some((l) => l.text.includes('剿匪'))).toBe(true);
+  });
+
+  it('名将战：到了地方才能挑战，按切磋算，赢了任务完成', () => {
+    const s = hero(60);
+    s.main = { step: stepOf('m49a'), state: 'available', count: 0, qv: MAIN_QV };
+    acceptQuest(s);
+    s.location = 'chenliu';
+    expect(duelReason(s)).toContain('先锋三营');
+    s.location = 'xianfeng3';
+    const b = duelBattle(s, 3) as Battle;
+    expect(b.spar).toBe(true);
+    expect(b.units.find((u) => u.side === 'enemy')?.name).toBe('夏侯惇');
+    b.outcome = 'lose';
+    afterDuel(s, b);
+    expect(s.main.state).toBe('active');
+    b.outcome = 'win';
+    afterDuel(s, b);
+    expect(s.main.state).toBe('ready');
+  });
+
+  it('讨伐战：打怪任务到了地方、还差不少时能打，一拨 5 个', () => {
+    const s = hero(55);
+    s.main = { step: stepOf('m45'), state: 'available', count: 0, qv: MAIN_QV };
+    acceptQuest(s);
+    expect(taofaReason(s)).not.toBe('');
+    s.location = currentQuest(s)!.target!.at;
+    expect(taofaReason(s)).toBe('');
+    const b = taofaBattle(s, 5) as Battle;
+    expect(b.tag).toBe('taofa');
+    expect(b.units.filter((u) => u.side === 'enemy').length).toBe(5);
+    s.main.count = questNeedOf('m45') - 2;
+    expect(taofaReason(s)).toContain('只差');
+  });
+});
+
+function questNeedOf(id: string): number {
+  return mainQuests[stepOf(id)].target!.count;
+}
+
+describe('功能逐级开放', () => {
+  it('老存档第一次进来不补演；之后升级跨过门槛才演，演过不再演', () => {
+    const s = hero(70);
+    expect(pendingUnlocks(s)).toEqual([]);
+    expect(isUnlocked(s, '国战')).toBe(true);
+    const n = hero(1);
+    expect(pendingUnlocks(n)).toEqual([]);
+    expect(isUnlocked(n, '阵法')).toBe(false);
+    expect(nextUnlock(n)?.key).toBe('阵法');
+    n.player.level = 10;
+    expect(pendingUnlocks(n).map((u) => u.key)).toEqual(['阵法', '排行', '宝库']);
+    markUnlocked(n, '阵法');
+    expect(pendingUnlocks(n).map((u) => u.key)).toEqual(['排行', '宝库']);
+  });
+
+  it('每样都在主线第一次要用到它之前开放（真跑一遍：接到任务时等级已经够了）', () => {
+    const need: Record<string, string> = { m15a: '阵法', m38: '帮派', m43: '擂台', m56: '训练' };
+    const s = hero(1, 9);
+    const rep = autoplay(s, 9, 6000, stepOf('m57'));
+    for (const [id, key] of Object.entries(need)) {
+      // 交上一个任务时的等级 = 接到这个任务时的等级
+      const prev = mainQuests[stepOf(id) - 1];
+      const at = rep.steps.find((x) => x.quest === prev.title)!;
+      expect(at.level, `${id} ${key}`).toBeGreaterThanOrEqual(UNLOCKS.find((u) => u.key === key)!.lv);
+    }
+  }, 120000);
 });

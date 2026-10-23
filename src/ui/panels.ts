@@ -600,7 +600,8 @@ export function skillSchoolPanel(h: Host): void {
           sfx('level');
           render();
         }, { style: 'red', clip: area }));
-      } else {
+      } else if (!row.reason.startsWith('熟练度')) {
+        // 熟练度不够的，底下那行已经写了，右边不再重复
         add(text(h, m.cw - 8, y + 12, row.reason, { align: 'right', color: C.gray }));
       }
       y += hgt + 4;
