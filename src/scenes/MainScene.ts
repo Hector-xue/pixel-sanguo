@@ -46,6 +46,7 @@ import { checkAchievements } from '../game/achv';
 import { treasureNow } from '../game/events';
 import { log } from '../game/state';
 import { today } from '../game/calendar';
+import { playMusic } from '../ui/audio';
 
 const DIR_ARROW: Record<string, string> = { up: '↑', down: '↓', left: '←', right: '→' };
 const DIR_NAME: Record<string, string> = { up: '北', down: '南', left: '西', right: '东' };
@@ -142,6 +143,8 @@ export class MainScene extends Phaser.Scene implements P.Host {
 
   // 存档变了就整页重画，简单可靠；舞台只在地点、时辰、人物变了才重建（不然动画会一直重来）
   refresh(): void {
+    // 城里城外两首曲子
+    playMusic(locations[store.save.location]?.town ? 'town' : 'field');
     const got = checkAchievements(store.save);
     if (got.length) this.time.delayedCall(300, () => toast(this, got.join('\n'), 2800));
     store.commit();
@@ -745,7 +748,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
       ['任务', () => P.questPanel(this), s.main.state === 'ready'], ['组队', () => X.teamPanel(this), false], ['排行', () => X.rankPanel(this), false],
       ['国战', () => G4.guozhanPanel(this), G4.guozhanPending(s)], ['福利', () => welfarePanel(this), welfarePending(s) || X.festivalPending(s)], ['擂台', () => X.arenaPanel(this), false],
       ['帮派', () => X.sectPanel(this), false], ['训练', () => X.trainingPanel(this), false], ['宝库', () => X.vaultPanel(this), false],
-      ['生活', () => lifePanel(this), false], ['阵法', () => formationPanel(this), false], ['攻略', () => P.helpPanel(this), false], ['退出', () => P.exitPanel(this), false],
+      ['生活', () => lifePanel(this), false], ['阵法', () => formationPanel(this), false], ['攻略', () => P.helpPanel(this), false], ['设置', () => P.settingsPanel(this), false],
     ];
     const cols = 5;
     const rows = Math.ceil(items.length / cols);

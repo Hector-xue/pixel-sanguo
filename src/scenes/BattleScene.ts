@@ -8,7 +8,7 @@ import { BX, FEET_Y, UNIT_H, UNIT_W, lookFor } from '../art/units';
 import type { Pose, Weapon } from '../art/units';
 import { GLOW, OUTDOOR_DARK, daypart, layoutProps } from '../art/props';
 import type { PropKind } from '../art/props';
-import { balance, items, locations, skills } from '../data';
+import { balance, items, locations, monsters, skills } from '../data';
 import { skillMp } from '../core/formulas';
 import {
   aiCommand, attackableFoes, autoCommand, availableCommands, canCast, controlOf, defaultCommand, foesOf, friendsOf, living,
@@ -24,6 +24,8 @@ import { store } from '../game/store';
 import { Button, H, SAFE_TOP, W, drawBar, sfx, text, textWidth, wrap } from '../ui/widgets';
 import { PAPER, UI, paperTex, titlePlaque, vgrad, woodFrame } from '../art/chrome';
 import { FORMS, clashText } from '../game/formation';
+import { playMusic } from '../ui/audio';
+import { saveSettings, settings } from '../ui/settings';
 import { passiveOf } from '../core/passives';
 import type { FormId } from '../game/formation';
 
@@ -145,10 +147,12 @@ export class BattleScene extends Phaser.Scene {
   init(data: { battle?: Battle; replay?: ReplayRecord }): void {
     this.replay = data.replay ?? null;
     this.replayAt = 0;
-    this.speed = 1;
+    // 动画速度、要不要接着自动按本机设置
+    const st = settings();
+    this.speed = data.replay ? 1 : st.speed;
     this.b = data.replay ? createBattle(JSON.parse(JSON.stringify(data.replay.init))) : data.battle!;
     this.views.clear();
-    this.auto = false;
+    this.auto = !data.replay && st.keepAuto && st.lastAuto;
     this.popup = null;
     this.banner = null;
     this.lunged = null;
@@ -180,7 +184,10 @@ export class BattleScene extends Phaser.Scene {
     woodFrame(pg, 0, PANEL_Y, W, PANEL_H);
     this.add.image(6, PANEL_Y + 6, paperTex(this, W - 12, PANEL_H - 12)).setOrigin(0).setDepth(259);
     this.panel = this.add.container(0, 0).setDepth(260);
-    this.autoBtn = new Button(this, W - 68, H - 36, 56, 24, '自动', () => this.toggleAuto(), { style: 'tan' }).setDepth(270);
+    this.autoBtn = new Button(this, W - 68, H - 36, 56, 24, this.auto ? '手动' : '自动', () => this.toggleAuto(), { style: this.auto ? 'red' : 'tan' }).setDepth(270);
+    // 名将、首领另换一首
+    const boss = this.b.units.some((u) => u.side === 'enemy' && u.monsterId && (monsters[u.monsterId]?.boss || monsters[u.monsterId]?.historic));
+    playMusic(boss ? 'boss' : 'battle');
     if (this.replay) {
       this.autoBtn.setVisible(false);
       new Button(this, W - 132, H - 36, 56, 24, '退出', () => this.scene.start('Main'), { style: 'tan' }).setDepth(270);
@@ -772,8 +779,14 @@ export class BattleScene extends Phaser.Scene {
     for (const v of this.views.values()) this.drawBars(v);
   }
 
+  // 镜头抖一下（设置里能关）
+  private shake(ms: number, intensity: number): void {
+    if (settings().shake) this.cameras.main.shake(ms, intensity);
+  }
+
   private toggleAuto(): void {
     this.auto = !this.auto;
+    if (!this.replay) saveSettings({ lastAuto: this.auto });
     this.autoBtn.setCaption(this.auto ? '手动' : '自动');
     this.autoBtn.setStyle(this.auto ? 'red' : 'tan');
     if (this.auto && this.current && this.mode !== 'log') {
@@ -884,7 +897,7 @@ export class BattleScene extends Phaser.Scene {
           v.spr.setTint(0xffffff);
           this.time.delayedCall(80, () => v.spr.clearTint());
           const label = e.t === 'poison' ? `毒-${e.amount}` : `${e.crit ? '暴击 ' : e.fatal ? '致命 ' : ''}-${e.amount}`;
-          if (crit) this.cameras.main.shake(110, 0.006);
+          if (crit) this.shake(110, 0.006);
           if (e.t === 'poison') this.addLog(`${this.nameOf(e.target)}毒发 -${e.amount}`);
           else this.appendLog(`，${this.nameOf(e.target)}${e.crit ? '（暴击）' : e.fatal ? '（致命）' : ''}-${e.amount}`);
           this.float(v, label, e.t === 'poison' ? C.lilac : crit ? C.red : C.orange, crit);
@@ -1158,7 +1171,7 @@ export class BattleScene extends Phaser.Scene {
           const fork = pts[Math.floor(pts.length / 2)];
           if (fork) g.lineStyle(2, hex(C.yellow)).lineBetween(fork.x, fork.y, fork.x + (Math.random() < 0.5 ? -14 : 14), fork.y + 16);
           const flash = this.add.rectangle(0, FIELD_Y, W, FIELD_H, 0x203060, 0.35).setOrigin(0).setDepth(389);
-          this.cameras.main.shake(ms(140), 0.006);
+          this.shake(ms(140), 0.006);
           await wait(this, ms(90));
           g.destroy();
           flash.destroy();
@@ -1215,7 +1228,7 @@ export class BattleScene extends Phaser.Scene {
     g.lineStyle(3, hex(C.white)).beginPath().arc(0, 0, 37, -1.0, 1.0).strokePath();
     const dir = a.flip ? 1 : -1;
     g.setPosition(cx - dir * 20, cy).setRotation(vertical ? (dir > 0 ? 0.3 : Math.PI - 0.3) : dir > 0 ? 0 : Math.PI);
-    if (vertical) this.cameras.main.shake(120, 0.005);
+    if (vertical) this.shake(120, 0.005);
     this.tweens.add({ targets: g, alpha: 0, scale: 1.3, duration: 260, onComplete: () => g.destroy() });
   }
 
@@ -1446,7 +1459,7 @@ export class BattleScene extends Phaser.Scene {
     seal.add([sg, text(this, 0, -19, ch, { align: 'center', color: 0xfff0c0, scale: 3 })]);
     seal.setAngle(-6).setScale(2.4).setAlpha(0);
     c.add(seal);
-    this.tweens.add({ targets: seal, scale: 1, alpha: 1, duration: 220, delay: 200, ease: 'Quad.easeIn', onComplete: () => this.cameras.main.shake(120, 0.004) });
+    this.tweens.add({ targets: seal, scale: 1, alpha: 1, duration: 220, delay: 200, ease: 'Quad.easeIn', onComplete: () => this.shake(120, 0.004) });
     const caption = win ? '大获全胜' : sum.outcome === 'lose' ? '败下阵来' : '全身而退';
     c.add(text(this, W / 2, y + 90, caption, { align: 'center', color: win ? 0xa8240e : 0x6a5236 }));
     let yy = y + 112;

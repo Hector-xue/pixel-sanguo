@@ -15,6 +15,7 @@ import { cloudPanel } from '../ui/cloud';
 import { isApp } from '../game/cloud';
 import { Button, H, W, confirm, frame, goldFrame, hit, text, toast } from '../ui/widgets';
 import { UI } from '../art/chrome';
+import { playMusic } from '../ui/audio';
 import { iconTitleTex, logoTex, titleBackdrop } from '../art/title';
 import { vgrad } from '../art/chrome';
 import { enterFullscreen, exitFullscreen, fullscreenSupported, isFullscreen, setChrome } from '../ui/screen';
@@ -37,6 +38,7 @@ export class TitleScene extends Phaser.Scene {
   create(data?: { relayout?: boolean }): void {
     this.page = null;
     setChrome('#4a8fd8');
+    playMusic('title');
     titleBackdrop(this, W, H);
     if (data?.relayout) this.current();
     else this.showHome();

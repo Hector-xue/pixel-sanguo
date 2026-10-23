@@ -34,7 +34,8 @@ import { fillText, showDialog } from './dialog';
 import { digTalk, generalSkillPanel, pickGeneral, recruitPanel, ringTalk, useMisc } from './fun';
 import { equipGrid, gearDetail, power, rolePanel } from './role';
 import * as X from './p3';
-import { Button, Modal, ScrollArea, bar, confirm, frame, isMuted, setMuted, sfx, text, textLines, toast } from './widgets';
+import { Button, Modal, ScrollArea, bar, confirm, frame, sfx, text, textLines, toast } from './widgets';
+import { SPEEDS, VOLUME_NAMES, saveSettings, settings } from './settings';
 
 export interface Host extends Phaser.Scene {
   refresh(): void;
@@ -657,6 +658,7 @@ export function helpPanel(h: Host): void {
     '【擂台】陈留、濮阳、洛阳、长安有擂台：擂台是主角排位，斗将台是副将单挑，决斗场抢江湖侠客的银两（欺负弱的涨恶人值，恶人值每打一仗消一点，也能找捕快交罚银消掉）。',
     '【训练】「功能 → 训练」挑一员不出战的副将随军操练：你每打赢一仗，他分到你这一仗经验的一半。',
     '【宝库】「功能 → 宝库」是金砖商城：将军令、大将军令、心法书、宝箱都在这里买；「武将」页能看每位英才、将才的资质和属性；「仓库」页随时存取东西，花金砖扩容。',
+    '【设置】「功能 → 设置」能调背景音乐和音效的音量、战斗动画速度（正常、1.5倍、2倍）、要不要沿用上一仗的自动战斗、暴击震屏；导出存档、云存档、回到标题也在这里。设置只记在这台设备上。',
     '【每天】擂台、抢宝、银两环、文曲星、幸运王、送礼这些「每天几次」都按天下历的天算：你每打18仗过一天，用完了去打几仗就到明天，不用等真实的明天。',
     '【抢宝】天下历每天9时、15时各开一阵（各三仗的工夫），宝藏埋在野外，「设施 → 战场」能直接传送过去，打赢宝藏守卫就归你，每天3次。',
     '【银两环】40级以后去庐江（谯郡往下）找庐江都尉，打庐江逃兵追回军资换银两，一天3次。',
@@ -682,42 +684,70 @@ export function helpPanel(h: Host): void {
 }
 
 // ===== 退出（存档管理） =====
-export function exitPanel(h: Host): void {
-  const m = new Modal(h, '退出', { h: 340, w: 280 });
-  let y = m.cy + 4;
-  const add = (label: string, fn: () => void, style: 'red' | 'tan' = 'tan') => {
-    m.inner.add(new Button(h, m.cx, y, m.cw, 30, label, fn, { style }));
+// 设置：声音、战斗、存档（原来的「退出」也并在这里）
+export function settingsPanel(h: Host): void {
+  const m = new Modal(h, '设置', { h: 420, w: 300 });
+  const dyn = h.add.container(0, 0);
+  m.inner.add(dyn);
+  const render = () => {
+    dyn.removeAll(true);
+    const st = settings();
+    let y = m.cy + 2;
+    const head = (t: string) => {
+      dyn.add(text(h, m.cx, y, t, { color: C.darkRed }));
+      y += 20;
+    };
+    // 一行选项：左边名字，右边一排按钮，选中的是红的
+    const pick = (label: string, names: string[], at: number, fn: (i: number) => void) => {
+      dyn.add(text(h, m.cx, y + 5, label, { color: C.darkBrown }));
+      const x0 = m.cx + 70;
+      const bw = Math.floor((m.cw - 70 - (names.length - 1) * 4) / names.length);
+      names.forEach((n, i) => dyn.add(new Button(h, x0 + i * (bw + 4), y, bw, 22, n, () => {
+        fn(i);
+        sfx('click');
+        render();
+      }, { style: i === at ? 'red' : 'tan' })));
+      y += 30;
+    };
+    head('声音');
+    pick('背景音乐', VOLUME_NAMES, st.music, (i) => saveSettings({ music: i }));
+    pick('音效', VOLUME_NAMES, st.sfx, (i) => saveSettings({ sfx: i }));
+    y += 6;
+    head('战斗');
+    pick('动画速度', SPEEDS.map((v) => (v === 1 ? '正常' : `${v}倍`)), SPEEDS.indexOf(st.speed), (i) => saveSettings({ speed: SPEEDS[i] }));
+    pick('自动战斗', ['每仗手动', '沿用上一仗'], st.keepAuto ? 1 : 0, (i) => saveSettings({ keepAuto: i === 1 }));
+    pick('暴击震屏', ['开', '关'], st.shake ? 0 : 1, (i) => saveSettings({ shake: i === 0 }));
+    y += 6;
+    head('存档');
+    const half = Math.floor((m.cw - 6) / 2);
+    dyn.add(new Button(h, m.cx, y, half, 28, '导出存档', () => {
+      store.flush();
+      const s = store.save;
+      const blob = new Blob([serialize(s)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `像素三国-${s.player.name}-${s.player.level}级.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      toast(h, '存档文件已下载');
+    }));
+    dyn.add(new Button(h, m.cx + half + 6, y, half, 28, '云存档', () => {
+      m.close();
+      cloudPanel(h, true, () => h.scene.restart());
+    }, { style: 'red' }));
+    y += 36;
+    dyn.add(new Button(h, m.cx, y, half, 28, '回到标题', () => {
+      store.flush();
+      h.scene.start('Title');
+    }));
+    dyn.add(new Button(h, m.cx + half + 6, y, half, 28, '删除存档', () => confirm(h, '删除后无法恢复，确定吗？建议先导出。', () => {
+      store.clear();
+      h.scene.start('Title');
+    }, '删除'), { style: 'red' }));
     y += 38;
+    dyn.add(text(h, m.cx, y, '游戏会自动保存在这个设备上；登录云存档后也能存到服务器上。设置只记在这台设备上。', { wrap: m.cw, color: C.gray }));
   };
-  add('导出存档', () => {
-    store.flush();
-    const s = store.save;
-    const blob = new Blob([serialize(s)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `像素三国-${s.player.name}-${s.player.level}级.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast(h, '存档文件已下载');
-  });
-  add('云存档（换设备接着玩）', () => {
-    m.close();
-    cloudPanel(h, true, () => h.scene.restart());
-  }, 'red');
-  add(isMuted() ? '打开音效' : '关闭音效', () => {
-    setMuted(!isMuted());
-    m.close();
-    toast(h, isMuted() ? '音效已关闭' : '音效已打开');
-  });
-  add('回到标题', () => {
-    store.flush();
-    h.scene.start('Title');
-  });
-  add('删除存档', () => confirm(h, '删除后无法恢复，确定吗？建议先导出。', () => {
-    store.clear();
-    h.scene.start('Title');
-  }, '删除'), 'red');
-  m.inner.add(text(h, m.cx, y, '游戏会自动保存在这个浏览器里；登录云存档后也能存到服务器上。', { wrap: m.cw, color: C.gray }));
+  render();
 }
 
 // ===== 此地侠客 =====

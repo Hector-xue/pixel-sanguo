@@ -1,5 +1,6 @@
 // 像素界面小部件：全部用整数坐标的实心矩形画，保证放大后边缘干净
 import Phaser from 'phaser';
+import { sfx } from './audio';
 import { C, css, hex } from '../art/palette';
 import { PAPER, UI, drawFace, faceText, paperTex, sealBox, titlePlaque, woodFrame } from '../art/chrome';
 import type { Face } from '../art/chrome';
@@ -482,47 +483,5 @@ export function confirm(scene: Phaser.Scene, msg: string, onYes: () => void, yes
   return m;
 }
 
-// ===== 音效：WebAudio 方波小芯片音 =====
-let actx: AudioContext | null = null;
-let muted = false;
-export function setMuted(m: boolean): void {
-  muted = m;
-}
-export function isMuted(): boolean {
-  return muted;
-}
-
-export function sfx(kind: 'click' | 'hit' | 'crit' | 'magic' | 'heal' | 'win' | 'lose' | 'step' | 'miss' | 'level'): void {
-  if (muted) return;
-  try {
-    actx ??= new AudioContext();
-    const t0 = actx.currentTime;
-    const notes: Record<string, [number, number, OscillatorType][]> = {
-      click: [[880, 0.03, 'square']],
-      step: [[330, 0.04, 'triangle']],
-      hit: [[180, 0.05, 'square'], [90, 0.06, 'square']],
-      crit: [[260, 0.04, 'sawtooth'], [130, 0.05, 'square'], [65, 0.08, 'square']],
-      miss: [[600, 0.03, 'triangle'], [500, 0.03, 'triangle']],
-      magic: [[660, 0.05, 'triangle'], [990, 0.05, 'triangle'], [1320, 0.08, 'triangle']],
-      heal: [[523, 0.06, 'triangle'], [784, 0.1, 'triangle']],
-      win: [[523, 0.1, 'square'], [659, 0.1, 'square'], [784, 0.1, 'square'], [1046, 0.25, 'square']],
-      lose: [[392, 0.15, 'triangle'], [330, 0.15, 'triangle'], [262, 0.3, 'triangle']],
-      level: [[784, 0.08, 'square'], [988, 0.08, 'square'], [1175, 0.2, 'square']],
-    };
-    let t = t0;
-    for (const [f, d, type] of notes[kind]) {
-      const o = actx.createOscillator();
-      const gn = actx.createGain();
-      o.type = type;
-      o.frequency.value = f;
-      gn.gain.setValueAtTime(0.06, t);
-      gn.gain.exponentialRampToValueAtTime(0.001, t + d);
-      o.connect(gn).connect(actx.destination);
-      o.start(t);
-      o.stop(t + d);
-      t += d;
-    }
-  } catch {
-    // 浏览器不让放声音就算了，不影响游戏
-  }
-}
+// 音效和背景音乐在 audio.ts
+export { sfx };
