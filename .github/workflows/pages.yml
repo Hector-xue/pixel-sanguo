@@ -137,7 +137,8 @@ jobs:
         with:
           name: apk
           path: dist/download
-      - run: ls -lR dist/download || echo "这次没有安装包"
+      # 这次安装包没编出来就别放 version.json：不然 App 提醒去下载，点过去是 404
+      - run: ls -lR dist/download || { echo "这次没有安装包"; rm -f dist/version.json; }
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

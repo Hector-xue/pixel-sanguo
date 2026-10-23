@@ -30,7 +30,8 @@ import type { Target } from '../game/state';
 import { store } from '../game/store';
 import { today, tomorrowHint } from '../game/calendar';
 import { cloudPanel } from './cloud';
-import { forgetSlot } from '../game/cloud';
+import { forgetSlot, isApp } from '../game/cloud';
+import { checkUpdateNow } from './update';
 import type { ChatBox } from './chat';
 import { fillText, showDialog } from './dialog';
 import { digTalk, generalSkillPanel, pickGeneral, recruitPanel, ringTalk, useMisc } from './fun';
@@ -676,7 +677,7 @@ export function helpPanel(h: Host, topic?: string): void {
     '【擂台】陈留、濮阳、洛阳、长安有擂台：擂台是主角排位，斗将台是副将单挑，决斗场抢江湖侠客的银两（欺负弱的涨恶人值，恶人值每打一仗消一点，也能找捕快交罚银消掉）。',
     '【训练】「功能 → 训练」挑一员不出战的副将随军操练：你每打赢一仗，他分到你这一仗经验的一半。',
     '【宝库】「功能 → 宝库」是金砖商城：将军令、大将军令、心法书、宝箱都在这里买；「武将」页能看每位英才、将才的资质和属性；「仓库」页随时存取东西，花金砖扩容。',
-    '【设置】「功能 → 设置」能调背景音乐和音效的音量、各场合放哪首、画面大小（长屏手机能放大一成）、战斗动画速度（正常、1.5倍、2倍）、要不要沿用上一仗的自动战斗、暴击震屏、手机振动；导出存档、云存档、回到标题也在这里。设置只记在这台设备上。安卓 App 里按返回键先关最上面的弹窗，主界面按两次才退出。',
+    '【设置】「功能 → 设置」能调背景音乐和音效的音量、各场合放哪首、画面大小（长屏手机能放大一成）、战斗动画速度（正常、1.5倍、2倍）、要不要沿用上一仗的自动战斗、暴击震屏、手机振动；导出存档、云存档、回到标题也在这里。设置只记在这台设备上。安卓 App 里按返回键先关最上面的弹窗，主界面按两次才退出；出了新版会提醒一次，设置最下面也能点「检查更新」。',
     '【每天】擂台、抢宝、银两环、文曲星、幸运王、送礼这些「每天几次」都按天下历的天算：你每打18仗过一天，用完了去打几仗就到明天，不用等真实的明天。',
     '【抢宝】天下历每天9时、15时各开一阵（各三仗的工夫），宝藏埋在野外，「设施 → 战场」能直接传送过去，打赢宝藏守卫就归你，每天3次。',
     '【银两环】40级以后去庐江（谯郡往下）找庐江都尉，打庐江逃兵追回军资换银两，一天3次。',
@@ -818,6 +819,7 @@ export function settingsPanel(h: Host): void {
     y += 38;
     dyn.add(text(h, m.cx, y + 5, `版本 ${APP_VERSION}`, { color: C.gray }));
     dyn.add(new Button(h, m.cx + m.cw - 80, y, 80, 22, '更新记录', () => changelogPanel(h)));
+    if (isApp()) dyn.add(new Button(h, m.cx + m.cw - 166, y, 80, 22, '检查更新', () => checkUpdateNow(h)));
     y += 30;
     dyn.add(text(h, m.cx, y, '游戏和设置都自动存在这台设备上。', { wrap: m.cw, color: C.gray }));
   };

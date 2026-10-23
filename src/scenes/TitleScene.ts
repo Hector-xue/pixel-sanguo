@@ -15,6 +15,7 @@ import { hasVibrateChoice, saveSettings } from '../ui/settings';
 import { showDialog } from '../ui/dialog';
 import { overlayInput } from '../ui/input';
 import { cloudPanel } from '../ui/cloud';
+import { maybeOfferUpdate } from '../ui/update';
 import { forgetSlot, isApp } from '../game/cloud';
 import { Button, H, SAFE_TOP, W, confirm, frame, goldFrame, hit, text, toast } from '../ui/widgets';
 import { UI } from '../art/chrome';
@@ -60,6 +61,8 @@ export class TitleScene extends Phaser.Scene {
       store.restored = '';
       this.time.delayedCall(400, () => toast(this, msg, 5000));
     }
+    // 安卓 App：网站上有新版就提醒一次
+    maybeOfferUpdate(this);
   }
 
   // 方形图标按钮（深蓝半透明底 + 金边），字在下面

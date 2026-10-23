@@ -54,6 +54,7 @@ import { sweep, sweepReason } from '../game/sweep';
 import { dailyCount } from '../game/daily';
 import { dailyPanel } from '../ui/daily';
 import { maybeWhatsNew } from '../ui/changelog';
+import { maybeOfferUpdate } from '../ui/update';
 import { pointAt } from '../ui/pointer';
 import { setSceneBack } from '../ui/back';
 import { buzz } from '../ui/haptics';
@@ -161,6 +162,8 @@ export class MainScene extends Phaser.Scene implements P.Host {
     resumeBanner(this);
     // 更新后第一次进来：说说更新了什么（新角色不弹）
     if (!beats.length) this.time.delayedCall(700, () => this.scene.isActive() && maybeWhatsNew(this, store.save.battles));
+    // 标题页上没来得及提醒新版本（查得慢、玩家点得快）：进来以后补一次
+    if (!beats.length) maybeOfferUpdate(this, 1800);
     if (import.meta.env.DEV) Object.assign(window, { __P: P, __T: T, __F: F, __R: R, __X: X, __G4: G4, __store: store, __main: this });
   }
 
