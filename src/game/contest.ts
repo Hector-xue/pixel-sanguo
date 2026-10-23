@@ -304,6 +304,17 @@ export function claimKuaqu(s: Save, t = calTick(s)): string[] {
   return lines;
 }
 
+// 今天还剩几阵 / 几个对手（今日事务每次刷新都要看，不算整张积分表）
+export function leagueLeft(s: Save, t = calTick(s)): number {
+  syncLeague(s, t);
+  return Math.max(0, L.fightsPerDay - s.p4.league.fought[weekday(t)]);
+}
+
+export function kuaquLeft(s: Save, t = calTick(s)): number {
+  syncKuaqu(s, t);
+  return Math.max(0, K.fightsPerDay - s.p4.kuaqu.foughtIds.length);
+}
+
 export function contestPending(s: Save, t = calTick(s)): boolean {
   syncLeague(s, t);
   syncKuaqu(s, t);

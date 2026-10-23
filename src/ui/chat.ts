@@ -23,8 +23,9 @@ function tone(s: string): number {
 export class ChatBox {
   root: Phaser.GameObjects.Container;
   private area!: ScrollArea;
+  private sig = '';
 
-  constructor(private scene: Phaser.Scene, private x: number, private y: number, private w: number, private h: number, private opts: { compact?: boolean; onTap?: () => void } = {}) {
+  constructor(private scene: Phaser.Scene, private x: number, private y: number, private w: number, private h: number, private opts: { compact?: boolean; onTap?: () => void; defer?: boolean } = {}) {
     this.root = scene.add.container(0, 0);
     const g = scene.add.graphics();
     // 墨色底，上沿一道暗金线
@@ -37,18 +38,32 @@ export class ChatBox {
       this.root.add(text(scene, x + w - 6, y + 4, '见闻 ▲', { align: 'right', color: 0xa08860 }));
       this.root.add(hit(scene, x, y, w, h, () => opts.onTap?.()));
     }
-    this.refresh();
+    // defer：等主人第一次 refresh 再画（主界面建好以后还会往见闻里写公告，不用先画一遍）
+    if (!opts.defer) this.refresh();
   }
 
   refresh(): void {
-    this.area?.destroy();
     const compact = this.opts.compact;
+    const all = store.has() ? store.save.messages : [];
+    // 没有新消息就不重画（主界面每次刷新都会叫一遍，一条消息两段描边字，重建一遍不便宜）
+    const last = all[all.length - 1];
+    const sig = `${all.length}:${last?.t ?? 0}:${last?.text ?? ''}`;
+    if (this.area && sig === this.sig) return;
+    this.sig = sig;
+    this.area?.destroy();
     const top = compact ? 4 : 6;
     const left = compact ? 24 : 6;
     this.area = new ScrollArea(this.scene, this.x + left, this.y + top, this.w - left - (compact ? 48 : 6), this.h - top - 4, this.root);
-    const msgs = store.has() ? store.save.messages.slice(compact ? -12 : -120) : [];
-    let yy = 0;
     const width = this.w - (compact ? 78 : 18);
+    // 底下的小聊天区只放得下几行：从最新的往前取，够两屏就停（全部的在点开的「江湖见闻」里）
+    let msgs = all.slice(compact ? -12 : -120);
+    if (compact) {
+      let room = (this.h - top - 4) * 2;
+      let k = msgs.length;
+      while (k > 0 && room > 0) room -= textLines(`${hhmm(msgs[--k].t)} ${msgs[k].text}`, width, 2) + 2;
+      msgs = msgs.slice(k);
+    }
+    let yy = 0;
     if (!msgs.length) {
       this.area.content.add(text(this.scene, 0, 0, '还没有什么事。四处走走看吧。', { color: 0xa08860 }));
       yy = 16;

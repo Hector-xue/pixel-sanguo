@@ -89,6 +89,7 @@ const UI_ICONS: Record<string, string[]> = {
   sword: ['.......kk', '......kwk', '.....kwk.', '..k.kwk..', '..kkwk...', '...kbk...', '..kbkkk..', '.kbk.....', 'kkk......'],
   chat: ['.kkkkkkkk.', 'kPPPPPPPPk', 'kPkkPkkPPk', 'kPPPPPPPPk', 'kPkkkPkkPk', 'kPPPPPPPPk', '.kkPkkkkk.', '..kk......'],
   gift: ['..kk.kk...', '.krrkrrk..', 'kkkkkkkkkk', 'krrrgyrrrk', 'kkkkkkkkkk', '.krrgyrrk.', '.krrgyrrk.', '.krrgyrrk.', '.kkkkkkkk.'],
+  today: ['.kk....kk.', 'kkkkkkkkkk', 'krrrrrrrrk', 'kkkkkkkkkk', 'kPPPPPPPPk', 'kPkPkkkkPk', 'kPPPPPPPPk', 'kPkPkkkPPk', 'kkkkkkkkkk'],
   flag: ['kk........', 'kbkkkkkk..', 'kbrrrrrrk.', 'kbrrwwrrrk', 'kbrrrrrrk.', 'kbkkkkkk..', 'kb........', 'kb........', 'kk........'],
 };
 // 功能菜单的图标：16×16 字符画，比上面的小图标多几种颜色（f 肤、F 肤影、c 浅褐、q 浅蓝、v 天青）

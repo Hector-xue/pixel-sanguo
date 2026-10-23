@@ -1,7 +1,7 @@
 // 新手体验：主线里插的四个教学任务（采集、灶台、徽章、布阵）能接能交、做过的接了就算完成；老存档按任务 id 换算位置；
 // 江湖指引每条只出一次；国战本国名将助阵、守将带被动
 import { describe, expect, it } from 'vitest';
-import { acceptQuest, currentQuest, deserialize, migrateMain, newSave, serialize, turnInQuest } from '../src/game/state';
+import { MAIN_QV, acceptQuest, currentQuest, deserialize, migrateMain, newSave, serialize, turnInQuest } from '../src/game/state';
 import { gather } from '../src/game/life';
 import { cook } from '../src/game/life';
 import { findBadge } from '../src/game/badges';
@@ -55,7 +55,7 @@ describe('新手教学任务', () => {
     const back = deserialize(JSON.stringify(raw));
     expect(mainQuests[back.main.step].id).toBe('m9');
     expect(back.main.count).toBe(2);
-    expect(back.main.qv).toBe(2);
+    expect(back.main.qv).toBe(MAIN_QV);
     // 已经是新版本的不再换算
     migrateMain(back);
     expect(mainQuests[back.main.step].id).toBe('m9');

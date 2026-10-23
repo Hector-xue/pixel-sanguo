@@ -92,9 +92,32 @@ function canvasTex(scene: Phaser.Scene, key: string, w: number, h: number, paint
   return key;
 }
 
+// 逐点画上万个点的纹理（宣纸、石面）：点先写进像素数组，画完一次贴回去——一个点一次 fillRect 在慢手机上要几十毫秒
+let pix: { ctx: CanvasRenderingContext2D; img: ImageData } | null = null;
+function beginPix(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  pix = { ctx, img: ctx.getImageData(0, 0, w, h) };
+}
+function endPix(): void {
+  if (pix) pix.ctx.putImageData(pix.img, 0, 0);
+  pix = null;
+}
+
 function px(ctx: CanvasRenderingContext2D, x: number, y: number, c: number): void {
+  const ix = Math.round(x);
+  const iy = Math.round(y);
+  if (pix && pix.ctx === ctx) {
+    const { width, height, data } = pix.img;
+    // 和 fillRect 一样：画到外面的点不算
+    if (ix < 0 || iy < 0 || ix >= width || iy >= height) return;
+    const o = (iy * width + ix) * 4;
+    data[o] = (c >> 16) & 255;
+    data[o + 1] = (c >> 8) & 255;
+    data[o + 2] = c & 255;
+    data[o + 3] = 255;
+    return;
+  }
   ctx.fillStyle = hexCss(c);
-  ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+  ctx.fillRect(ix, iy, 1, 1);
 }
 
 // 回纹云：一圈螺线，亮线压暗影，像浮雕
@@ -115,6 +138,7 @@ function swirl(ctx: CanvasRenderingContext2D, cx: number, cy: number, turns: num
 function stonePaint(ctx: CanvasRenderingContext2D, w: number, h: number, base: number, hi: number, lo: number, seed: number): void {
   ctx.fillStyle = hexCss(base);
   ctx.fillRect(0, 0, w, h);
+  beginPix(ctx, w, h);
   let s = seed;
   const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
   // 石面杂点
@@ -135,6 +159,7 @@ function stonePaint(ctx: CanvasRenderingContext2D, w: number, h: number, base: n
       }
     }
   }
+  endPix();
 }
 
 export function stoneTex(scene: Phaser.Scene, w: number, h: number): string {
@@ -266,6 +291,7 @@ export function paperTex(scene: Phaser.Scene, w: number, h: number): string {
   return canvasTex(scene, `ui_paper_${w}x${h}`, w, h, (ctx) => {
     ctx.fillStyle = hexCss(PAPER.base);
     ctx.fillRect(0, 0, w, h);
+    beginPix(ctx, w, h);
     let s = w * 31 + h * 17;
     const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
     for (let i = 0; i < (w * h) / 14; i++) px(ctx, rnd() * w, rnd() * h, rnd() < 0.5 ? PAPER.hi : PAPER.lo);
@@ -292,6 +318,7 @@ export function paperTex(scene: Phaser.Scene, w: number, h: number): string {
         }
       }
     }
+    endPix();
   });
 }
 
@@ -338,4 +365,17 @@ export function sealBox(g: Phaser.GameObjects.Graphics, x: number, y: number, s:
   g.fillStyle(0x3a0804).fillRect(x, y, s, s);
   vgrad(g, x + 1, y + 1, s - 2, s - 2, pressed ? [0x8c1a0c, 0x6a1006] : [0xd4442a, 0xa8240e]);
   g.fillStyle(0xfff0c0, 0.9).fillRect(x + 2, y + 2, s - 4, 1).fillRect(x + 2, y + s - 3, s - 4, 1).fillRect(x + 2, y + 2, 1, s - 4).fillRect(x + s - 3, y + 2, 1, s - 4);
+}
+
+// 时辰滤镜：一层正片叠底的色块。Canvas 渲染（没有 WebGL 的手机）有的不支持正片叠底，
+// 会退成普通覆盖、整块不透明地盖住舞台——这时改成半透明的暗色罩子，压暗的程度按滤镜颜色的亮度算
+export function timeTint(scene: Phaser.Scene, x: number, y: number, w: number, h: number, color: number): Phaser.GameObjects.Rectangle {
+  const r = scene.add.rectangle(x, y, w, h, color).setOrigin(0);
+  const renderer = scene.game.renderer as Phaser.Renderer.Canvas.CanvasRenderer;
+  const canvasNoMultiply = scene.game.renderer.type === Phaser.CANVAS && renderer.blendModes?.[Phaser.BlendModes.MULTIPLY] !== 'multiply';
+  if (!canvasNoMultiply) return r.setBlendMode(Phaser.BlendModes.MULTIPLY);
+  const ch = [(color >> 16) & 255, (color >> 8) & 255, color & 255];
+  const lum = (ch[0] * 0.3 + ch[1] * 0.59 + ch[2] * 0.11) / 255;
+  const dark = (ch[0] * 0.35) << 16 | (ch[1] * 0.35) << 8 | (ch[2] * 0.35);
+  return r.setFillStyle(dark, Math.min(0.7, 1 - lum));
 }

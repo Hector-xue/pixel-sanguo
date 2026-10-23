@@ -21,6 +21,8 @@ export interface P5State {
   formation: string;
   // 找到的徽章（地点 → 1）
   badges: Record<string, number>;
+  // 演武塔：最高层、今天输了几次（见 tower.ts）
+  tower?: { best: number; day: string; losses: number };
 }
 
 export function p5Defaults(): P5State {

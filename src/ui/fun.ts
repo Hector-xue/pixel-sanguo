@@ -33,7 +33,8 @@ function rewardText(r: Reward): string {
 
 // ===== 福利：江湖行记（里程碑）+ 战备补给（按场次）+ 节日 =====
 let welfareTab = 0;
-export function welfarePanel(h: Host): void {
+export function welfarePanel(h: Host, tab?: number): void {
+  if (tab !== undefined) welfareTab = tab;
   const s = store.save;
   const m = new Modal(h, '福利');
   const dyn = h.add.container(0, 0);

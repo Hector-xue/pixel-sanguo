@@ -44,6 +44,12 @@ export class TitleScene extends Phaser.Scene {
     if (data?.relayout) this.current();
     else if (data?.slots) this.showSlots();
     else this.showHome();
+    // 读档时主存档坏了、用备份顶上的：说一声
+    if (store.restored) {
+      const msg = store.restored;
+      store.restored = '';
+      this.time.delayedCall(400, () => toast(this, msg, 5000));
+    }
   }
 
   // 方形图标按钮（深蓝半透明底 + 金边），字在下面

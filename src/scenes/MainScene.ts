@@ -7,7 +7,7 @@ import { avatarTex, bustTex, funcIconTex, heroLookKey, propTex, sceneTex, uiIcon
 import { FEET_Y, UNIT_H, UNIT_W, BX } from '../art/units';
 import { GLOW, OUTDOOR_DARK, daypart, layoutProps } from '../art/props';
 import type { Daypart } from '../art/props';
-import { classes, locations, monsters, npcs } from '../data';
+import { balance, classes, locations, monsters, npcs } from '../data';
 import type { MonsterGroup } from '../data';
 import { randomSeed } from '../core/rng';
 import { expToNext } from '../core/formulas';
@@ -28,7 +28,7 @@ import { store } from '../game/store';
 import { ChatBox } from '../ui/chat';
 import { Button, H, Modal, SAFE_TOP, W, bar, hit, sfx, text, textWidth, toast, wrap } from '../ui/widgets';
 import { fit } from '../ui/textfit';
-import { UI, sealBox, titlePlaque, vgrad } from '../art/chrome';
+import { UI, sealBox, timeTint, titlePlaque, vgrad } from '../art/chrome';
 import { showDialog } from '../ui/dialog';
 import { worldMap } from '../ui/worldmap';
 import { gatherGame, lifePanel } from '../ui/life';
@@ -42,12 +42,17 @@ import * as P from '../ui/panels';
 import * as X from '../ui/p3';
 import * as G4 from '../ui/p4';
 import { announce } from '../game/guozhan';
+import { storyTick } from '../game/gzstory';
 import { autoTick } from '../game/cloud';
 import { checkAchievements } from '../game/achv';
 import { treasureNow } from '../game/events';
 import { isDeployed, log } from '../game/state';
 import { today } from '../game/calendar';
-import { playMusic } from '../ui/audio';
+import { playJingle, playMusic } from '../ui/audio';
+import { sweep, sweepReason, sweepText } from '../game/sweep';
+import { dailyCount } from '../game/daily';
+import { dailyPanel } from '../ui/daily';
+import { maybeWhatsNew } from '../ui/changelog';
 
 const DIR_ARROW: Record<string, string> = { up: '↑', down: '↓', left: '←', right: '→' };
 const DIR_NAME: Record<string, string> = { up: '北', down: '南', left: '西', right: '东' };
@@ -119,7 +124,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     this.events.once('shutdown', () => this.events.off('update', tick));
     this.stage = this.add.container(0, 0);
     this.layer = this.add.container(0, 0).setDepth(10);
-    this.chat = new ChatBox(this, 0, STAGE_H + HUD_H, W, CHAT_H, { compact: true, onTap: () => this.chatSheet() });
+    this.chat = new ChatBox(this, 0, STAGE_H + HUD_H, W, CHAT_H, { compact: true, defer: true, onTap: () => this.chatSheet() });
     this.chat.root.setDepth(10);
     // 抢宝开场时在系统频道公告一次
     this.time.addEvent({ delay: 15000, loop: true, callback: () => this.announceTreasure() });
@@ -140,11 +145,16 @@ export class MainScene extends Phaser.Scene implements P.Host {
       if (k !== this.stageKey) this.refresh();
     } });
     announce(store.save);
+    // 国战纪事：沙盘上出了大事，谋士来说两句（一次最多讲两件，其余只进见闻）
+    const beats = storyTick(store.save);
+    if (beats.length) this.time.delayedCall(500, () => this.scene.isActive() && showDialog(this, beats.slice(0, 2).flatMap((b) => b.lines)));
     this.announceTreasure();
     const daily = dailyTick(store.save);
     this.refresh();
     this.cameras.main.fadeIn(260, 10, 6, 4);
     if (daily.length) toast(this, daily.join('\n'), 2600);
+    // 更新后第一次进来：说说更新了什么（新角色不弹）
+    if (!beats.length) this.time.delayedCall(700, () => this.scene.isActive() && maybeWhatsNew(this, store.save.battles));
     if (import.meta.env.DEV) Object.assign(window, { __P: P, __T: T, __F: F, __R: R, __X: X, __G4: G4, __store: store, __main: this });
   }
 
@@ -218,7 +228,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     // 时辰滤镜：晨橙、暮紫、夜蓝；夜里灯笼、营火、窗户亮起暖光
     const tint: Record<Daypart, [number, number] | null> = { dawn: [0xffe4c8, 1], day: null, dusk: [0xffccb0, 1], night: [0x5a64a8, 1] };
     const tt = OUTDOOR_DARK.has(loc.art) ? null : tint[dp];
-    if (tt) this.stage.add(this.add.rectangle(0, 0, W, STAGE_H, tt[0]).setOrigin(0).setBlendMode(Phaser.BlendModes.MULTIPLY).setDepth(900));
+    if (tt) this.stage.add(timeTint(this, 0, 0, W, STAGE_H, tt[0]).setDepth(900));
     if (night || dp === 'dusk') for (const [gx, gy] of glows) {
       const c = this.add.circle(gx, gy, 16, 0xffa040, 0.22).setBlendMode(Phaser.BlendModes.ADD).setDepth(901);
       const c2 = this.add.circle(gx, gy, 6, 0xffd080, 0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(901);
@@ -520,8 +530,9 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const dpName: Record<Daypart, string> = { dawn: '清晨', day: '白昼', dusk: '黄昏', night: '夜' };
     this.layer.add(text(this, W - 6, T + 8, `${shichen()}·${dpName[dp]}`, { align: 'right', color: 0xfbefd0, stroke: 0x000000 }));
     this.drawTracker();
-    // 右上快捷：福利、国战（有事时亮红点）
-    const quick: [string, string, () => void, boolean][] = [
+    // 右上快捷：今日事务（几件没办）、福利、国战（有事时亮红点）
+    const quick: [string, string, () => void, boolean | number][] = [
+      ['today', '今日', () => dailyPanel(this), dailyCount(s)],
       ['gift', '福利', () => welfarePanel(this), welfarePending(s) || X.festivalPending(s)],
       ['flag', '国战', () => G4.guozhanPanel(this), G4.guozhanPending(s)],
     ];
@@ -534,7 +545,11 @@ export class MainScene extends Phaser.Scene implements P.Host {
       this.layer.add(qg);
       this.layer.add(this.add.image(x + 14, y + 13, uiIconTex(this, icon)).setScale(2).setOrigin(0.5));
       this.layer.add(text(this, x + 14, y + 30, label, { align: 'center', color: 0xfbefd0, stroke: 0x000000 }));
-      if (dot) this.layer.add(this.add.circle(x + 26, y + 2, 4, 0xff3020).setStrokeStyle(1, 0xffffff));
+      if (typeof dot === 'number' && dot > 0) {
+        // 数字红点：还有几件事
+        this.layer.add(this.add.circle(x + 26, y + 2, 7, 0xff3020).setStrokeStyle(1, 0xffffff));
+        this.layer.add(text(this, x + 26, y - 4, `${Math.min(dot, 9)}`, { align: 'center', color: 0xffffff }));
+      } else if (dot === true) this.layer.add(this.add.circle(x + 26, y + 2, 4, 0xff3020).setStrokeStyle(1, 0xffffff));
       this.layer.add(hit(this, x - 2, y - 2, 32, 46, fn));
     });
   }
@@ -838,10 +853,64 @@ export class MainScene extends Phaser.Scene implements P.Host {
       m.close();
       formationPanel(this);
     }, { style: 'tan' }));
-    m.inner.add(new Button(this, m.cx, m.py + m.ph - 40, m.cw, 28, '战斗', () => {
+    const by = m.py + m.ph - 40;
+    if (sweepReason(s, gr)) {
+      m.inner.add(new Button(this, m.cx, by, m.cw, 28, '战斗', () => {
+        m.close();
+        this.fight(gi);
+      }, { style: 'red' }));
+      return;
+    }
+    // 低级怪：可以跳过动画直接出结果，或者一口气连打几场
+    const third = Math.floor((m.cw - 12) / 3);
+    m.inner.add(new Button(this, m.cx, by, third, 28, '战斗', () => {
       m.close();
       this.fight(gi);
     }, { style: 'red' }));
+    m.inner.add(new Button(this, m.cx + third + 6, by, third, 28, '速战', () => {
+      m.close();
+      this.quick(gi, 1);
+    }));
+    m.inner.add(new Button(this, m.cx + (third + 6) * 2, by, m.cw - (third + 6) * 2, 28, `连战${balance.sweep.maxRun}场`, () => {
+      m.close();
+      this.quick(gi, balance.sweep.maxRun);
+    }));
+  }
+
+  // 速战：不进战斗场景，算完弹一张战果
+  quick(gi: number, n: number): void {
+    const s = store.save;
+    if (s.player.hp < playerStats(s).maxHp * balance.sweep.stopHpPct) {
+      toast(this, '气血不多了，先吃药或去医馆治疗');
+      return;
+    }
+    const lv = s.player.level;
+    const at = s.location;
+    const r = sweep(s, gi, n, randomSeed);
+    store.commit();
+    this.refresh();
+    sfx('hit');
+    if (r.lost) playJingle('lose');
+    else if (s.player.level > lv) playJingle('level');
+    const lines = sweepText(r);
+    const m = new Modal(this, '速战战果', { w: 300 });
+    let y = m.cy + 2;
+    for (const l of lines) {
+      for (const ln of wrap(l, m.cw)) {
+        if (y > m.py + m.ph - 64) break;
+        m.inner.add(text(this, m.cx, y, ln, { color: l.includes('升到') || l === lines[0] && r.lost ? C.red : C.darkBrown }));
+        y += 16;
+      }
+      y += 2;
+    }
+    const gr = locations[s.location].groups[gi];
+    const again = !r.lost && s.location === at && gr && !sweepReason(s, gr);
+    const half = Math.floor((m.cw - 6) / 2);
+    if (again) m.inner.add(new Button(this, m.cx, y + 8, half, 28, n > 1 ? `再连战${n}场` : '再速战一场', () => {
+      m.close();
+      this.quick(gi, n);
+    }, { style: 'red' }));
+    m.inner.add(new Button(this, again ? m.cx + half + 6 : m.cx, y + 8, again ? half : m.cw, 28, '收兵', () => m.close()));
   }
 
   private announceTreasure(): void {

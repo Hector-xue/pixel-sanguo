@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import { fit } from './textfit';
 import { C } from '../art/palette';
 import { avatarTex, heroLookKey, iconTex } from '../art/textures';
-import { CLASS_IDS, balance, classSkills, classes, items, locations, recruits, skills, systems } from '../data';
+import { CLASS_IDS, balance, classSkills, classes, items, locations, monsters, recruits, skills, systems } from '../data';
 import type { RecruitDef } from '../data';
 import type { Battle } from '../core/battle';
 import { Rng, randomSeed } from '../core/rng';
@@ -19,6 +19,7 @@ import {
 } from '../game/events';
 import { canRebirth, generalRebirth, generalRebirthReason, rebirth } from '../game/rebirth';
 import { rivalLevel } from '../game/rivals';
+import { floorBoss, floorLevel, floorPower, rewardText, towerBattle, towerBest, towerLossesLeft, towerReason } from '../game/tower';
 import {
   joinSect, leaveSect, sectDef, sectRankName, sectTaskDone, sectTaskText, takeSectTask, turnInSect,
 } from '../game/sect';
@@ -85,7 +86,7 @@ export function arenaPanel(h: Host, tab?: number): void {
   m.inner.add(dyn);
   const render = () => {
     dyn.removeAll(true);
-    tabs(h, m, dyn, ['擂台', '斗将台', '决斗场'], arenaTab, (i) => {
+    tabs(h, m, dyn, ['擂台', '斗将台', '决斗场', '演武塔'], arenaTab, (i) => {
       arenaTab = i;
       render();
     });
@@ -119,6 +120,8 @@ export function arenaPanel(h: Host, tab?: number): void {
         }, { disabled: fightsLeft(s, kind) <= 0, style: 'red' });
       }
       r.area.setContentHeight(r.y);
+    } else if (arenaTab === 3) {
+      towerTab(h, m, dyn, y);
     } else {
       const evil = evilNow(s);
       dyn.add(text(h, m.cx, y, `恶人值：${evil}（每打一仗消1点；打比自己弱5级以上的人涨得多）`, { wrap: m.cw, color: evil >= 50 ? C.red : C.brown }));
@@ -137,6 +140,47 @@ export function arenaPanel(h: Host, tab?: number): void {
     }
   };
   render();
+}
+
+// 演武塔：下一层打什么、首通给什么，往上几位守层的名将
+function towerTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y: number): void {
+  const s = store.save;
+  const TW = systems.tower;
+  dyn.add(text(h, m.cx, y, `一层比一层难，每${TW.bossEvery}层有名将把守。回满血上阵、不带药；打赢不耗次数，每天能输${TW.lossesPerDay}次；每层第一次打赢给奖励。`, { wrap: m.cw, color: C.brown }));
+  y += 52;
+  if (s.player.level < TW.minLevel) {
+    dyn.add(text(h, m.cx, y, `${TW.minLevel}级开放。`, { color: C.red }));
+    return;
+  }
+  const best = towerBest(s);
+  const n = best + 1;
+  const left = towerLossesLeft(s);
+  dyn.add(text(h, m.cx, y, `最高：${best ? `第${best}层` : '还没上过'}　今天还能输${left}次${left ? '' : `（${tomorrowHint(s)}）`}`, { color: C.darkRed }));
+  y += 22;
+  const g = h.add.graphics();
+  frame(g, m.cx, y, m.cw, 76, 'paper');
+  dyn.add(g);
+  const boss = floorBoss(n);
+  const pw = Math.round((floorPower(n) - 1) * 100);
+  dyn.add(text(h, m.cx + 8, y + 6, `第${n}层${boss ? `　名将：${monsters[boss].name}` : ''}`, { color: boss ? C.red : C.darkRed }));
+  dyn.add(text(h, m.cx + 8, y + 24, `守兵${floorLevel(n)}级${pw ? `，再强${pw}%` : ''}`, { color: C.darkBrown }));
+  dyn.add(text(h, m.cx + 8, y + 42, fit(`首通：${rewardText(s, n)}`, m.cw - 84), { color: C.brown }));
+  const why = towerReason(s);
+  dyn.add(new Button(h, m.cx + m.cw - 70, y + 24, 62, 28, '挑战', () => {
+    m.close();
+    fight(h, towerBattle(s, randomSeed()));
+  }, { style: 'red', disabled: !!why }));
+  y += 86;
+  dyn.add(text(h, m.cx, y, '往上的守层名将', { color: C.darkRed }));
+  y += 18;
+  const r = rows(h, m, dyn, y);
+  // 下一层就是名将层的话上面的卡片已经写了，从再往上那位列起
+  const first = Math.floor(n / TW.bossEvery) * TW.bossEvery + TW.bossEvery;
+  for (let f = first; f < first + TW.bossEvery * 5; f += TW.bossEvery) {
+    const id = floorBoss(f)!;
+    row(h, r, null, `第${f}层　${monsters[id].name}`, fit(`首通：${rewardText(s, f)}`, m.cw - 24), null, () => undefined);
+  }
+  r.area.setContentHeight(r.y);
 }
 
 // ===== 教派 =====

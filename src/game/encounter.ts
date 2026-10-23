@@ -19,6 +19,7 @@ import {
 import { afterGuard } from './dig';
 import { afterArena } from './arena';
 import { afterContest } from './contest';
+import { afterTower } from './tower';
 import { afterGz, calTick, gzBuff } from './guozhan';
 import { onSectKills } from './sect';
 import { afterTreasure, festivalExpMul } from './events';
@@ -174,7 +175,7 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
   // 切磋（擂台、斗将台、决斗场）：不掉血不掉药，打完原样；结果另算
   if (b.spar) {
     const kind = (b.tag ?? '').split(':')[0];
-    sum.lines.push(...(kind === 'league' || kind === 'kuaqu' ? afterContest(s, b, tick) : afterArena(s, b, tick)));
+    sum.lines.push(...(kind === 'tower' ? afterTower(s, b, tick) : kind === 'league' || kind === 'kuaqu' ? afterContest(s, b, tick) : afterArena(s, b, tick)));
     for (const l of sum.lines) log(s, l);
     return sum;
   }

@@ -23,7 +23,7 @@ import type { BattleSummary } from '../game/encounter';
 import { store } from '../game/store';
 import { Button, H, SAFE_TOP, W, drawBar, sfx, text, textWidth, wrap } from '../ui/widgets';
 import { fit } from '../ui/textfit';
-import { PAPER, UI, paperTex, titlePlaque, vgrad, woodFrame } from '../art/chrome';
+import { PAPER, UI, paperTex, timeTint, titlePlaque, vgrad, woodFrame } from '../art/chrome';
 import { FORMS, clashText } from '../game/formation';
 import { playJingle, playMusic } from '../ui/audio';
 import { saveSettings, settings } from '../ui/settings';
@@ -36,6 +36,16 @@ const FIELD_Y = 0;
 const HORIZON = 0.3;
 let PANEL_H = 160;
 let PANEL_Y = 480;
+
+// 战报里要紧的几样换个颜色（宣纸底上看得清）
+const LOG_TONE = { capture: 0x1e6a1a, crit: 0xb00800, status: 0x6a2a8a, passive: 0x8a5a00, down: 0x5a5a6a };
+function logTone(s: string): number | null {
+  if (/愿意归顺/.test(s)) return LOG_TONE.capture;
+  if (/（暴击）|（致命）/.test(s)) return LOG_TONE.crit;
+  if (/中了「/.test(s)) return LOG_TONE.status;
+  if (/倒下了$/.test(s)) return LOG_TONE.down;
+  return null;
+}
 let FIELD_H = 446;
 let G_TOP = 220;
 let G_BOT = 450;
@@ -143,6 +153,7 @@ export class BattleScene extends Phaser.Scene {
   private lunged: View | null = null;
   private fx!: Phaser.GameObjects.Container;
   private logLines: string[] = [];
+  private logTones: (number | null)[] = [];
   private mode: PanelMode = 'log';
   // 回放录像：按录下来的随机数状态和指令重算
   private replay: ReplayRecord | null = null;
@@ -150,6 +161,10 @@ export class BattleScene extends Phaser.Scene {
   private speed = 1;
   // 我方各人占哪一格
   private allySlot = new Map<string, number>();
+  // 这一仗里已经亮过相的被动（只第一次放特写）
+  private seenPassive = new Set<string>();
+  // 正在放化境大招：这一下的伤害震得更狠
+  private heavy = false;
 
   constructor() {
     super('Battle');
@@ -171,7 +186,10 @@ export class BattleScene extends Phaser.Scene {
     this.selecting = null;
     this.current = null;
     this.logLines = [];
+    this.logTones = [];
     this.mode = 'log';
+    this.seenPassive = new Set();
+    this.heavy = false;
   }
 
   create(): void {
@@ -217,11 +235,37 @@ export class BattleScene extends Phaser.Scene {
     }
     this.renderLog();
     this.cameras.main.fadeIn(220, 10, 6, 4);
-    this.showBanner(`遭遇 ${this.b.title}`, 900);
+    // 头目、名将登场：先来一道大字特写
+    const chief = this.b.units.find((u) => u.side === 'enemy' && u.monsterId && (monsters[u.monsterId]?.boss || monsters[u.monsterId]?.historic));
+    const lead = chief ? 900 : 0;
+    if (chief) {
+      sfx('crit');
+      void this.cutIn(chief.name, monsters[chief.monsterId!]?.historic ? '名将出阵' : '头目登场', C.red, (n) => n / this.speed);
+    } else this.showBanner(`遭遇 ${this.b.title}`, 900);
     // 有克制关系的话，开打前再报一句
     const clashLine = fm && fm.clash ? (fm.clash > 0 ? `${FORMS[fm.ally as FormId].name} 克 ${FORMS[fm.enemy as FormId].name}` : `${FORMS[fm.ally as FormId].name} 被克`) : '';
-    if (clashLine) this.time.delayedCall(900, () => this.showBanner(clashLine, 800));
-    this.time.delayedCall(clashLine ? 1500 : 700, () => this.startRound());
+    if (clashLine) this.time.delayedCall(900 + lead, () => this.showBanner(clashLine, 800));
+    this.time.delayedCall((clashLine ? 1500 : 700) + lead, () => this.startRound());
+  }
+
+  // 大字特写：一道墨色长条横贯战场，金线压边，从左边抽进来、停一下、往右抽走（等到停稳就返回）
+  private cutIn(label: string, sub: string, color: number, ms: (n: number) => number): Promise<void> {
+    const y = Math.round((SAFE_TOP + TOP_H + PANEL_Y) / 2) - 40;
+    const c = this.add.container(-W, y).setDepth(420);
+    const g = this.add.graphics();
+    g.fillStyle(0x0a0604, 0.8).fillRect(0, -28, W, 56);
+    g.fillStyle(color).fillRect(0, -30, W, 2).fillRect(0, 28, W, 2);
+    g.fillStyle(UI.gold, 0.5).fillRect(0, -26, W, 1).fillRect(0, 25, W, 1);
+    c.add([g, text(this, W / 2, sub ? -22 : -12, label, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804, scale: 2 })]);
+    if (sub) c.add(text(this, W / 2, 8, sub, { align: 'center', color: hex(color) === hex(C.red) ? 0xff9a7a : 0xffe08a }));
+    return new Promise<void>((r) => {
+      this.tweens.add({ targets: c, x: 0, duration: ms(140), ease: 'Quad.easeOut', onComplete: () => {
+        this.time.delayedCall(ms(520), () => {
+          r();
+          this.tweens.add({ targets: c, x: W, alpha: 0, duration: ms(160), ease: 'Quad.easeIn', onComplete: () => c.destroy() });
+        });
+      } });
+    });
   }
 
   update(): void {
@@ -253,7 +297,7 @@ export class BattleScene extends Phaser.Scene {
     // 时辰滤镜与暖光，和主界面一样
     const tint: Record<string, number | null> = { dawn: 0xffe4c8, day: null, dusk: 0xffccb0, night: 0x6a74b0 };
     const tt = dark ? null : tint[dp];
-    if (tt) this.add.rectangle(0, FIELD_Y, W, FIELD_H, tt).setOrigin(0).setBlendMode(Phaser.BlendModes.MULTIPLY).setDepth(205);
+    if (tt) timeTint(this, 0, FIELD_Y, W, FIELD_H, tt).setDepth(205);
     if (dark || dp === 'night' || dp === 'dusk') for (const [x, y] of glows) {
       const c = this.add.circle(x, y, 16, 0xffa040, 0.22).setBlendMode(Phaser.BlendModes.ADD).setDepth(206);
       this.tweens.add({ targets: c, alpha: { from: 0.6, to: 1 }, duration: 700 + Math.random() * 300, yoyo: true, repeat: -1 });
@@ -490,15 +534,22 @@ export class BattleScene extends Phaser.Scene {
     return (unit(this.b, id) ?? this.b.reserve.find((r) => r.id === id))?.name ?? '';
   }
 
-  private addLog(s: string): void {
+  private addLog(s: string, tone?: number): void {
     this.logLines.push(s);
-    if (this.logLines.length > 60) this.logLines.shift();
+    this.logTones.push(tone ?? logTone(s));
+    if (this.logLines.length > 60) {
+      this.logLines.shift();
+      this.logTones.shift();
+    }
     if (this.mode === 'log') this.renderLog();
   }
 
   private appendLog(s: string): void {
     if (!this.logLines.length) return this.addLog(s);
-    this.logLines[this.logLines.length - 1] += s;
+    const i = this.logLines.length - 1;
+    this.logLines[i] += s;
+    // 追加进来的暴击、中计也要让整行换色（已经有颜色的不降级）
+    this.logTones[i] = this.logTones[i] ?? logTone(this.logLines[i]);
     if (this.mode === 'log') this.renderLog();
   }
 
@@ -510,14 +561,16 @@ export class BattleScene extends Phaser.Scene {
     const maxW = W - 32;
     const room = Math.floor((H - 42 - top) / 16);
     // 从最新一条往上排，放不下的就不显示；越旧越淡
-    const rows: string[] = [];
+    const rows: { s: string; tone: number | null }[] = [];
     for (let i = this.logLines.length - 1; i >= 0 && rows.length < room; i--) {
       const ls = wrap(this.logLines[i], maxW);
-      for (let k = ls.length - 1; k >= 0 && rows.length < room; k--) rows.unshift(ls[k]);
+      for (let k = ls.length - 1; k >= 0 && rows.length < room; k--) rows.unshift({ s: ls[k], tone: this.logTones[i] });
     }
     rows.forEach((r, i) => {
       const age = rows.length - 1 - i;
-      this.panel.add(text(this, x, top + i * 16, r, { color: age === 0 ? PAPER.ink : age < 3 ? 0x6a5236 : 0x9a8460 }));
+      // 要紧的（暴击、招降、中计、被动）用自己的颜色，旧了就淡一点；其余越旧越淡
+      const color = r.tone ?? (age === 0 ? PAPER.ink : age < 3 ? 0x6a5236 : 0x9a8460);
+      this.panel.add(text(this, x, top + i * 16, r.s, { color }).setAlpha(r.tone && age >= 3 ? 0.65 : 1));
     });
     this.panel.add(text(this, 16, H - 32, this.replay ? '' : this.auto ? '自动战斗中……' : '', { color: 0xa0301c }));
   }
@@ -886,6 +939,13 @@ export class BattleScene extends Phaser.Scene {
           await wait(this, ms(60));
           const a = this.views.get(e.actor);
           const t = e.target ? this.views.get(e.target) : undefined;
+          // 化境的技能先亮个相
+          const st = e.skill ? unit(this.b, e.actor)?.skills.find((x) => x.id === e.skill) : undefined;
+          this.heavy = !!st && st.level > balance.skill.maxLevel;
+          if (this.heavy && a) {
+            sfx('magic');
+            await this.cutIn(`${e.label}·化境`, this.nameOf(e.actor), C.yellow, ms);
+          }
           this.setBanner(e.label);
           this.drawOrder(e.actor);
           this.addLog(`${this.nameOf(e.actor)}：${e.label}${e.target && e.target !== e.actor && e.kind !== 'cast' ? ` → ${this.nameOf(e.target)}` : ''}`);
@@ -933,7 +993,7 @@ export class BattleScene extends Phaser.Scene {
           v.spr.setTint(0xffffff);
           this.time.delayedCall(80, () => v.spr.clearTint());
           const label = e.t === 'poison' ? `毒-${e.amount}` : `${e.crit ? '暴击 ' : e.fatal ? '致命 ' : ''}-${e.amount}`;
-          if (crit) this.shake(110, 0.006);
+          if (crit || this.heavy) this.shake(this.heavy ? 160 : 110, this.heavy ? 0.01 : 0.006);
           if (e.t === 'poison') this.addLog(`${this.nameOf(e.target)}毒发 -${e.amount}`);
           else this.appendLog(`，${this.nameOf(e.target)}${e.crit ? '（暴击）' : e.fatal ? '（致命）' : ''}-${e.amount}`);
           this.float(v, label, e.t === 'poison' ? C.lilac : crit ? C.red : C.orange, crit);
@@ -1088,11 +1148,17 @@ export class BattleScene extends Phaser.Scene {
         case 'passive': {
           // 专属被动：头顶飘一行金字，战报记一笔
           const v = this.views.get(e.actor);
-          if (v) {
+          const key = `${e.actor}:${e.label}`;
+          if (v && !this.seenPassive.has(key)) {
+            // 这一仗里第一次发动：特写一下，之后就只飘字
+            this.seenPassive.add(key);
+            this.spark(v, C.yellow);
+            await this.cutIn(e.label, this.nameOf(e.actor), C.yellow, ms);
+          } else if (v) {
             this.float(v, `「${e.label}」`, C.yellow);
             this.spark(v, C.yellow);
           }
-          this.addLog(`${this.nameOf(e.actor)}·${e.label}`);
+          this.addLog(`${this.nameOf(e.actor)}·${e.label}`, LOG_TONE.passive);
           await wait(this, ms(260));
           break;
         }

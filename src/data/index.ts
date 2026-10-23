@@ -224,6 +224,16 @@ export const systems = systemsJson as unknown as {
     fightsPerDay: number; winPoints: number; baseP: number; perWin: number; stageLevel: number[];
     rewards: (Reward & { silverPerLevel: number; rep: number })[]; title: string;
   };
+  gzStory: {
+    advisors: Record<NationId, string>;
+    keyCities: Record<string, { self: [string, string][]; other: [string, string][] }>;
+    capital: [string, string][]; standSelf: [string, string][]; standOther: [string, string][]; leadSelf: [string, string][]; leadOther: [string, string][];
+  };
+  tower: {
+    minLevel: number; baseLevel: number; levelPerFloor: number; powerPerFloor: number; lossesPerDay: number;
+    count: [number, number]; bossEvery: number; bossEscorts: number;
+    silverBase: number; silverPerFloor: number; expPerFloor: number; boxEvery: number; lingEvery: number;
+  };
   kuaqu: {
     minLevel: number; fightsPerDay: number; servers: string[]; base: number; spread: number; playerWeight: number;
     winPoints: number; levelDiffPoints: number; oppLevel: [number, number]; rewards: (Reward & { silverPerLevel: number })[]; title: string;

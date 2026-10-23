@@ -495,6 +495,41 @@
       "chapter": "新手任务"
     },
     {
+      "id": "m10a",
+      "title": "营寨亲兵",
+      "giver": "zhuangzhu",
+      "turnIn": "zhuangzhu",
+      "type": "kill",
+      "target": {
+        "monster": "shanzei",
+        "count": 10,
+        "at": "shanzeiyingzhai"
+      },
+      "hint": "进山贼营寨，打败10个守寨的山贼亲兵。",
+      "goal": "打败山贼 ×10（山贼营寨）",
+      "accept": [
+        {
+          "who": "zhuangzhu",
+          "text": "头目身边还有一帮亲兵守着营寨。先把亲兵打散，头目就成了孤家寡人。"
+        },
+        {
+          "who": "zhuangzhu",
+          "text": "营寨里的山贼比大门口的壮实，打不过就回来歇口气，多练几级再去。"
+        }
+      ],
+      "finish": [
+        {
+          "who": "zhuangzhu",
+          "text": "亲兵散了！头目那一刀可不好接，备足了药再去。"
+        }
+      ],
+      "reward": {
+        "exp": 4500,
+        "silver": 800
+      },
+      "chapter": "新手任务"
+    },
+    {
       "id": "m11",
       "title": "擒贼擒王",
       "giver": "zhuangzhu",

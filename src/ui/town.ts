@@ -432,7 +432,8 @@ export function stablePanel(h: Host): void {
 
 // ===== 娱乐场 =====
 let casinoTab = 0;
-export function casinoPanel(h: Host): void {
+export function casinoPanel(h: Host, tab?: number): void {
+  if (tab !== undefined) casinoTab = tab;
   const s = store.save;
   const m = new Modal(h, '娱乐场');
   const dyn = h.add.container(0, 0);

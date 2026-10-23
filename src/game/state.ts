@@ -254,6 +254,8 @@ export interface P4State {
   orders: { day: string; used: number };
   salaryDay: string;
   world: GzWorld | null;
+  // 国战纪事：这个赛季已经讲过的事（见 gzstory.ts）
+  story?: string[];
   seen: number;
   seasonClaim: { season: number; nation: NationId; rank: number; merit: number } | null;
   league: { week: number; sect: string | null; fought: number[]; wins: number[]; claim: { week: number; sect: string; rank: number } | null };
@@ -947,17 +949,16 @@ export function npcMark(s: Save, npcId: string): '!' | '?' | null {
 }
 
 // 主线中途插过的任务：版本号 → 那一版新加的任务 id
-const MAIN_INSERTS: Record<number, string[]> = { 2: ['m7a', 'm7b', 'm8a', 'm15a'] };
-export const MAIN_QV = 2;
+const MAIN_INSERTS: Record<number, string[]> = { 2: ['m7a', 'm7b', 'm8a', 'm15a'], 3: ['m10a'] };
+export const MAIN_QV = 3;
 
 // 老存档的 step 是按旧任务表数的，换算成新表里同一个任务的位置（插在前面的新任务就跳过了）
+// （跨了好几版也是一次换算：先按存档那一版的任务表找到是哪个任务，再找它在现在表里的位置）
 export function migrateMain(s: Save): void {
-  let v = s.main.qv ?? 1;
-  while (v < MAIN_QV) {
-    v++;
-    const added = new Set(MAIN_INSERTS[v] ?? []);
+  const v = s.main.qv ?? 1;
+  if (v < MAIN_QV) {
     const later = new Set(Object.entries(MAIN_INSERTS).filter(([k]) => Number(k) > v).flatMap(([, ids]) => ids));
-    const old = mainQuests.filter((q) => !added.has(q.id) && !later.has(q.id)).map((q) => q.id);
+    const old = mainQuests.filter((q) => !later.has(q.id)).map((q) => q.id);
     const id = old[s.main.step];
     s.main.step = id ? mainQuests.findIndex((q) => q.id === id) : mainQuests.length;
   }

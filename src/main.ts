@@ -3,7 +3,8 @@ import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { MainScene } from './scenes/MainScene';
 import { BattleScene } from './scenes/BattleScene';
-import { H, W } from './ui/widgets';
+import { H, W, toast } from './ui/widgets';
+import { store } from './game/store';
 import { autoFullscreen, fitZoom, syncHeight } from './ui/screen';
 
 async function boot(): Promise<void> {
@@ -46,6 +47,11 @@ async function boot(): Promise<void> {
   document.addEventListener('fullscreenchange', onResize);
   autoFullscreen();
   (window as unknown as { __game: Phaser.Game }).__game = game;
+  // 存档写不进去（存储满了）：在眼下的场景里提示
+  store.onWarn = (msg) => {
+    const sc = game.scene.getScenes(true)[0];
+    if (sc) toast(sc, msg, 5000);
+  };
 }
 
 boot();
