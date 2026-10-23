@@ -1,77 +1,73 @@
-// 娱乐场：赤壁（魏蜀吴三方押注，奖池分成，AI 玩家也在押）和猜猜看（三选一，猜中拿 2.5 倍，能翻倍再押）
+// 娱乐场：赤壁（魏蜀吴三方押注，奖池分成，AI 玩家也在押，押完擂鼓开战）和猜猜看（三选一，猜中拿 2.5 倍，能翻倍再押）
 import { systems } from '../data';
 import { Rng } from '../core/rng';
 import type { ChibiRound, Save } from './state';
 import { bump, log, rollRng } from './state';
 
 const K = systems.casino;
-const ROUND_MS = K.chibiMinutes * 60000;
 
-export function roundId(now: number): number {
-  return Math.floor(now / ROUND_MS);
+// 赤壁：魏蜀吴三方押注，押完自己擂鼓开战（单机不用等时钟）。局数从 0 起往上数
+export function roundId(s: Save): number {
+  return s.casino.round ?? 0;
 }
 
-// AI 玩家的押注：每局三方的热度不同，随时间涨上去；同一局任何时候算都一样
-export function aiPools(id: number, now: number): number[] {
-  const rng = new Rng((id * 2654435761) >>> 0);
+// AI 玩家的押注：每局三方的热度不同；同一局任何时候算都一样
+export function aiPools(s: Save, id: number): number[] {
+  const rng = new Rng((s.seed ^ (id * 2654435761)) >>> 0);
   const heat = K.sides.map(() => rng.range(0.4, 1.6));
   const scale = rng.range(20000, 80000);
-  const t = Math.max(0, Math.min(1, (now - id * ROUND_MS) / ROUND_MS));
-  return heat.map((h) => Math.round(h * scale * (0.15 + 0.85 * t)));
+  return heat.map((h) => Math.round(h * scale));
 }
 
-export function chibiWinner(id: number): number {
-  return new Rng((id * 40503 + 7) >>> 0).int(0, K.sides.length - 1);
+export function chibiWinner(s: Save, id: number): number {
+  return new Rng((s.seed ^ (id * 40503 + 7)) >>> 0).int(0, K.sides.length - 1);
 }
 
 export interface ChibiView {
   id: number;
-  end: number;
   pools: number[];
   mine: number[];
   odds: number[];
-  settled: string | null;
 }
 
-// 打开娱乐场时先把上一局结了，再给出当前局的情况
-export function chibiView(s: Save, now = Date.now()): ChibiView {
-  const settled = settleChibi(s, now);
-  const id = roundId(now);
+export function chibiView(s: Save): ChibiView {
+  const id = roundId(s);
   const mine = s.casino.chibi?.id === id ? s.casino.chibi.bets : [0, 0, 0];
-  const ai = aiPools(id, now);
+  const ai = aiPools(s, id);
   const pools = ai.map((v, i) => v + mine[i]);
   const total = pools.reduce((a, b) => a + b, 0);
   const odds = pools.map((p) => (p > 0 ? Math.round(((total * (1 - K.houseCut)) / p) * 100) / 100 : 0));
-  return { id, end: (id + 1) * ROUND_MS, pools, mine, odds, settled };
+  return { id, pools, mine, odds };
 }
 
-export function settleChibi(s: Save, now = Date.now()): string | null {
+// 擂鼓开战：结算这一局，换下一局
+export function fightChibi(s: Save): { winner: number; text: string } | null {
   const r = s.casino.chibi;
-  if (!r || now < r.end) return null;
+  const id = roundId(s);
+  if (!r || r.id !== id) return null;
   s.casino.chibi = null;
-  const w = chibiWinner(r.id);
-  const pools = aiPools(r.id, r.end).map((v, i) => v + r.bets[i]);
+  s.casino.round = id + 1;
+  const w = chibiWinner(s, id);
+  const pools = aiPools(s, id).map((v, i) => v + r.bets[i]);
   const total = pools.reduce((a, b) => a + b, 0);
   const staked = r.bets.reduce((a, b) => a + b, 0);
   const win = r.bets[w] > 0 ? Math.floor((r.bets[w] * total * (1 - K.houseCut)) / pools[w]) : 0;
   s.player.silver += win;
   s.casino.net += win - staked;
   bump(s, 'chibi');
-  const text = `上一局赤壁：${K.sides[w]}胜。你押了${staked}两，${win ? `赢回${win}两` : '血本无归'}`;
+  const text = `赤壁第${id + 1}局：${K.sides[w]}胜。你押了${staked}两，${win ? `赢回${win}两` : '血本无归'}`;
   log(s, text);
-  return text;
+  return { winner: w, text };
 }
 
-export function betChibi(s: Save, side: number, amount: number, now = Date.now()): string {
-  settleChibi(s, now);
+export function betChibi(s: Save, side: number, amount: number): string {
   amount = Math.floor(amount);
   if (amount < K.minBet) return `最少押${K.minBet}两`;
   if (s.player.silver < amount) return '银两不足';
-  const id = roundId(now);
+  const id = roundId(s);
   let r: ChibiRound | null = s.casino.chibi;
-  if (!r || r.id !== id) r = { id, start: id * ROUND_MS, end: (id + 1) * ROUND_MS, bets: [0, 0, 0] };
+  if (!r || r.id !== id) r = { id, bets: [0, 0, 0] };
   if (r.bets.reduce((a, b) => a + b, 0) + amount > K.maxBet) return `一局最多押${K.maxBet}两`;
-  if (r.end - now < 5000) return '马上开战了，下一局再押';
   r.bets[side] += amount;
   s.casino.chibi = r;
   s.player.silver -= amount;

@@ -1,4 +1,5 @@
-// 限时和每日活动：抢宝（真实时钟 9 点、11 点开）、银两环（庐江）、文曲星答题、幸运王抽奖、节日礼包。
+// 限时和每日活动：抢宝（天下历每天 9 时、15 时开）、银两环（庐江）、文曲星答题、幸运王抽奖、节日礼包。
+// 「每天」都是天下历的天（打 18 仗一天，见 calendar.ts）；节日还按真实日期
 import { locations, systems } from '../data';
 import { createBattle } from '../core/battle';
 import type { BUnit, Battle } from '../core/battle';
@@ -6,7 +7,8 @@ import { expToNext } from '../core/formulas';
 import { Rng } from '../core/rng';
 import { generalUnit, monsterUnit, playerUnit } from './encounter';
 import type { Save } from './state';
-import { arrive, bagCount, bump, dayKey, grantPlayerExp, log, removeItem, rollRng } from './state';
+import { arrive, bagCount, bump, grantPlayerExp, log, removeItem, rollRng } from './state';
+import { DAY_BATTLES, calDay, calTick, dayHour, tomorrowHint } from './calendar';
 import { visited } from './town';
 import { grantReward, rollLoot } from './welfare';
 
@@ -19,38 +21,47 @@ function hash(str: string): number {
   return h >>> 0;
 }
 
-// 现在开着的那一场：哪个整点开的、宝藏埋在哪
-export function treasureNow(s: Save, now = Date.now()): { open: boolean; hour: number; at: string | null; next: string } {
-  const d = new Date(now);
-  const hour = TR.hours.find((h) => d.getHours() === h && d.getMinutes() < TR.minutes);
-  const next = TR.hours.find((h) => d.getHours() < h || (d.getHours() === h && d.getMinutes() < TR.minutes));
-  const nextText = next !== undefined ? `今天${next}:00` : `明天${TR.hours[0]}:00`;
-  if (hour === undefined) return { open: false, hour: -1, at: null, next: nextText };
-  // 宝藏点：去过的野外里随机一处（同一场所有人看到的一样）
-  const places = Object.keys(locations).filter((id) => !locations[id].town && locations[id].groups.length && visited(s, id));
-  const rng = new Rng(hash(`${dayKey(now)}-${hour}-${s.seed}`));
-  return { open: true, hour, at: places.length ? rng.pick(places) : 'cunbei', next: nextText };
+// 天下历第 t 格开着哪一场（开场的钟点），没开返回 undefined
+function openAt(t: number): number | undefined {
+  const hr = dayHour(t);
+  return TR.hours.find((h) => hr >= h && hr < h + TR.spanHours);
 }
 
-export function treasureLeft(s: Save, now = Date.now()): number {
-  const d = dayKey(now);
+// 现在开着的那一场：哪个钟点开的、宝藏埋在哪；没开就说再打几仗开
+export function treasureNow(s: Save, t = calTick(s)): { open: boolean; hour: number; at: string | null; next: string; left: number } {
+  const hour = openAt(t);
+  let wait = 1;
+  while (wait <= DAY_BATTLES && openAt(t + wait) === undefined) wait++;
+  const nextText = `再打${wait}仗（${dayHour(t + wait) < dayHour(t) ? '明天' : '今天'}${openAt(t + wait)}时）`;
+  if (hour === undefined) return { open: false, hour: -1, at: null, next: nextText, left: 0 };
+  // 这一场还能开打几仗（算上眼下这一仗）
+  let left = 1;
+  while (openAt(t + left) === hour) left++;
+  // 宝藏点：去过的野外里随机一处（这一场里一直在同一处）
+  const places = Object.keys(locations).filter((id) => !locations[id].town && locations[id].groups.length && visited(s, id));
+  const rng = new Rng(hash(`${calDay(t)}-${hour}-${s.seed}`));
+  return { open: true, hour, at: places.length ? rng.pick(places) : 'cunbei', next: nextText, left };
+}
+
+export function treasureLeft(s: Save, t = calTick(s)): number {
+  const d = calDay(t);
   if (s.p3.treasure.day !== d) s.p3.treasure = { day: d, used: 0, found: null, at: null };
   return Math.max(0, TR.perDay - s.p3.treasure.used);
 }
 
 // 直接传送到宝藏点
-export function treasureTeleport(s: Save, now = Date.now()): string {
-  const t = treasureNow(s, now);
+export function treasureTeleport(s: Save): string {
+  const t = treasureNow(s);
   if (!t.open || !t.at) return `抢宝还没开始，下一场${t.next}`;
   arrive(s, t.at);
   return `传送到了${locations[t.at].name}，宝藏就在这里`;
 }
 
-export function treasureBattle(s: Save, seed: number, now = Date.now()): Battle | string {
-  const t = treasureNow(s, now);
+export function treasureBattle(s: Save, seed: number): Battle | string {
+  const t = treasureNow(s);
   if (!t.open) return `抢宝还没开始，下一场${t.next}`;
   if (s.location !== t.at) return `宝藏在${locations[t.at!].name}`;
-  if (treasureLeft(s, now) <= 0) return '今天的抢宝次数用完了';
+  if (treasureLeft(s) <= 0) return `今天的抢宝次数用完了，${tomorrowHint(s)}`;
   const rng = new Rng(seed);
   const n = rng.int(TR.guardCount[0], TR.guardCount[1]);
   const enemies: BUnit[] = Array.from({ length: n }, (_, i) => monsterUnit(`e${i}`, 'hubaoshouwei', s.player.level, i < 3 ? 0 : 1));
@@ -65,8 +76,9 @@ export function treasureBattle(s: Save, seed: number, now = Date.now()): Battle 
   return createBattle({ seed: (rng.next() * 4294967296) >>> 0, allies, reserve, enemies, items: { ...s.bag }, title: '宝藏守卫', canFlee: false, tag: 'treasure' });
 }
 
-export function afterTreasure(s: Save, won: boolean, now = Date.now()): string[] {
-  treasureLeft(s, now);
+// t 是开打那一格，次数记在开打那天
+export function afterTreasure(s: Save, won: boolean, t = calTick(s)): string[] {
+  treasureLeft(s, t);
   s.p3.treasure.used++;
   if (!won) return ['没打过宝藏守卫，宝藏被别人抢走了'];
   const silver = s.player.level * TR.silverPerLevel;
@@ -81,16 +93,16 @@ export function afterTreasure(s: Save, won: boolean, now = Date.now()): string[]
 // ===== 银两环（庐江都尉） =====
 const SR = systems.silverRing;
 
-export function silverRingLeft(s: Save, now = Date.now()): number {
-  const d = dayKey(now);
+export function silverRingLeft(s: Save, t = calTick(s)): number {
+  const d = calDay(t);
   if (s.p3.silverRing.day !== d) s.p3.silverRing = { day: d, earned: 0, task: s.p3.silverRing.task };
   return Math.max(0, SR.perDay - Math.round(s.p3.silverRing.earned));
 }
 
-export function takeSilverRing(s: Save, now = Date.now()): string {
+export function takeSilverRing(s: Save): string {
   if (s.player.level < SR.minLevel) return `${SR.minLevel}级才能接`;
   if (s.p3.silverRing.task) return `手上还有：收${SR.need}份军资（有${bagCount(s, 'junzi')}份）`;
-  if (silverRingLeft(s, now) <= 0) return '今天的军资已经够了，明天再来';
+  if (silverRingLeft(s) <= 0) return `今天的军资已经够了，${tomorrowHint(s)}`;
   s.p3.silverRing.task = { need: SR.need, have: 0 };
   return `去庐江郊外打庐江逃兵，追回${SR.need}份军资`;
 }
@@ -116,8 +128,8 @@ export function turnInSilverRing(s: Save): string {
 // ===== 文曲星 =====
 const WQ = systems.wenqu;
 
-export function wenquToday(s: Save, now = Date.now()): { left: number; qi: number | null } {
-  const d = dayKey(now);
+export function wenquToday(s: Save, t = calTick(s)): { left: number; qi: number | null } {
+  const d = calDay(t);
   if (s.p3.wenqu.day !== d) s.p3.wenqu = { day: d, answered: [], right: s.p3.wenqu.right };
   const left = WQ.perDay - s.p3.wenqu.answered.length;
   if (left <= 0) return { left: 0, qi: null };
@@ -146,19 +158,19 @@ export function answerWenqu(s: Save, qi: number, pick: number): { ok: boolean; l
 // ===== 幸运王 =====
 const LK = systems.lucky;
 
-export function luckyDraws(s: Save, now = Date.now()): number {
-  const d = dayKey(now);
+export function luckyDraws(s: Save, t = calTick(s)): number {
+  const d = calDay(t);
   if (s.p3.lucky.day !== d) s.p3.lucky = { day: d, luck: s.p3.lucky.luck, draws: 0 };
   return s.p3.lucky.draws;
 }
 
-export function luckyCost(s: Save, now = Date.now()): number {
-  return luckyDraws(s, now) < LK.free ? 0 : LK.goldPerDraw;
+export function luckyCost(s: Save): number {
+  return luckyDraws(s) < LK.free ? 0 : LK.goldPerDraw;
 }
 
-export function luckyDraw(s: Save, now = Date.now()): string {
-  if (luckyDraws(s, now) >= LK.maxDraws) return '今天抽够了，明天再来';
-  const cost = luckyCost(s, now);
+export function luckyDraw(s: Save): string {
+  if (luckyDraws(s) >= LK.maxDraws) return `今天抽够了，${tomorrowHint(s)}`;
+  const cost = luckyCost(s);
   if (s.player.gold < cost) return `要${cost}金砖`;
   s.player.gold -= cost;
   s.p3.lucky.draws++;

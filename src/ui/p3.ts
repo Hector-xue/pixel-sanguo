@@ -9,6 +9,7 @@ import { Rng, randomSeed } from '../core/rng';
 import type { ClassId, Gender } from '../core/types';
 import { arenaBattle, arenaSalary, challengers, evilNow, fightsLeft, myRank, pkBattle, pkList } from '../game/arena';
 import type { Ladder } from '../game/arena';
+import { tomorrowHint } from '../game/calendar';
 import { BOARDS, achvProgress, allTitles, board, myBoardRank, setTitle, titleText } from '../game/achv';
 import type { BoardKind } from '../game/achv';
 import {
@@ -95,7 +96,7 @@ export function arenaPanel(h: Host, tab?: number): void {
       const who = kind === 'arena' ? s.player.name : findGeneral(s, s.activeGeneral ?? '')?.name ?? '（没有出战副将）';
       dyn.add(text(h, m.cx, y, `${who}　名次：${rank ? `第${rank}名` : '未上榜'}　最好：${L.best ? `第${L.best}名` : '-'}`, { color: C.darkRed }));
       y += 18;
-      dyn.add(text(h, m.cx, y, `今天还能挑战${fightsLeft(s, kind)}次。打赢就换到对方的名次（只能挑战高你5名以内的）。`, { wrap: m.cw, color: C.brown }));
+      dyn.add(text(h, m.cx, y, `今天还能挑战${fightsLeft(s, kind)}次${fightsLeft(s, kind) ? '' : `（${tomorrowHint(s)}）`}。打赢就换到对方的名次（只能挑战高你5名以内的）。`, { wrap: m.cw, color: C.brown }));
       y += 34;
       if (kind === 'arena') {
         dyn.add(new Button(h, m.cx, y, m.cw, 24, '领今天的擂台俸禄', () => {
@@ -119,9 +120,9 @@ export function arenaPanel(h: Host, tab?: number): void {
       r.area.setContentHeight(r.y);
     } else {
       const evil = evilNow(s);
-      dyn.add(text(h, m.cx, y, `恶人值：${evil}（每小时消1点；打比自己弱5级以上的人涨得多）`, { wrap: m.cw, color: evil >= 50 ? C.red : C.brown }));
+      dyn.add(text(h, m.cx, y, `恶人值：${evil}（每打一仗消1点；打比自己弱5级以上的人涨得多）`, { wrap: m.cw, color: evil >= 50 ? C.red : C.brown }));
       y += 34;
-      dyn.add(text(h, m.cx, y, `今天还能决斗${fightsLeft(s, 'pk')}次。赢了抢对方银两，输了被抢一点。`, { wrap: m.cw, color: C.brown }));
+      dyn.add(text(h, m.cx, y, `今天还能决斗${fightsLeft(s, 'pk')}次${fightsLeft(s, 'pk') ? '' : `（${tomorrowHint(s)}）`}。赢了抢对方银两，输了被抢一点。`, { wrap: m.cw, color: C.brown }));
       y += 34;
       const r = rows(h, m, dyn, y);
       for (const rv of pkList(s)) {
@@ -637,7 +638,7 @@ export function marriageTalk(h: Host): void {
 export function wenquTalk(h: Host): void {
   const s = store.save;
   const t = wenquToday(s);
-  if (t.qi === null) return showDialog(h, [{ who: 'wenquxing', text: `今天的${systems.wenqu.perDay}道题都答完了。你一共答对${s.p3.wenqu.right}题，明天再来。` }]);
+  if (t.qi === null) return showDialog(h, [{ who: 'wenquxing', text: `今天的${systems.wenqu.perDay}道题都答完了。你一共答对${s.p3.wenqu.right}题。${tomorrowHint(s)}，到时候再来。` }]);
   const q = systems.wenqu.questions[t.qi];
   const n = systems.wenqu.perDay - t.left + 1;
   showDialog(h, [{ who: 'wenquxing', text: `第${n}/${systems.wenqu.perDay}题：${q.q}` }], q.a.map((a, k) => ({
@@ -701,7 +702,7 @@ export function stallPanel(h: Host): void {
       render();
     }, { style: 'red', disabled: !st.income }));
     y += 22;
-    dyn.add(text(h, m.cx, y, '标价比行情低卖得快，高了没人要。买家每10分钟来一轮，不在线也照样卖（最多算12小时）。', { wrap: m.cw, color: C.brown }));
+    dyn.add(text(h, m.cx, y, '标价比行情低卖得快，高了没人要。你每打一仗来一轮买家，不来收钱也照样卖（最多攒72轮）。', { wrap: m.cw, color: C.brown }));
     y += 36;
     const r = rows(h, m, dyn, y, 52);
     for (const g of st.goods) {
@@ -744,10 +745,10 @@ export function treasurePanel(h: Host, enterCave: () => void): void {
     enterCave();
   }));
   y += 42;
-  m.inner.add(text(h, m.cx, y, `抢宝：每天${systems.treasure.hours.join('点、')}点各开${systems.treasure.minutes}分钟，宝藏埋在野外某处，打赢宝藏守卫就归你。今天还能抢${treasureLeft(s)}次。`, { wrap: m.cw, color: C.brown }));
+  m.inner.add(text(h, m.cx, y, `抢宝：天下历每天${systems.treasure.hours.join('时、')}时各开一阵（三仗的工夫），宝藏埋在野外某处，打赢宝藏守卫就归你。今天还能抢${treasureLeft(s)}次${treasureLeft(s) ? '' : `（${tomorrowHint(s)}）`}。`, { wrap: m.cw, color: C.brown }));
   y += 56;
   if (t.open && t.at) {
-    m.inner.add(text(h, m.cx, y, `宝藏出现在【${locations[t.at].name}】！`, { color: C.red }));
+    m.inner.add(text(h, m.cx, y, `宝藏出现在【${locations[t.at].name}】！这一场还有${t.left}仗的工夫`, { color: C.red }));
     y += 22;
     m.inner.add(new Button(h, m.cx, y, m.cw, 28, '直接传送过去', () => {
       m.close();

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { gemId, items, mainQuests, systems } from '../src/data';
 import { gearBonus, gearName } from '../src/core/gear';
 import type { ClassId, Gender } from '../src/core/types';
-import { aiPools, betChibi, chibiView, chibiWinner, guessCollect, guessPick, guessStart, roundId, settleChibi } from '../src/game/casino';
+import { aiPools, betChibi, chibiView, chibiWinner, fightChibi, guessCollect, guessPick, guessStart, roundId } from '../src/game/casino';
 import { afterGuard, digOnce, nextIsGuard, startDig } from '../src/game/dig';
 import { finishBattle } from '../src/game/encounter';
 import { generalLearn, generalSkillRows, giveRecruit, readXinfa, recruitWith, rerollApt, rewardGeneral, starUp } from '../src/game/generals';
@@ -345,23 +345,28 @@ describe('挖宝', () => {
 });
 
 describe('娱乐场', () => {
-  it('赤壁：奖池分成，押中按比例分走全部奖池（抽一成）', () => {
+  it('赤壁：押完擂鼓开战当场结算；押中按比例分走全部奖池（抽一成）', () => {
     const s = fresh();
     s.player.silver = 50000;
-    const now = roundId(T0) * 180000 + 1000;
-    const w = chibiWinner(roundId(now));
-    expect(betChibi(s, w, 10000, now)).toContain('押');
-    expect(betChibi(s, (w + 1) % 3, 1000, now)).toContain('押');
-    const end = (roundId(now) + 1) * 180000;
-    const pools = aiPools(roundId(now), end);
+    const id = roundId(s);
+    expect(fightChibi(s)).toBeNull();
+    const w = chibiWinner(s, id);
+    expect(betChibi(s, w, 10000)).toContain('押');
+    expect(betChibi(s, (w + 1) % 3, 1000)).toContain('押');
+    const pools = aiPools(s, id);
     pools[w] += 10000;
     pools[(w + 1) % 3] += 1000;
     const total = pools.reduce((a, b) => a + b, 0);
     const expectWin = Math.floor((10000 * total * 0.9) / pools[w]);
-    expect(settleChibi(s, end + 10)).toContain('胜');
+    expect(chibiView(s).pools).toEqual(pools);
+    const r = fightChibi(s)!;
+    expect(r.winner).toBe(w);
+    expect(r.text).toContain('胜');
     expect(s.player.silver).toBe(50000 - 11000 + expectWin);
     expect(s.casino.net).toBe(expectWin - 11000);
-    expect(chibiView(s, end + 20).mine).toEqual([0, 0, 0]);
+    // 换了下一局
+    expect(roundId(s)).toBe(id + 1);
+    expect(chibiView(s).mine).toEqual([0, 0, 0]);
   });
 
   it('猜猜看：猜中翻2.5倍可以收手，猜错押金没了', () => {

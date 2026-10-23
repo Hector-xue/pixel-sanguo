@@ -45,6 +45,7 @@ import { autoTick } from '../game/cloud';
 import { checkAchievements } from '../game/achv';
 import { treasureNow } from '../game/events';
 import { log } from '../game/state';
+import { today } from '../game/calendar';
 
 const DIR_ARROW: Record<string, string> = { up: '↑', down: '↓', left: '←', right: '→' };
 const DIR_NAME: Record<string, string> = { up: '北', down: '南', left: '西', right: '东' };
@@ -825,7 +826,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     const s = store.save;
     const t = treasureNow(s);
     if (!t.open || !t.at) return;
-    const key = `tr_${new Date().toDateString()}_${t.hour}`;
+    const key = `tr_${today(s)}_${t.hour}`;
     if (s.flags[key]) return;
     for (const k of Object.keys(s.flags)) if (k.startsWith('tr_')) delete s.flags[k];
     s.flags[key] = true;

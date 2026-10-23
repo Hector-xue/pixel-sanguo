@@ -1,6 +1,6 @@
 // 存档与游戏规则（纯逻辑，可测）。界面只调这里的函数，不直接改存档字段。
 import { migrateTraining } from './training';
-import { migrateCalendar } from './calendar';
+import { migrateCalendar, migrateDaily } from './calendar';
 import { balance, bountyOptions, classSkills, classes, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation, systems } from '../data';
 import { p5Defaults } from './bond';
 import type { P5State } from './bond';
@@ -63,10 +63,9 @@ export interface RingTask {
   arrived?: boolean;
 }
 
+// 赤壁的一局：第几局、三方各押了多少（擂鼓开战才结算）
 export interface ChibiRound {
   id: number;
-  start: number;
-  end: number;
   bets: number[];
 }
 
@@ -123,7 +122,7 @@ export interface Save {
   online: { day: string; seconds: number; claimed: number[] };
   mentor: { joined: boolean; graduated: boolean };
   dig: { left: number; n: number } | null;
-  casino: { chibi: ChibiRound | null; net: number; guess: { pot: number; base: number } | null };
+  casino: { chibi: ChibiRound | null; net: number; guess: { pot: number; base: number } | null; round?: number };
   life: Record<string, number>;
   rolls: number;
   dayN?: number;
@@ -152,6 +151,7 @@ export interface P3State {
   duel: { rank: number; best: number; day: string; fights: number };
   pk: { day: string; fights: number };
   evil: number;
+  // 恶人值上次结算时天下历走到第几格（每打一仗消 1 点）
   evilAt?: number;
   // 随军操练的副将（老存档里还可能带着 start/hours，读档时折算掉）
   training: { who: string } | null;
@@ -164,6 +164,7 @@ export interface P3State {
   silverRing: { day: string; earned: number; task: { need: number; have: number } | null };
   wenqu: { day: string; answered: number[]; right: number };
   lucky: { day: string; luck: number; draws: number };
+  // last：上次结算时天下历走到第几格
   stall: { name: string; goods: { item: string; price: number; n: number }[]; last: number; sold: number; income: number };
   festival: string[];
   marriage: { spouse: string | null; favor: Record<string, number>; sworn: string[] };
@@ -240,6 +241,8 @@ export interface P4State {
   joinedAt: number;
   // 天下历的底数：总战斗场数减它就是天下历走了几格（老存档换算时定下）
   calBase: number;
+  // 天下历的版本：2 = 每天几次的那些也换算过了
+  calV: number;
   // 可花的战功、累计战功（定官职）、本赛季战功
   merit: number;
   meritTotal: number;
@@ -258,6 +261,7 @@ export function p4Defaults(): P4State {
     nation: null,
     joinedAt: 0,
     calBase: 0,
+    calV: 2,
     merit: 0,
     meritTotal: 0,
     seasonMerit: 0,
@@ -1083,12 +1087,14 @@ export function deserialize(text: string): Save {
   s.p3 = { ...p3Defaults(), ...(s.p3 ?? {}) };
   // 国战原来按真实时间走：没有天下历底数的老存档换算一次
   const oldCal = !!s.p4 && s.p4.calBase === undefined;
+  const oldDaily = !s.p4 || s.p4.calV === undefined;
   s.p4 = { ...p4Defaults(), ...(s.p4 ?? {}) };
   if (oldCal) migrateCalendar(s);
   s.p5 = { ...p5Defaults(), ...(s.p5 ?? {}) };
   s.p5.life = { ...p5Defaults().life, ...s.p5.life };
   migrateMain(s);
   migrateTraining(s);
+  if (oldDaily) migrateDaily(s);
   // 单机化：以前的「1区 许昌」这类分区名统一成本州
   if (!s.server || /区/.test(s.server)) s.server = '豫州';
   // 主线加长了：之前停在「全部完成」的存档接着往下走

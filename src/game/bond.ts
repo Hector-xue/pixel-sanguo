@@ -1,7 +1,8 @@
 // NPC 好感：每天能闲聊一次（听点江湖传闻），能送礼（每人每天三次）；好感到一档，对方回一份谢礼。
 // 每个 NPC 偏好一类东西（药 / 矿 / 杂物），送对了好感翻倍。
 import { items, locations, npcs } from '../data';
-import { currentQuest, dayKey, addItem, log, removeItem, rollRng } from './state';
+import { currentQuest, addItem, log, removeItem, rollRng } from './state';
+import { today, tomorrowHint } from './calendar';
 import type { Save } from './state';
 import { lifeDefaults } from './life';
 import type { LifeState } from './life';
@@ -82,7 +83,7 @@ export function giftable(s: Save): string[] {
 
 export function giftsLeftToday(s: Save, id: string): number {
   const [day, n] = (s.p5.gifts[id] ?? '').split(':');
-  return day === dayKey() ? Math.max(0, GIFTS_PER_DAY - Number(n || 0)) : GIFTS_PER_DAY;
+  return day === today(s) ? Math.max(0, GIFTS_PER_DAY - Number(n || 0)) : GIFTS_PER_DAY;
 }
 
 // 好感跨过新的一档：第一次到才给谢礼
@@ -130,13 +131,13 @@ export interface GiftResult {
 }
 
 export function giveGift(s: Save, npcId: string, itemId: string): GiftResult {
-  if (giftsLeftToday(s, npcId) <= 0) return { ok: false, gain: 0, liked: false, lines: ['今天已经送过好几回了，明天再来吧'] };
+  if (giftsLeftToday(s, npcId) <= 0) return { ok: false, gain: 0, liked: false, lines: [`今天已经送过好几回了（${tomorrowHint(s)}）`] };
   const v = giftValue(itemId);
   if (!v || !removeItem(s, itemId, 1)) return { ok: false, gain: 0, liked: false, lines: ['这个送不出手'] };
   const liked = items[itemId].cat === likedCat(npcId);
   const gain = liked ? v * 2 : v;
   const [day, n] = (s.p5.gifts[npcId] ?? '').split(':');
-  s.p5.gifts[npcId] = `${dayKey()}:${day === dayKey() ? Number(n || 0) + 1 : 1}`;
+  s.p5.gifts[npcId] = `${today(s)}:${day === today(s) ? Number(n || 0) + 1 : 1}`;
   const lines = addFavor(s, npcId, gain);
   return { ok: true, gain, liked, lines };
 }
@@ -170,9 +171,9 @@ export function chatWith(s: Save, npcId: string): ChatResult {
     const at = q.target?.at ? locations[q.target.at]?.name : undefined;
     text = at ? `你要办的事？往${at}那边去看看。${q.hint}` : `你要办的事？${q.hint}`;
   }
-  const today = dayKey();
-  if (s.p5.chatDay[npcId] === today) return { first: false, gain: 0, text, lines: [] };
-  s.p5.chatDay[npcId] = today;
+  const day = today(s);
+  if (s.p5.chatDay[npcId] === day) return { first: false, gain: 0, text, lines: [] };
+  s.p5.chatDay[npcId] = day;
   const gain = rng.int(2, 4);
   const lines = addFavor(s, npcId, gain);
   return { first: true, gain, text, lines };

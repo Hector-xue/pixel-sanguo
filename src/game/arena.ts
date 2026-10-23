@@ -8,20 +8,22 @@ import { generalUnit, playerUnit } from './encounter';
 import { mirrorUnit, rivalGeneralUnit, rivalLevel, rivals } from './rivals';
 import type { Rival } from './rivals';
 import type { Save } from './state';
-import { bump, dayKey, findGeneral, onFlag } from './state';
+import { bump, findGeneral, onFlag } from './state';
+import { calTick, calDay, tomorrowHint } from './calendar';
 
 const A = balance.arena;
 export type Ladder = 'arena' | 'duel';
 
-function resetDay(s: Save, now: number): void {
-  const d = dayKey(now);
+// 每天的次数按天下历的天换（打 18 仗一天）
+function resetDay(s: Save, t: number): void {
+  const d = calDay(t);
   if (s.p3.arena.day !== d) Object.assign(s.p3.arena, { day: d, fights: 0 });
   if (s.p3.duel.day !== d) Object.assign(s.p3.duel, { day: d, fights: 0 });
   if (s.p3.pk.day !== d) Object.assign(s.p3.pk, { day: d, fights: 0 });
 }
 
-export function fightsLeft(s: Save, kind: Ladder | 'pk', now = Date.now()): number {
-  resetDay(s, now);
+export function fightsLeft(s: Save, kind: Ladder | 'pk', t = calTick(s)): number {
+  resetDay(s, t);
   const used = kind === 'arena' ? s.p3.arena.fights : kind === 'duel' ? s.p3.duel.fights : s.p3.pk.fights;
   return Math.max(0, A.perDay - used);
 }
@@ -67,7 +69,7 @@ function sides(s: Save): { allies: BUnit[]; reserve: BUnit[] } {
 }
 
 export function arenaBattle(s: Save, kind: Ladder, rank: number, seed: number): Battle | string {
-  if (fightsLeft(s, kind) <= 0) return '今天的挑战次数用完了';
+  if (fightsLeft(s, kind) <= 0) return `今天的挑战次数用完了，${tomorrowHint(s)}`;
   const c = challengers(s, kind).find((x) => x.rank === rank);
   if (!c) return '只能挑战名次比你高 5 名以内的人';
   const lv = rivalLevel(s, c.rival);
@@ -87,9 +89,11 @@ export function arenaBattle(s: Save, kind: Ladder, rank: number, seed: number): 
   return createBattle({ seed, allies: [u], enemies: [rivalGeneralUnit(s, r, 'e0', 'enemy')], items: {}, title: `斗将台·第${rank}名 ${r.name}的${r.general.name}`, spar: true, canFlee: false, tag: `duel:${rank}` });
 }
 
-// ===== 决斗场：今天在场的 6 个人 =====
-export function pkList(s: Save, now = Date.now()): Rival[] {
-  const rng = new Rng((s.seed ^ Math.floor(now / 3600000)) >>> 0);
+// ===== 决斗场：今天在场的 6 个人（天下历每天换一批） =====
+export function pkList(s: Save, t = calTick(s)): Rival[] {
+  let h = 0;
+  for (const ch of calDay(t)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const rng = new Rng((s.seed ^ h) >>> 0);
   const all = rivals(s).filter((r) => Math.abs(rivalLevel(s, r) - s.player.level) <= 12);
   const out: Rival[] = [];
   while (out.length < Math.min(6, all.length)) {
@@ -100,7 +104,7 @@ export function pkList(s: Save, now = Date.now()): Rival[] {
 }
 
 export function pkBattle(s: Save, rivalId: string, seed: number): Battle | string {
-  if (fightsLeft(s, 'pk') <= 0) return '今天的决斗次数用完了';
+  if (fightsLeft(s, 'pk') <= 0) return `今天的决斗次数用完了，${tomorrowHint(s)}`;
   const r = rivals(s).find((x) => x.id === rivalId);
   if (!r) return '';
   const lv = rivalLevel(s, r);
@@ -108,24 +112,24 @@ export function pkBattle(s: Save, rivalId: string, seed: number): Battle | strin
   return createBattle({ seed, allies, reserve, enemies: [mirrorUnit('e0', r.name, r.classId, r.gender, r.variant, lv, 'enemy', lv > 100)], items: {}, title: `决斗·${r.name}`, spar: true, canFlee: true, tag: `pk:${r.id}` });
 }
 
-// 恶人值：每小时消 1 点
-export function evilNow(s: Save, now = Date.now()): number {
-  const at = s.p3.evilAt ?? now;
-  const decay = Math.floor((now - at) / 3600000);
+// 恶人值：每打一仗消 1 点
+export function evilNow(s: Save, t = calTick(s)): number {
+  const at = s.p3.evilAt ?? t;
+  const decay = t - at;
   if (decay > 0) {
     s.p3.evil = Math.max(0, s.p3.evil - decay);
-    s.p3.evilAt = at + decay * 3600000;
+    s.p3.evilAt = t;
   }
-  if (!s.p3.evil) s.p3.evilAt = now;
+  if (!s.p3.evil) s.p3.evilAt = t;
   return s.p3.evil;
 }
 
-// 战斗结束后由 finishBattle 调用
-export function afterArena(s: Save, b: Battle, now = Date.now()): string[] {
+// 战斗结束后由 finishBattle 调用（t 是开打那一格，次数记在开打那天）
+export function afterArena(s: Save, b: Battle, t = calTick(s)): string[] {
   const [kind, arg] = (b.tag ?? '').split(':');
   const win = b.outcome === 'win';
   const lines: string[] = [];
-  resetDay(s, now);
+  resetDay(s, t);
   if (kind === 'arena' || kind === 'duel') {
     const L = kind === 'arena' ? s.p3.arena : s.p3.duel;
     L.fights++;
@@ -152,7 +156,7 @@ export function afterArena(s: Save, b: Battle, now = Date.now()): string[] {
     if (win) {
       const silver = lv * A.pkSilver;
       s.player.silver += silver;
-      evilNow(s, now);
+      evilNow(s, t);
       const add = s.player.level - lv >= 5 ? A.evilBully : A.evilWin;
       s.p3.evil += add;
       bump(s, 'pkWins');
@@ -167,10 +171,10 @@ export function afterArena(s: Save, b: Battle, now = Date.now()): string[] {
 }
 
 // 每天领一次擂台俸禄：名次越高越多
-export function arenaSalary(s: Save, now = Date.now()): string {
-  const d = dayKey(now);
+export function arenaSalary(s: Save, t = calTick(s)): string {
+  const d = calDay(t);
   if (!s.p3.arena.rank) return '上了擂台的榜才有俸禄';
-  if (s.flags[`salary_${d}`]) return '今天的俸禄已经领过了';
+  if (s.flags[`salary_${d}`]) return `今天的俸禄已经领过了，${tomorrowHint(s)}`;
   for (const k of Object.keys(s.flags)) if (k.startsWith('salary_')) delete s.flags[k];
   s.flags[`salary_${d}`] = true;
   const silver = (A.ranks + 1 - s.p3.arena.rank) * s.player.level * A.salaryPerRank;

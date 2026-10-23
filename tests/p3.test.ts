@@ -3,7 +3,8 @@ import { balance, equips, items, locations, mainQuests, monsters, systems } from
 import { createBattle, aiCommand, autoCommand, living, needsCommand, resolveRound } from '../src/core/battle';
 import type { Battle } from '../src/core/battle';
 import type { ClassId, Gender } from '../src/core/types';
-import { arenaBattle, challengers, evilNow, ladder } from '../src/game/arena';
+import { arenaBattle, challengers, evilNow, fightsLeft, ladder } from '../src/game/arena';
+import { DAY_BATTLES, calTick, today } from '../src/game/calendar';
 import { board, checkAchievements, setTitle } from '../src/game/achv';
 import { finishBattle, startBattle } from '../src/game/encounter';
 import {
@@ -220,41 +221,90 @@ describe('擂台、决斗场、恶人值', () => {
     expect(s.location).toBe('chenliu');
   });
 
-  it('决斗打赢涨恶人值，每小时消1点', () => {
+  it('决斗打赢涨恶人值，每打一仗消1点', () => {
     const s = fresh();
     lvl(s, 60);
     s.p3.evil = 10;
-    s.p3.evilAt = T0;
-    expect(evilNow(s, T0 + 3 * HOUR)).toBe(7);
+    s.p3.evilAt = calTick(s);
+    s.battles += 3;
+    expect(evilNow(s)).toBe(7);
+  });
+
+  it('擂台次数按天下历的天：用完了再打几仗就到明天', () => {
+    const s = fresh();
+    lvl(s, 60);
+    s.location = 'chenliu';
+    s.p3.arena.day = today(s);
+    s.p3.arena.fights = balance.arena.perDay;
+    expect(fightsLeft(s, 'arena')).toBe(0);
+    expect(arenaBattle(s, 'arena', 100, 1) as string).toContain('就到明天');
+    s.battles += DAY_BATTLES;
+    expect(fightsLeft(s, 'arena')).toBe(balance.arena.perDay);
   });
 });
 
 describe('抢宝、银两环、文曲星、幸运王、节日', () => {
-  it('9点、11点各开半小时；宝藏在去过的野外；每天3次', () => {
+  it('老存档：今天（真实日期）用掉的次数挪到天下历的今天，恶人值和摊位先按真实时间折算，赤壁退押注', () => {
+    const s = fresh();
+    s.battles = 40;
+    const now = new Date(2026, 9, 22, 15, 0).getTime();
+    const real = `2026-10-22`;
+    const raw = JSON.parse(serialize(s));
+    delete raw.p4.calV;
+    raw.p3.arena = { ...raw.p3.arena, day: real, fights: 4 };
+    raw.p3.wenqu = { day: '2026-10-21', answered: [1, 2, 3, 4, 5], right: 5 };
+    raw.p3.evil = 20;
+    raw.p3.evilAt = now - 5 * 3600000;
+    raw.p3.stall = { ...raw.p3.stall, goods: [{ item: 'baoxiang', price: 100, n: 3 }], last: now - 3600000 };
+    raw.casino.chibi = { id: 99, start: 0, end: now + 60000, bets: [500, 0, 0] };
+    raw.p5.gifts = { diaochan: `${real}:2`, other: '2026-10-20:3' };
+    const silver = raw.player.silver;
+    const realNow = Date.now;
+    Date.now = () => now;
+    let s2: Save;
+    try {
+      s2 = deserialize(JSON.stringify(raw));
+    } finally {
+      Date.now = realNow;
+    }
+    expect(s2.p3.arena.day).toBe(today(s2));
+    expect(fightsLeft(s2, 'arena')).toBe(balance.arena.perDay - 4);
+    expect(s2.p3.wenqu.day).toBe('');
+    expect(s2.p3.evil).toBe(15);
+    expect(s2.p3.evilAt).toBe(calTick(s2));
+    expect(calTick(s2) - s2.p3.stall.last).toBe(6);
+    expect(s2.casino.chibi).toBeNull();
+    expect(s2.player.silver).toBe(silver + 500);
+    expect(s2.p5.gifts).toEqual({ diaochan: `${today(s2)}:2` });
+    expect(deserialize(serialize(s2)).p3.arena.fights).toBe(4);
+  });
+
+  it('天下历每天9时、15时各开三仗的工夫；宝藏在去过的野外、这一场不挪地方；每天3次', () => {
     const s = fresh();
     for (const id of ['cunbei', 'cunnan', 'cunxi']) arrive(s, id);
-    expect(treasureNow(s, at(2026, 3, 10, 8, 50)).open).toBe(false);
-    const t = treasureNow(s, at(2026, 3, 10, 9, 5));
-    expect(t.open).toBe(true);
+    const open = [...Array(DAY_BATTLES).keys()].filter((t) => treasureNow(s, t).open);
+    expect(open).toEqual([7, 8, 9, 12, 13, 14]);
+    expect(treasureNow(s, 6).next).toContain('再打1仗');
+    expect(treasureNow(s, 15).next).toContain('明天9时');
+    s.battles = 7;
+    const t = treasureNow(s);
     expect(['cunbei', 'cunnan', 'cunxi']).toContain(t.at);
-    expect(treasureNow(s, at(2026, 3, 10, 9, 40)).open).toBe(false);
-    expect(treasureNow(s, at(2026, 3, 10, 11, 10)).open).toBe(true);
+    expect(treasureNow(s, 9).at).toBe(t.at);
     s.location = t.at!;
-    const now = at(2026, 3, 10, 9, 5);
-    const b = treasureBattle(s, 1, now) as Battle;
+    const b = treasureBattle(s, 1) as Battle;
     expect(b.tag).toBe('treasure');
     b.outcome = 'win';
     const silver = s.player.silver;
-    finishBattle(s, b, now);
+    finishBattle(s, b);
     expect(s.player.silver).toBeGreaterThan(silver);
-    expect(treasureLeft(s, now)).toBe(2);
+    expect(treasureLeft(s)).toBe(2);
   });
 
   it('银两环：接了差事庐江逃兵才掉军资，交10份领赏', () => {
     const s = fresh();
     lvl(s, 45);
     expect(questDropAllowed(s, 'silverRing')).toBe(false);
-    expect(takeSilverRing(s, T0)).toContain('军资');
+    expect(takeSilverRing(s)).toContain('军资');
     expect(questDropAllowed(s, 'silverRing')).toBe(true);
     addItem(s, 'junzi', 10);
     const silver = s.player.silver;
@@ -266,16 +316,19 @@ describe('抢宝、银两环、文曲星、幸运王、节日', () => {
     const s = fresh();
     let right = 0;
     for (let i = 0; i < 5; i++) {
-      const t = wenquToday(s, T0);
+      const t = wenquToday(s);
       expect(t.qi).not.toBe(null);
       const r = answerWenqu(s, t.qi!, systems.wenqu.questions[t.qi!].ok);
       if (r.ok) right++;
     }
     expect(right).toBe(5);
-    expect(wenquToday(s, T0).qi).toBe(null);
-    expect(luckyDraw(s, T0)).toContain('幸运值');
-    expect(luckyDraw(s, T0)).toContain('金砖');
+    expect(wenquToday(s).qi).toBe(null);
+    expect(luckyDraw(s)).toContain('幸运值');
+    expect(luckyDraw(s)).toContain('金砖');
     expect(s.p3.lucky.luck).toBeGreaterThan(0);
+    // 过一天又有题
+    s.battles += DAY_BATTLES;
+    expect(wenquToday(s).qi).not.toBe(null);
   });
 
   it('节日按日期认；当天礼包只能领一次，经验加成', () => {
@@ -290,13 +343,15 @@ describe('抢宝、银两环、文曲星、幸运王、节日', () => {
 });
 
 describe('摆摊、婚姻、结拜、组队', () => {
-  it('摆上的东西按时间卖出去，价钱低卖得快', () => {
+  it('摆上的东西每打一仗来一轮买家，价钱低卖得快', () => {
     const s = fresh();
     addItem(s, 'baoxiang', 6);
-    putOnStall(s, 'baoxiang', 6, 100, T0);
-    settleStall(s, T0 + 6 * HOUR);
+    putOnStall(s, 'baoxiang', 6, 100);
+    expect(settleStall(s)).toEqual([]);
+    s.battles += 20;
+    settleStall(s);
     expect(s.p3.stall.sold).toBeGreaterThan(3);
-    expect(collectStall(s, T0 + 6 * HOUR)).toContain('货款');
+    expect(collectStall(s)).toContain('货款');
   });
 
   it('送礼到100好感才能成亲；默契够的英才能结拜', () => {
@@ -305,7 +360,7 @@ describe('摆摊、婚姻、结拜、组队', () => {
     s.player.silver = 1e7;
     expect(marry(s, 'zhenfu')).toContain('好感');
     s.p3.marriage.favor.zhenfu = 95;
-    giveGift(s, 'zhenfu', T0);
+    giveGift(s, 'zhenfu');
     expect(s.p3.marriage.favor.zhenfu).toBe(100);
     const hp = playerStats(s).maxHp;
     expect(marry(s, 'zhenfu')).toContain('夫妻');

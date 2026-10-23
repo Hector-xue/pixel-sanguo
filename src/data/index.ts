@@ -195,7 +195,7 @@ export const systems = systemsJson as unknown as {
     killPerTier: number;
   };
   dig: { digs: number; guardAt: number[]; guardCount: [number, number]; loot: LootEntry[] };
-  casino: { chibiMinutes: number; houseCut: number; minBet: number; maxBet: number; guessMul: number; sides: string[]; titles: { net: number; name: string }[] };
+  casino: { houseCut: number; minBet: number; maxBet: number; guessMul: number; sides: string[]; titles: { net: number; name: string }[] };
   shop: { goods: { item: string; gold: number }[] };
   sect: {
     minLevel: number;
@@ -206,10 +206,10 @@ export const systems = systemsJson as unknown as {
     rep: [number, number];
     killCount: [number, number];
   };
-  treasure: { hours: number[]; minutes: number; perDay: number; silverPerLevel: number; guardCount: [number, number]; loot: LootEntry[] };
+  treasure: { hours: number[]; spanHours: number; perDay: number; silverPerLevel: number; guardCount: [number, number]; loot: LootEntry[] };
   silverRing: { need: number; perDay: number; silverBase: number; silverPerLevel: number; minLevel: number };
   lucky: { free: number; goldPerDraw: number; maxDraws: number; luck: [number, number]; prizes: (LootEntry & { gold?: [number, number] })[] };
-  stall: { slots: number; tickMinutes: number; maxHours: number; fairOf: Record<string, number>; fee: number };
+  stall: { slots: number; maxRounds: number; fairOf: Record<string, number>; fee: number };
   festivals: { expMul: number; days: { id: string; name: string; dates: string[] }[]; gift: Reward };
   marriage: {
     giftsPerDay: number; giftSilverPerLevel: number; favorPerGift: [number, number]; charmPerGift: number; weddingSilver: number;

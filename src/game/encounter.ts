@@ -174,7 +174,7 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
   // 切磋（擂台、斗将台、决斗场）：不掉血不掉药，打完原样；结果另算
   if (b.spar) {
     const kind = (b.tag ?? '').split(':')[0];
-    sum.lines.push(...(kind === 'league' || kind === 'kuaqu' ? afterContest(s, b, tick) : afterArena(s, b, now)));
+    sum.lines.push(...(kind === 'league' || kind === 'kuaqu' ? afterContest(s, b, tick) : afterArena(s, b, tick)));
     for (const l of sum.lines) log(s, l);
     return sum;
   }
@@ -259,7 +259,7 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
     }
   }
   if (b.tag === 'dig') sum.lines.push(...afterGuard(s, b.outcome === 'win'));
-  if (b.tag === 'treasure') sum.lines.push(...afterTreasure(s, b.outcome === 'win', now));
+  if (b.tag === 'treasure') sum.lines.push(...afterTreasure(s, b.outcome === 'win', tick));
   const gz = b.tag?.startsWith('gz:');
   if (gz) sum.lines.push(...afterGz(s, b, tick));
   // 雇来的队友：打一场少一场

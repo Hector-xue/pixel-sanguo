@@ -5,7 +5,7 @@ import { avatarTex, gearTex, iconTex, mountTex } from '../art/textures';
 import { GEM_KINDS, balance, equips, gemId, items, mounts, systems } from '../data';
 import { gearLines, gearName, gearValue, mountPower } from '../core/gear';
 import type { Gear, Slot } from '../core/types';
-import { betChibi, casinoTitle, chibiView, guessCollect, guessPick, guessStart } from '../game/casino';
+import { betChibi, casinoTitle, chibiView, fightChibi, guessCollect, guessPick, guessStart } from '../game/casino';
 import { buyGear, combineGem, combineOre, forge, forgeRows, gemCombineCost, oreCombineCost, removeGem, sellGear, shopGear, socketGem } from '../game/smith';
 import type { GearRef } from '../game/smith';
 import { bagCap, bagCount, bagUsed, moveToInn, moveToTeam } from '../game/state';
@@ -432,8 +432,6 @@ export function casinoPanel(h: Host): void {
   const dyn = h.add.container(0, 0);
   m.inner.add(dyn);
   const K = systems.casino;
-  let timer: Phaser.Time.TimerEvent | null = null;
-  m.once('destroy', () => timer?.remove());
   const render = () => {
     dyn.removeAll(true);
     tabs(h, m, dyn, ['赤壁', '猜猜看', '幸运王'], casinoTab, (i) => {
@@ -446,9 +444,8 @@ export function casinoPanel(h: Host): void {
     y += 20;
     if (casinoTab === 0) {
       const v = chibiView(s);
-      if (v.settled) toast(h, v.settled, 2600);
-      const left = Math.max(0, Math.ceil((v.end - Date.now()) / 1000));
-      dyn.add(text(h, m.cx + m.cw / 2, y, `第${v.id % 10000}局　距开战 ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`, { align: 'center', color: C.darkRed, scale: 2 }));
+      const staked = v.mine.reduce((a, b) => a + b, 0);
+      dyn.add(text(h, m.cx + m.cw / 2, y, `赤壁第${v.id + 1}局`, { align: 'center', color: C.darkRed, scale: 2 }));
       y += 36;
       const cw = Math.floor((m.cw - 8) / 3);
       const total = v.pools.reduce((a, b) => a + b, 0);
@@ -465,14 +462,20 @@ export function casinoPanel(h: Host): void {
           toast(h, betChibi(s, i, n));
           h.refresh();
           render();
-        }, K.minBet), { disabled: s.player.silver < K.minBet || left < 5 }));
+        }, K.minBet), { disabled: s.player.silver < K.minBet }));
       });
       y += 158;
-      dyn.add(text(h, m.cx, y, `魏蜀吴三方对战，押中的一方按押注比例分走全部奖池（娱乐场抽${K.houseCut * 100}%）。押的人越少赔率越高。每局${K.chibiMinutes}分钟，开战后自动结算。总奖池${total}两。`, { wrap: m.cw, color: C.gray, lineGap: 3 }));
-      timer?.remove();
-      timer = h.time.addEvent({ delay: 1000, callback: render });
+      dyn.add(new Button(h, m.cx, y, m.cw, 30, staked ? `擂鼓开战（押了${staked}两）` : '先押一方再开战', () => {
+        const r = fightChibi(s);
+        if (!r) return;
+        sfx(v.mine[r.winner] > 0 ? 'win' : 'lose');
+        toast(h, r.text, 2600);
+        h.refresh();
+        render();
+      }, { style: 'red', disabled: !staked }));
+      y += 38;
+      dyn.add(text(h, m.cx, y, `魏蜀吴三方对战，押中的一方按押注比例分走全部奖池（娱乐场抽${K.houseCut * 100}%）。押的人越少赔率越高。押好了擂鼓开战，当场结算。总奖池${total}两。`, { wrap: m.cw, color: C.gray, lineGap: 3 }));
     } else {
-      timer?.remove();
       const g = s.casino.guess;
       if (!g) {
         dyn.add(text(h, m.cx, y, `押银两，三个锦囊里藏着一枚铜钱，猜中拿${K.guessMul}倍。猜中以后可以收手，也可以拿奖池接着猜。`, { wrap: m.cw, lineGap: 4 }));

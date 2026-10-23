@@ -4,7 +4,8 @@ import type { BUnit } from '../core/battle';
 import type { ClassId } from '../core/types';
 import { mirrorUnit } from './rivals';
 import type { Save } from './state';
-import { bump, dayKey, findGeneral, log, playerStats, rollRng } from './state';
+import { bump, findGeneral, log, playerStats, rollRng } from './state';
+import { calDay, calTick, tomorrowHint } from './calendar';
 
 const M = systems.marriage;
 
@@ -20,21 +21,21 @@ export function giftCost(s: Save): number {
   return s.player.level * M.giftSilverPerLevel;
 }
 
-export function giftsLeft(s: Save, now = Date.now()): number {
-  const key = `gift_${dayKey(now)}`;
+export function giftsLeft(s: Save, t = calTick(s)): number {
+  const key = `gift_${calDay(t)}`;
   return Math.max(0, M.giftsPerDay - (s.life[key] ?? 0));
 }
 
-export function giveGift(s: Save, id: string, now = Date.now()): string {
+export function giveGift(s: Save, id: string, t = calTick(s)): string {
   if (s.p3.marriage.spouse) return '你已经成亲了';
   if (!candidates(s).some((c) => c.id === id)) return '';
-  if (giftsLeft(s, now) <= 0) return '今天送得够多了，明天再来';
+  if (giftsLeft(s, t) <= 0) return `今天送得够多了，${tomorrowHint(s)}`;
   const cost = giftCost(s);
   if (s.player.silver < cost) return `礼物要${cost}两银子`;
   s.player.silver -= cost;
   // 旧的每日计数清掉，只留今天的
-  for (const k of Object.keys(s.life)) if (k.startsWith('gift_') && k !== `gift_${dayKey(now)}`) delete s.life[k];
-  bump(s, `gift_${dayKey(now)}`);
+  for (const k of Object.keys(s.life)) if (k.startsWith('gift_') && k !== `gift_${calDay(t)}`) delete s.life[k];
+  bump(s, `gift_${calDay(t)}`);
   const rng = rollRng(s);
   const add = rng.int(M.favorPerGift[0], M.favorPerGift[1]);
   const f = s.p3.marriage.favor;
