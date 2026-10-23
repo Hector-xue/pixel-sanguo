@@ -1,6 +1,7 @@
 // P3 的界面：擂台/斗将台/决斗场、教派、训练、宝库、转职、排行榜、成就称号、银两环、组队、婚姻结拜、文曲星、幸运王、摆摊、抢宝、节日、战斗录像
 import Phaser from 'phaser';
 import { C } from '../art/palette';
+import { AVATARS, heroVariantOf } from '../art/units';
 import { avatarTex, heroLookKey, iconTex } from '../art/textures';
 import { sealBox } from '../art/chrome';
 import { CLASS_IDS, balance, classSkills, classes, items, locations, monsters, recruits, skills, systems } from '../data';
@@ -505,7 +506,7 @@ export function rebirthTalk(h: Host): void {
     { label: '副将转生', fn: () => generalRebirthPanel(h) },
     { label: '返回', fn: () => {} },
   ]);
-  showDialog(h, [{ who: 'zuoci', text: '转职以后，性别、职业、头像都能重选，等级不变。加过的属性点全部退给你重加，再多给四十点；三个技能按顺序带过去。' }], [
+  showDialog(h, [{ who: 'zuoci', text: '转职以后，性别、职业、头像都能重选，等级不变。加过的属性点全部退给你重加，再多给四十点；学过的技能按顺序带过去，心法换成新职业同一位置的那门。' }], [
     { label: '转职', fn: () => rebirthPanel(h) },
     { label: '副将转生', fn: () => generalRebirthPanel(h) },
     { label: '再想想', fn: () => {} },
@@ -534,20 +535,22 @@ function rebirthPanel(h: Host): void {
     }, { style: st.classId === c ? 'red' : 'tan' })));
     y += 30;
     dyn.add(text(h, m.cx, y, '头像', { color: C.brown }));
-    for (let v = 0; v < 3; v++) {
-      const x = m.cx + 50 + v * 60;
+    // 六个头像两排：头像编号要按造型编成 variant 才画得对（后三个从 9 起）
+    for (let v = 0; v < AVATARS; v++) {
+      const x = m.cx + 50 + (v % 3) * 60;
+      const yy = y + Math.floor(v / 3) * 58;
       const g = h.add.graphics();
-      frame(g, x, y - 4, 54, 54, st.avatar === v ? 'red' : 'tan');
+      frame(g, x, yy - 4, 54, 54, st.avatar === v ? 'red' : 'tan');
       dyn.add(g);
-      dyn.add(h.add.image(x + 3, y - 1, heroAvatar(h, st.classId, st.gender, v)).setOrigin(0).setScale(2));
-      const z = h.add.zone(x, y - 4, 54, 54).setOrigin(0).setInteractive();
+      dyn.add(h.add.image(x + 3, yy - 1, heroAvatar(h, st.classId, st.gender, heroVariantOf(v, 0))).setOrigin(0).setScale(2));
+      const z = h.add.zone(x, yy - 4, 54, 54).setOrigin(0).setInteractive();
       z.on('pointerup', () => {
         st.avatar = v;
         render();
       });
       dyn.add(z);
     }
-    y += 66;
+    y += 66 + 58;
     dyn.add(text(h, m.cx, y, `转职后：${classes[st.classId].name}，等级${s.player.level}，可分配属性点${s.player.free + Object.values(s.player.added).reduce((a, b) => a + b, 0) + balance.rebirth.bonusPoints}，面板+${Math.round(balance.rebirth.statMul * 100)}%，等级上限${balance.levelCap}。`, { wrap: m.cw, color: C.darkBrown }));
     y += 52;
     dyn.add(new Button(h, m.cx, y, m.cw, 30, '脱胎换骨', () => confirm(h, '转职以后不能反悔，确定吗？', () => {

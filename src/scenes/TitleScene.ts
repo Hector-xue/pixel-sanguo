@@ -1,8 +1,8 @@
 // 标题 → 选分区 → 建角色（名称、性别、职业、头像三选一）→ 开场剧情
 import Phaser from 'phaser';
 import { C } from '../art/palette';
-import { avatarTex, heroLookKey, sceneTex, unitTex } from '../art/textures';
-import { BX, FEET_Y, UNIT_H, UNIT_W } from '../art/units';
+import { avatarTex, bustTex, heroLookKey, sceneTex, unitTex } from '../art/textures';
+import { AVATARS, BX, FEET_Y, UNIT_H, UNIT_W, heroVariantOf } from '../art/units';
 import { CLASS_IDS, classSkills, classes, locations, opening, skills } from '../data';
 import { Rng, randomSeed } from '../core/rng';
 import type { ClassId, Gender } from '../core/types';
@@ -18,7 +18,7 @@ import { cloudPanel } from '../ui/cloud';
 import { maybeOfferUpdate } from '../ui/update';
 import { forgetSlot, isApp } from '../game/cloud';
 import { Button, H, SAFE_TOP, W, confirm, frame, goldFrame, hit, text, toast } from '../ui/widgets';
-import { UI } from '../art/chrome';
+import { UI, paperTex, titlePlaque, woodFrame } from '../art/chrome';
 import { playMusic } from '../ui/audio';
 import { iconTitleTex, logoTex, titleBackdrop } from '../art/title';
 import { vgrad } from '../art/chrome';
@@ -247,73 +247,88 @@ export class TitleScene extends Phaser.Scene {
     const rng = new Rng(randomSeed());
     const st = { gender: 'male' as Gender, classId: 'warrior' as ClassId, avatar: 0 };
     const p = this.newPage();
-    // 面板 530 高，放在刘海、摄像头那条下面，长屏手机上居中
-    const top = SAFE_TOP + 10 + Math.max(0, Math.round((H - SAFE_TOP - 20 - 530) / 2));
+    // 面板 560 高（和游戏里的弹窗一样：漆木框、宣纸、朱漆题签），放在刘海、摄像头那条下面，长屏手机上居中
+    const PH = 560;
+    const top = SAFE_TOP + 16 + Math.max(0, Math.round((H - SAFE_TOP - 26 - PH) / 2));
     const oy = top - 30;
     p.setY(oy);
     const g = this.add.graphics();
-    frame(g, 10, 30, W - 20, 530, 'paper');
-    frame(g, 14, 34, W - 28, 22, 'dark');
+    woodFrame(g, 10, 30, W - 20, PH);
     p.add(g);
-    p.add(text(this, W / 2, 39, '创建角色', { align: 'center', color: C.paper }));
-    p.add(text(this, 24, 72, '名称', { color: C.brown }));
+    p.add(this.add.image(16, 36, paperTex(this, W - 32, PH - 12)).setOrigin(0));
+    const tg = this.add.graphics();
+    titlePlaque(tg, W / 2, 24, 92, 20);
+    p.add(tg);
+    p.add(text(this, W / 2, 28, '创建角色', { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 }));
+    p.add(text(this, 28, 66, '名称', { color: C.brown }));
     const g2 = this.add.graphics();
-    frame(g2, 70, 66, W - 180, 24, 'ink');
+    frame(g2, 70, 60, W - 180, 24, 'ink');
     p.add(g2);
-    const input = overlayInput(this, 72, 68 + oy, W - 184, 20, aiName(rng), 6);
-    p.add(new Button(this, W - 102, 66, 72, 24, '随机', () => (input.value = aiName(rng))));
+    const input = overlayInput(this, 72, 62 + oy, W - 184, 20, aiName(rng), 6);
+    p.add(new Button(this, W - 102, 60, 72, 24, '随机', () => (input.value = aiName(rng))));
 
     const dyn = this.add.container(0, 0);
     p.add(dyn);
     const render = () => {
       dyn.removeAll(true);
-      dyn.add(text(this, 24, 108, '性别', { color: C.brown }));
+      dyn.add(text(this, 28, 102, '性别', { color: C.brown }));
       (['male', 'female'] as Gender[]).forEach((gd, i) => {
-        dyn.add(new Button(this, 70 + i * 66, 102, 60, 24, gd === 'male' ? '男' : '女', () => {
+        dyn.add(new Button(this, 70 + i * 66, 96, 60, 24, gd === 'male' ? '男' : '女', () => {
           st.gender = gd;
           render();
         }, { style: st.gender === gd ? 'red' : 'tan' }));
       });
-      dyn.add(text(this, 24, 144, '职业', { color: C.brown }));
+      dyn.add(text(this, 28, 138, '职业', { color: C.brown }));
       // 三个职业按钮铺到右边（画面放大时窄一点）
       const cw = Math.min(80, Math.floor((W - 102) / 3));
       CLASS_IDS.forEach((c, i) => {
-        dyn.add(new Button(this, 70 + i * (cw + 6), 138, cw, 24, classes[c].name, () => {
+        dyn.add(new Button(this, 70 + i * (cw + 6), 132, cw, 24, classes[c].name, () => {
           st.classId = c;
           render();
         }, { style: st.classId === c ? 'red' : 'tan' }));
       });
       const sk = classSkills(st.classId, st.gender).map((id) => skills[id].name).join('、');
-      dyn.add(text(this, 24, 172, `${CLASS_TRAIT[st.classId]}\n技能：${sk}`, { wrap: W - 50, color: C.darkBrown }));
-      dyn.add(text(this, 24, 222, '头像', { color: C.brown }));
+      dyn.add(text(this, 28, 166, `${CLASS_TRAIT[st.classId]}\n技能：${sk}`, { wrap: W - 56, color: C.darkBrown }));
+      // 六个头像两排（后三个是 0.1.4 加的，胡子、伤疤、眼罩、老相这些差得更远）
+      dyn.add(text(this, 28, 216, '头像', { color: C.brown }));
       const look = heroLookKey(st.classId, st.gender);
-      for (let v = 0; v < 3; v++) {
-        const x = 70 + v * 62;
+      for (let v = 0; v < AVATARS; v++) {
+        const x = 70 + (v % 3) * 60;
+        const y = 210 + Math.floor(v / 3) * 58;
         const fg = this.add.graphics();
-        frame(fg, x, 216, 54, 54, st.avatar === v ? 'red' : 'tan');
+        frame(fg, x, y, 54, 54, st.avatar === v ? 'red' : 'tan');
         dyn.add(fg);
-        dyn.add(this.add.image(x + 3, 219, avatarTex(this, look, v)).setOrigin(0).setScale(2));
-        dyn.add(hit(this, x, 216, 54, 54, () => {
+        dyn.add(this.add.image(x + 3, y + 3, avatarTex(this, look, heroVariantOf(v, 0))).setOrigin(0).setScale(2));
+        dyn.add(hit(this, x, y, 54, 54, () => {
           st.avatar = v;
           render();
         }));
       }
+      // 右边一格全身像，选哪个头像就换哪个
+      const px = 70 + 3 * 60 + 2;
+      const pw = W - 26 - px;
       const pg = this.add.graphics();
-      goldFrame(pg, W / 2 - 92, 288, 184, 214, null);
+      goldFrame(pg, px, 210, pw, 112, null);
       dyn.add(pg);
-      dyn.add(this.add.image(0, 0, sceneTex(this, 'grass', 88, 102, 0.45)).setOrigin(0).setScale(2).setPosition(W / 2 - 88, 292));
-      const hero = this.add.image(W / 2 - (BX - UNIT_W / 2) * 3, 292 + 196, unitTex(this, look, st.avatar, 'idle')).setOrigin(0.5, FEET_Y / UNIT_H).setScale(3);
+      dyn.add(this.add.image(px + 4, 214, sceneTex(this, 'grass', Math.floor((pw - 8) / 2), 52, 0.45)).setOrigin(0).setScale(2));
+      const hero = this.add.image(px + pw / 2 - (BX - UNIT_W / 2) * 2, 214 + 100, unitTex(this, look, heroVariantOf(st.avatar, 0), 'idle')).setOrigin(0.5, FEET_Y / UNIT_H).setScale(2);
       dyn.add(hero);
-      this.tweens.add({ targets: hero, y: hero.y - 4, duration: 600, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
+      this.tweens.add({ targets: hero, y: hero.y - 3, duration: 600, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
+      // 底下一张大的半身像
+      const bg = this.add.graphics();
+      goldFrame(bg, W / 2 - 92, 336, 184, 176, null);
+      dyn.add(bg);
+      dyn.add(this.add.image(W / 2 - 88, 340, sceneTex(this, 'grass', 88, 84, 0.45)).setOrigin(0).setScale(2));
+      dyn.add(this.add.image(W / 2, 340 + 168, bustTex(this, look, heroVariantOf(st.avatar, 0))).setOrigin(0.5, 1).setScale(2));
     };
     render();
 
-    p.add(new Button(this, 30, 516, 120, 32, '返回', () => {
+    p.add(new Button(this, 30, 30 + PH - 46, 120, 32, '返回', () => {
       input.remove();
       onBack?.();
       this.showHome();
     }));
-    p.add(new Button(this, W - 150, 516, 120, 32, '进入游戏', () => {
+    p.add(new Button(this, W - 150, 30 + PH - 46, 120, 32, '进入游戏', () => {
       const name = input.value.trim();
       if (!name) return toast(this, '请输入名称');
       if (name.length > 6) return toast(this, '名称最多6个字');

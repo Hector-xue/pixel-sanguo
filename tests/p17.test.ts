@@ -13,6 +13,7 @@ import { mainQuests } from '../src/data';
 import { UNLOCKS, isUnlocked, markUnlocked, nextUnlock, pendingUnlocks } from '../src/game/unlocks';
 import { playerUnit } from '../src/game/encounter';
 import { autoplay } from '../src/sim/autoplay';
+import { heroLook, heroVariantOf } from '../src/art/units';
 
 const A = systems.guozhan.player.alert;
 
@@ -226,4 +227,17 @@ describe('功能逐级开放', () => {
       expect(at.level, `${id} ${key}`).toBeGreaterThanOrEqual(UNLOCKS.find((u) => u.key === key)!.lv);
     }
   }, 120000);
+});
+
+describe('头像 4～6', () => {
+  it('前三个头像的编号和样子都不变（老角色、老录像不换脸），后三个从 9 起', () => {
+    for (let a = 0; a < 3; a++) for (let k = 0; k < 3; k++) expect(heroVariantOf(a, k)).toBe(a + 3 * k);
+    expect(heroVariantOf(3, 0)).toBe(9);
+    expect(heroVariantOf(5, 2)).toBe(17);
+    expect(heroLook('warrior', 'male', 9).beardStyle).toBe('full');
+    expect(heroLook('warrior', 'male', 0).beardStyle).toBeUndefined();
+    // 造型（时装）照样叠在新头像上
+    expect(heroLook('warrior', 'male', heroVariantOf(3, 1)).outfit).toEqual(heroLook('warrior', 'male', 3).outfit);
+    expect(heroLook('warrior', 'male', heroVariantOf(4, 1)).scar).toBe(true);
+  });
 });

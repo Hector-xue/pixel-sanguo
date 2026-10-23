@@ -1,6 +1,7 @@
 // 角色面板（新版五个分页：信息、属性、装备、战力、生平）和装备详情
 import { C, hex } from '../art/palette';
 import { avatarTex, gearTex, heroLookKey } from '../art/textures';
+import { AVATARS, heroVariantOf } from '../art/units';
 import { classes, equips, items, locations, mainQuests, mounts, systems } from '../data';
 import { expToNext } from '../core/formulas';
 import { attrReq, gearBonus, gearLines, gearName, gearValue, tierLevel } from '../core/gear';
@@ -123,7 +124,7 @@ function infoTab(h: Host, m: Modal, y: number, L: number, R: number): void {
       rolePanel(h);
     }],
     ['更换头像', () => {
-      p.avatar = (p.avatar + 1) % 3;
+      p.avatar = (p.avatar + 1) % AVATARS;
       m.close();
       done(h, '头像换好了');
       rolePanel(h);
@@ -313,7 +314,7 @@ function skinPanel(h: Host, after: () => void): void {
     const g = h.add.graphics();
     frame(g, m.cx, y, m.cw, 64, s.p3.skin === i ? 'red' : 'tan');
     m.inner.add(g);
-    m.inner.add(h.add.image(m.cx + 6, y + 6, avatarTex(h, heroLookKey(s.player.classId, s.player.gender), s.player.avatar + 3 * i)).setOrigin(0).setScale(2));
+    m.inner.add(h.add.image(m.cx + 6, y + 6, avatarTex(h, heroLookKey(s.player.classId, s.player.gender), heroVariantOf(s.player.avatar, i))).setOrigin(0).setScale(2));
     m.inner.add(text(h, m.cx + 64, y + 12, name, { color: C.darkRed }));
     m.inner.add(text(h, m.cx + 64, y + 30, owned ? (s.p3.skin === i ? '正在穿' : '已拥有') : `${SKIN_GOLD}金砖解锁`, { color: C.brown }));
     m.inner.add(new Button(h, m.cx + m.cw - 64, y + 20, 56, 24, owned ? '换上' : '解锁', () => {

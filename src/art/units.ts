@@ -86,10 +86,60 @@ const MALE_EYES: Eyes[] = ['round', 'fierce', 'narrow'];
 const FEMALE_EYES: Eyes[] = ['gentle', 'sparkle', 'narrow'];
 const MALE_MOUTH: Mouth[] = ['smile', 'frown', 'line'];
 
+// 头像 4～6（0.1.4 加的，和前三个差得远一些：胡子、伤疤、眼罩、盔缨、老相……）
+// 只加不改：前三个的样子一点没动，老角色不会更新以后突然换了张脸
+const EXTRA: Record<string, Record<'male' | 'female', Partial<Look>[]>> = {
+  warrior: {
+    male: [
+      { style: 'short', beardStyle: 'full', beard: C.ink, eyes: 'fierce', mouth: 'grin', skin: 'tan', hair: [C.ink, C.ink] },
+      { style: 'topknot', head: 'plume', scar: true, eyes: 'narrow', mouth: 'line', hair: [C.darkBrown, C.ink] },
+      { style: 'long', patch: true, eyes: 'fierce', mouth: 'fang', hair: [C.lightGray, C.gray], beardStyle: 'stubble', beard: C.gray },
+    ],
+    female: [
+      { style: 'tail', eyes: 'fierce', mouth: 'grin', hair: [C.darkRed, C.ink] },
+      { style: 'short', head: 'plume', scar: true, eyes: 'narrow', hair: [C.ink, C.ink] },
+      { style: 'buns', head: 'flower', eyes: 'sparkle', mouth: 'smile', hair: [C.brown, C.darkBrown] },
+    ],
+  },
+  scholar: {
+    male: [
+      { head: 'zijin', beardStyle: 'goatee', beard: C.ink, eyes: 'narrow', mouth: 'smile', hair: [C.ink, C.ink] },
+      { head: 'lunjin', beardStyle: 'long', beard: C.lightGray, longBeard: true, eyes: 'old', mouth: 'line', hair: [C.lightGray, C.gray] },
+      { head: 'cap', style: 'short', eyes: 'round', mouth: 'grin', hair: [C.brown, C.darkBrown] },
+    ],
+    female: [
+      { head: 'flower', style: 'long', eyes: 'gentle', mouth: 'smile', hair: [C.ink, C.ink] },
+      { head: 'buyao', style: 'buns', eyes: 'narrow', mouth: 'line', hair: [C.darkRed, C.ink] },
+      { head: 'zijin', style: 'tail', eyes: 'sparkle', mouth: 'grin', hair: [C.brown, C.darkBrown] },
+    ],
+  },
+  mystic: {
+    male: [
+      { head: 'talisman', style: 'long', beardStyle: 'goatee', beard: C.ink, eyes: 'ring', hair: [C.ink, C.ink] },
+      { head: 'daoguan', beardStyle: 'long', beard: C.white, longBeard: true, eyes: 'old', mouth: 'smile', hair: [C.white, C.lightGray] },
+      { head: undefined, style: 'hood', eyes: 'blank', mouth: 'fang', hair: [C.darkPurple, C.ink] },
+    ],
+    female: [
+      { head: 'talisman', style: 'long', eyes: 'ring', mouth: 'line', hair: [C.ink, C.ink] },
+      { head: 'feather', style: 'highbun', eyes: 'narrow', bells: true, hair: [C.darkRed, C.ink] },
+      { head: undefined, style: 'hood', eyes: 'sparkle', mouth: 'fang', hair: [C.darkPurple, C.ink] },
+    ],
+  },
+};
+export const AVATARS = 6;
+
+// 头像编号 + 造型（时装）编成一个 variant：前三个头像沿用老编法 avatar + 3×造型（0～8），
+// 后三个从 9 起：9 + (avatar-3) + 3×造型，老存档、老录像里的 variant 一个都不变
+export function heroVariantOf(avatar: number, skin: number): number {
+  return avatar < 3 ? avatar + 3 * skin : 9 + (avatar - 3) + 3 * skin;
+}
+
 export function heroLook(classId: string, gender: string, variant: number): Look {
   const female = gender === 'female';
-  const v = ((variant % 3) + 3) % 3;
-  const skin = SKINS[classId]?.[Math.floor(Math.max(0, variant) / 3) % 3] ?? {};
+  const raw = Math.max(0, variant);
+  const extra = raw >= 9 ? (raw - 9) % 3 : -1;
+  const v = extra >= 0 ? extra : raw % 3;
+  const skin = SKINS[classId]?.[Math.floor((extra >= 0 ? raw - 9 : raw) / 3) % 3] ?? {};
   const base: Look = { ...HERO[classId], ...skin, female, hair: HAIRS[v], style: (female ? FEMALE_STYLES : MALE_STYLES)[v] };
   base.eyes = (female ? FEMALE_EYES : MALE_EYES)[v];
   if (!female) base.mouth = MALE_MOUTH[v];
@@ -109,6 +159,7 @@ export function heroLook(classId: string, gender: string, variant: number): Look
       base.style = 'hood';
     } else if (v === 2) base.style = 'long';
   }
+  if (extra >= 0) Object.assign(base, EXTRA[classId]?.[female ? 'female' : 'male']?.[extra] ?? {});
   return base;
 }
 

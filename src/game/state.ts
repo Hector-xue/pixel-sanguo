@@ -1,5 +1,6 @@
 // 存档与游戏规则（纯逻辑，可测）。界面只调这里的函数，不直接改存档字段。
 import { migrateTraining } from './training';
+import { heroVariantOf } from '../art/units';
 import { migrateCalendar, migrateDaily } from './calendar';
 import { balance, bountyOptions, classes, playerSkillIds, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation, systems } from '../data';
 import { p5Defaults } from './bond';
@@ -296,7 +297,7 @@ export function gzRank(total: number): number {
 
 // 主角贴图的变体：头像 + 3 × 造型
 export function heroVariant(s: Save): number {
-  return s.player.avatar + 3 * (s.p3?.skin ?? 0);
+  return heroVariantOf(s.player.avatar, s.p3?.skin ?? 0);
 }
 
 // 转职前等级停在 100
