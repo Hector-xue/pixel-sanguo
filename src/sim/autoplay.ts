@@ -6,12 +6,14 @@ import { claimKuaqu, claimLeague, kuaquBattle, kuaquReason, kuaquView, leagueBat
 import { findBadge } from '../game/badges';
 import { setFormation } from '../game/formation';
 import { bestFormation, enemyFormation } from '../game/formation';
-import { aiCommand, autoCommand, canCast, controlOf, foesOf, living, needsCommand, resolveRound } from '../core/battle';
+import { aiCommand, autoCommand, canCast, controlOf, foesOf, friendsOf, living, needsCommand, resolveRound } from '../core/battle';
 import type { BUnit, Battle, Command } from '../core/battle';
 import { gearBonus, mountPower, tierLevel } from '../core/gear';
+import { lerpLevel } from '../core/formulas';
+import { XINFA_LEVEL, chooseXinfa, xinfaChoices } from '../game/growth';
 import { Rng } from '../core/rng';
 import type { Slot } from '../core/types';
-import { GEM_KINDS, classSkills, equips, gemId, items, locations, mainQuests, monsters, mounts, skills } from '../data';
+import { GEM_KINDS, balance, equips, playerSkillIds, gemId, items, locations, mainQuests, monsters, mounts, skills } from '../data';
 import { finishBattle, startBattle } from '../game/encounter';
 import { generalLearn, generalSkillRows, readXinfa, recruitWith, rewardCost, rewardGeneral } from '../game/generals';
 import { nextRing, taskDone, turnInRing } from '../game/ring';
@@ -89,20 +91,47 @@ export function playerCommand(b: Battle, u: BUnit, s: Save, captureId: string | 
     const drug = Object.keys(b.items).filter((k) => b.items[k] > 0 && items[k].hp).sort((a, c) => items[c].hp! - items[a].hp!)[0];
     if (drug) return { actor: u.id, type: 'item', item: drug, target: u.id };
   }
-  const own = classSkills(s.player.classId, s.player.gender).filter((id) => u.skills.some((x) => x.id === id));
+  const own = playerSkillIds(s.player.classId, s.player.gender).filter((id) => u.skills.some((x) => x.id === id));
   const castable = own.filter((id) => canCast(u, id));
   if (own.length && !castable.length && u.mp < u.maxMp * 0.3) {
     const mpDrug = Object.keys(b.items).filter((k) => b.items[k] > 0 && items[k].mp).sort((a, c) => items[c].mp! - items[a].mp!)[0];
     if (mpDrug) return { actor: u.id, type: 'item', item: mpDrug, target: u.id };
   }
   const busy = captureId && foes.some((f) => f.monsterId === captureId);
+  // 进阶招式：队里两个人以上残血就回血；开打头一回合对首领或一大群先鼓舞
+  const heal = castable.find((id) => skills[id].kind === 'heal');
+  if (heal && friendsOf(b, u).filter((f) => f.hp < f.maxHp * 0.55).length >= 2) return { actor: u.id, type: 'skill', skill: heal };
+  const rally = castable.find((id) => skills[id].kind === 'rally');
+  if (rally && !busy && !u.status.rally && (foes.length >= 3 || foes.some((f) => f.kind !== 'monster'))) return { actor: u.id, type: 'skill', skill: rally };
   // 要招降的还在场上就不放群攻，免得把它打死
-  const aoe = castable.find((id) => skills[id].kind === 'aoe');
+  // 横扫按普攻打折，三个以上才划算
+  const aoe = castable.find((id) => skills[id].kind === 'aoe' || (skills[id].kind === 'sweep' && foes.length >= 3));
   if (aoe && !busy && foes.length >= 2) return { actor: u.id, type: 'skill', skill: aoe };
   const ctl = castable.find((id) => skills[id].kind === 'control');
   const free = foes.filter((f) => !controlOf(f)).sort((a, c) => c.hp - a.hp);
   if (ctl && !busy && free.length && foes.length > 1) return { actor: u.id, type: 'skill', skill: ctl, target: free[0].id };
-  const dmg = castable.find((id) => ['nuke', 'cleave', 'poison'].includes(skills[id].kind));
+  // 武士：没人有护体时先上固若金汤（怪多或有首领）；舍命一击和力劈按估算伤害挑大的，血少时不舍命
+  const guard = castable.find((id) => skills[id].kind === 'guard');
+  if (guard && !busy && (foes.length >= 3 || foes.some((f) => f.kind !== 'monster')) && !friendsOf(b, u).some((f) => f.status.guard)) {
+    return { actor: u.id, type: 'skill', skill: guard };
+  }
+  // 武士单体招式按估算伤害挑：舍命一击（血多时）、力劈（按对方当前气血）、凤舞九天（连打几下普攻）
+  const sac = castable.find((id) => skills[id].kind === 'sacrifice');
+  const cleave = castable.find((id) => skills[id].kind === 'cleave');
+  const multi = castable.find((id) => skills[id].kind === 'multi');
+  const t0 = [...foes].sort((a, c) => c.hp - a.hp)[0];
+  if (t0 && !busy && (sac || multi)) {
+    const lv = (id: string) => u.skills.find((x) => x.id === id)?.level ?? 1;
+    const D = balance.damage;
+    const hit = Math.max(u.atk - t0.def * D.defK, u.atk * D.minRatio);
+    const opts: [string, number][] = [];
+    if (sac && u.hp > u.maxHp * 0.5) opts.push([sac, u.atk * lerpLevel(skills[sac].mul, lv(sac))]);
+    if (cleave) opts.push([cleave, t0.hp * lerpLevel(skills[cleave].pct, lv(cleave)) + u.atk * (skills[cleave].atkMul ?? 0)]);
+    if (multi) opts.push([multi, hit * lerpLevel(skills[multi].mul, lv(multi)) * (skills[multi].hits ?? 3)]);
+    const best = opts.sort((a, c) => c[1] - a[1])[0];
+    if (best) return { actor: u.id, type: 'skill', skill: best[0], target: t0.id };
+  }
+  const dmg = castable.find((id) => ['nuke', 'drain', 'multi', 'cleave', 'poison'].includes(skills[id].kind));
   if (dmg && !busy) return { actor: u.id, type: 'skill', skill: dmg, target: [...foes].sort((a, c) => c.hp - a.hp)[0]?.id };
   return autoCommand(b, u);
 }
@@ -257,6 +286,7 @@ function upkeep(sim: Sim): void {
         : { con: Math.ceil(n / 2), str: 0, int: Math.floor(n / 4), agi: n - Math.ceil(n / 2) - Math.floor(n / 4) };
     allocate(s, plan);
   }
+  if (!s.player.xinfa && s.player.level >= XINFA_LEVEL) chooseXinfa(s, xinfaChoices(s)[s.seed % 2]);
   for (const row of skillSchool(s)) {
     if (row.action === 'learn') learnSkill(s, row.id);
     if (row.action === 'upgrade') upgradeSkill(s, row.id);

@@ -466,6 +466,28 @@ function attackerOf(w: GzWorld, id: string): NationId {
   return best;
 }
 
+// 敌军戒备：打得越顺，各国越提防你——敌军攻防血按戒备加强、AI 玩家更常带队，战功也按戒备多给。
+// 赢一仗 +1，输一仗 −lossDrop：胜率自己稳在七八成，不管练得多强都有得打
+export function gzAlert(s: Save): number {
+  return Math.min(G.player.alert.cap, s.p4.streak ?? 0);
+}
+
+export function gzAlertPower(s: Save): number {
+  return 1 + gzAlert(s) * G.player.alert.per;
+}
+
+function alertMerit(s: Save, base: number): number {
+  return Math.round(base * (1 + gzAlert(s) * G.player.alert.meritPer));
+}
+
+function strengthen(u: BUnit, mul: number): void {
+  if (mul === 1) return;
+  u.maxHp = Math.round(u.maxHp * mul);
+  u.hp = u.maxHp;
+  u.atk = Math.round(u.atk * mul);
+  u.def = Math.round(u.def * mul);
+}
+
 export function gzBattle(s: Save, id: string, mode: GzMode, seed: number, t = calTick(s)): Battle | string {
   const w = syncWorld(s, t);
   const why = cityReason(s, w, id, mode, t);
@@ -489,16 +511,22 @@ export function gzBattle(s: Save, id: string, mode: GzMode, seed: number, t = ca
     for (let i = 0; i < n; i++) enemies.push(monsterUnit(`e${i}`, rng.pick(pool), Math.max(1, lv + rng.int(-2, 1)), i < 3 ? 0 : 1));
     title = mode === 'atk' ? `出征·${cityDef(id).name}` : `驻守·${cityDef(id).name}`;
     // 有时敌国的 AI 玩家带队
+    // 有时敌国的 AI 玩家带队：戒备越高越常见，戒备高了来两个
     const rs = rivalsOf(s, foe);
-    if (rs.length && rng.chance(G.player.mirrorChance)) {
-      const r = rng.pick(rs);
-      const m = mirrorUnit(`e${enemies.length}`, r.name, r.classId, r.gender, r.variant, Math.max(1, lv + rng.int(-3, 2)), 'enemy', lv > 100);
-      m.row = 1;
-      if (enemies.length >= 6) enemies[5] = m;
-      else enemies.push(m);
-      title = `${title}（${r.name}率${natName(foe)}）`;
+    const al = gzAlert(s);
+    if (rs.length && rng.chance(G.player.mirrorChance + al * G.player.alert.mirrorPer)) {
+      const picks = rng.shuffle([...rs]).slice(0, al >= G.player.alert.twoMirrorsAt ? 2 : 1);
+      picks.forEach((r, k) => {
+        const m = mirrorUnit(`e${enemies.length}`, r.name, r.classId, r.gender, r.variant, Math.max(1, lv + rng.int(-3, 2)), 'enemy', lv > 100);
+        m.row = 1;
+        if (enemies.length >= 6) enemies[5 - k] = m;
+        else enemies.push(m);
+      });
+      title = `${title}（${picks.map((r) => r.name).join('、')}率${natName(foe)}）`;
     }
   }
+  const power = gzAlertPower(s);
+  for (const e of enemies) strengthen(e, power);
   const { allies, reserve } = team(s);
   const aid = aidOf(s, w, id, mode);
   if (aid && allies.length < 5) {
@@ -523,10 +551,20 @@ export function afterGz(s: Save, b: Battle, t = calTick(s)): string[] {
     ordersLeft(s, t);
     s.p4.orders.used++;
   }
+  if (b.outcome === 'lose') {
+    const was = gzAlert(s);
+    s.p4.streak = Math.max(0, (s.p4.streak ?? 0) - G.player.alert.lossDrop);
+    if (was > 0) lines.push(`敌军戒备降到${gzAlert(s)}`);
+  }
   if (b.outcome !== 'win' || !c || !n) {
-    lines.push(b.outcome === 'fled' ? '撤兵回营' : `${mode === 'boss' ? '没打过守将' : '出征失利'}，败退回营`);
+    lines.unshift(b.outcome === 'fled' ? '撤兵回营' : `${mode === 'boss' ? '没打过守将' : '出征失利'}，败退回营`);
     return lines;
   }
+  // 战功按开打时的戒备算，打完戒备再涨
+  const mAtk = alertMerit(s, G.player.meritAtk);
+  const mDef = alertMerit(s, G.player.meritDef);
+  const mBoss = alertMerit(s, G.player.meritBoss);
+  s.p4.streak = Math.min(G.player.alert.cap, (s.p4.streak ?? 0) + 1);
   const max = kindOf(id).max;
   const P = G.player;
   if (mode === 'atk') {
@@ -537,9 +575,9 @@ export function afterGz(s: Save, b: Battle, t = calTick(s)): string[] {
       // 都城还有自家的城接应，守军打不光（一天就斩将夺都城，整国一下就垮了）
       const floor = capitalCover(w, id).length ? Math.round(max * P.capitalFloorPct) : 0;
       c.troops = Math.max(Math.min(c.troops, floor), c.troops - dmg);
-      lines.push(`击溃${name}守军${dmg}人（还剩${c.troops}），战功+${P.meritAtk}`);
+      lines.push(`击溃${name}守军${dmg}人（还剩${c.troops}），战功+${mAtk}`);
       if (floor && c.troops <= floor) lines.push(`${name}有${capitalCover(w, id).map((x) => cityDef(x).name).join('、')}接应，守军打不光——先拿下这几座城，让${name}成孤城`);
-      lines.push(...addMerit(s, P.meritAtk));
+      lines.push(...addMerit(s, mAtk));
       if (c.troops <= 0) {
         c.broken = w.turn;
         lines.push(`${name}守军打光了！守将${monsters[guardOf(w, id)].name}要出城迎战——一天之内（再打${DAY_BATTLES}仗以内）在沙盘上点${name}和他单挑，过了这天守军就补回来了`);
@@ -549,8 +587,8 @@ export function afterGz(s: Save, b: Battle, t = calTick(s)): string[] {
   } else if (mode === 'def') {
     const add = Math.round(max * P.defendPct);
     c.troops = Math.min(max, c.troops + add);
-    lines.push(`守住了${name}，守军+${add}（${c.troops}），战功+${P.meritDef}`);
-    lines.push(...addMerit(s, P.meritDef));
+    lines.push(`守住了${name}，守军+${add}（${c.troops}），战功+${mDef}`);
+    lines.push(...addMerit(s, mDef));
     bump(s, 'gzDefends');
   } else if (c.owner !== n && c.troops <= 0) {
     const was = c.owner;
@@ -560,8 +598,8 @@ export function afterGz(s: Save, b: Battle, t = calTick(s)): string[] {
     c.lostBy = was;
     event(w, `${s.player.name}率${natName(n)}攻下了${natName(was).replace('军', '')}的${name}`, true);
     s.p4.seen = w.seq;
-    lines.push(`斩将夺城！${name}归了${nationDef(n).full}，战功+${P.meritBoss}`);
-    lines.push(...addMerit(s, P.meritBoss));
+    lines.push(`斩将夺城！${name}归了${nationDef(n).full}，战功+${mBoss}`);
+    lines.push(...addMerit(s, mBoss));
     bump(s, 'gzCaptures');
   }
   return lines;

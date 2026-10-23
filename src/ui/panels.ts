@@ -2,6 +2,7 @@
 import { APP_VERSION, changelogPanel } from './changelog';
 import { buzz, canVibrate } from './haptics';
 import { PASSIVES } from '../core/passives';
+import { XINFA_LEVEL, chooseXinfa, xinfaChoices, xinfaCost, xinfaReason } from '../game/growth';
 import { FACTION_NAMES, campMods, campSummary, factionOf } from '../game/camp';
 import Phaser from 'phaser';
 import { C } from '../art/palette';
@@ -22,7 +23,7 @@ import { generalUnit, playerUnit } from '../game/encounter';
 import { mirrorUnit } from '../game/rivals';
 import {
   abandonBounty, acceptBounty, acceptQuest, allocate, bagCap, bagUsed, buy, currentQuest, findGeneral, generalStats, heal,
-  healCost, learnSkill, log, moveToInn, moveToTeam, npcMark, playerAttrs, playerStats, profCap, questDestination,
+  advStartLevel, healCost, learnSkill, log, moveToInn, moveToTeam, npcMark, playerAttrs, playerStats, profCap, questDestination,
   questProgressText, quickRecover, releaseGeneral, sell, sellPrice, serialize, skillSchool,
   targetHpMp, turnInBounty, turnInQuest, upgradeSkill, useItem, skillLevelText, DEPLOY_LEVELS, deploySlots, deployedUids, isDeployed, toggleDeploy } from '../game/state';
 import { generalRebirth, generalRebirthReason } from '../game/rebirth';
@@ -564,48 +565,85 @@ export function hospitalPanel(h: Host): void {
 // ===== 技能学校 =====
 export function skillSchoolPanel(h: Host): void {
   const s = store.save;
-  const m = new Modal(h, '技能学校');
-  const dyn = h.add.container(0, 0);
-  m.inner.add(dyn);
+  const m = new Modal(h, '技能学校', { help: '技能' });
+  const area = new ScrollArea(h, m.cx, m.cy, m.cw, m.py + m.ph - 12 - m.cy, m.inner);
   const render = () => {
-    dyn.removeAll(true);
-    let y = m.cy;
-    dyn.add(text(h, m.cx, y, `本职业：${classes[s.player.classId].name}。学技能、升技能都免费。`, { wrap: m.cw, color: C.brown }));
+    area.content.removeAll(true);
+    const add = (o: Phaser.GameObjects.GameObject) => area.content.add(o);
+    let y = 0;
+    add(text(h, 0, y, `本职业：${classes[s.player.classId].name}。学技能、升技能都免费。`, { wrap: m.cw, color: C.brown }));
     y += 20;
-    for (const row of skillSchool(s)) {
+    const rows = skillSchool(s);
+    rows.forEach((row, i) => {
+      // 头三个是本职业的老技能，后两个是 30 级专属、100 级绝学
+      if (i === 3) {
+        add(text(h, 0, y + 2, '进阶招式（学会时直接从3级、5级起步）', { color: C.darkRed }));
+        y += 20;
+      }
       const def = skills[row.id];
       const hgt = 26 + textLines(def.desc, m.cw - 80, 2) + 18;
       const g = h.add.graphics();
-      frame(g, m.cx, y, m.cw, hgt, 'tan');
-      dyn.add(g);
+      frame(g, 0, y, m.cw, hgt, 'tan');
+      add(g);
       const lv = row.state ? skillLevelText(row.state.level) : '未学习';
-      dyn.add(text(h, m.cx + 8, y + 6, `${def.name}${def.short ? `（${def.short}）` : ''}`, { color: C.darkRed }));
-      dyn.add(text(h, m.cx + 8 + 12 * (def.name.length + (def.short ? 3 : 0)) + 8, y + 6, lv, { color: row.state ? C.green : C.gray }));
-      dyn.add(text(h, m.cx + 8, y + 24, def.desc, { wrap: m.cw - 80, lineGap: 2 }));
-      const info = row.state ? `熟练度 ${row.state.prof}/${profCap(row.state.level)}　耗精力${skillMp(def.mp, row.state.level)}` : `${def.learnLevel}级可学　耗精力${skillMp(def.mp, 1)}`;
-      dyn.add(text(h, m.cx + 8, y + hgt - 18, info, { color: C.brown }));
+      add(text(h, 8, y + 6, `${def.name}${def.short ? `（${def.short}）` : ''}`, { color: C.darkRed }));
+      add(text(h, 8 + 12 * (def.name.length + (def.short ? 3 : 0)) + 8, y + 6, lv, { color: row.state ? C.green : C.gray }));
+      add(text(h, 8, y + 24, def.desc, { wrap: m.cw - 80, lineGap: 2 }));
+      const info = row.state ? `熟练度 ${row.state.prof}/${profCap(row.state.level)}　耗精力${skillMp(def.mp, row.state.level)}` : `${def.learnLevel}级可学　耗精力${skillMp(def.mp, advStartLevel(row.id))}`;
+      add(text(h, 8, y + hgt - 18, info, { color: C.brown }));
       if (row.action) {
-        dyn.add(new Button(h, m.cx + m.cw - 64, y + 8, 56, 24, row.action === 'learn' ? '学习' : row.state && row.state.level >= balance.skill.maxLevel ? '入化境' : '升级', () => {
+        add(new Button(h, m.cw - 64, y + 8, 56, 24, row.action === 'learn' ? '学习' : row.state && row.state.level >= balance.skill.maxLevel ? '入化境' : '升级', () => {
           const r = row.action === 'learn' ? learnSkill(s, row.id) : upgradeSkill(s, row.id);
           h.refresh();
           toast(h, r);
           sfx('level');
           render();
-        }, { style: 'red' }));
+        }, { style: 'red', clip: area }));
       } else {
-        dyn.add(text(h, m.cx + m.cw - 8, y + 12, row.reason, { align: 'right', color: C.gray }));
+        add(text(h, m.cw - 8, y + 12, row.reason, { align: 'right', color: C.gray }));
+      }
+      y += hgt + 4;
+    });
+    // 心法：60 级二选一，转职后成「·极」
+    add(text(h, 0, y + 2, `心法（${XINFA_LEVEL}级二选一，转职后升成「·极」）`, { color: C.darkRed }));
+    y += 20;
+    for (const id of xinfaChoices(s)) {
+      const key = s.p3.reborn ? `${id}_ji` : id;
+      const pv = PASSIVES[key];
+      const on = s.player.xinfa === id;
+      const hgt = 26 + textLines(pv.desc, m.cw - 80, 2);
+      const g = h.add.graphics();
+      frame(g, 0, y, m.cw, hgt, on ? 'red' : 'tan');
+      add(g);
+      add(text(h, 8, y + 6, `${pv.name}${on ? '（正在修）' : ''}`, { color: on ? 0xfff0c0 : C.darkRed }));
+      add(text(h, 8, y + 24, pv.desc, { wrap: m.cw - 80, lineGap: 2, color: on ? 0xe8d8b0 : C.darkBrown }));
+      const why = xinfaReason(s, id);
+      if (!why) {
+        const cost = xinfaCost(s);
+        add(new Button(h, m.cw - 64, y + 8, 56, 24, cost ? '改修' : '修习', () => {
+          const go = () => {
+            toast(h, chooseXinfa(s, id), 3000);
+            sfx('level');
+            h.refresh();
+            render();
+          };
+          if (cost) confirm(h, `改修【${pv.name}】要${cost}银两，原来那门就不修了。`, go, '改修');
+          else go();
+        }, { style: 'red', clip: area }));
+      } else if (!on) {
+        add(text(h, m.cw - 8, y + 12, why, { align: 'right', color: C.gray }));
       }
       y += hgt + 4;
     }
-    dyn.add(text(h, m.cx, y + 2, `熟练度够了回来升级，升级后熟练度不清零。人物每${balance.skill.roleLevelPerSkillLevel}级可以多升一级技能。`, { wrap: m.cw, color: C.gray }));
+    add(text(h, 0, y + 2, `熟练度够了回来升级，升级后熟练度不清零。人物每${balance.skill.roleLevelPerSkillLevel}级可以多升一级技能。`, { wrap: m.cw, color: C.gray }));
     y += 36;
-    const extra = ['副将技能学习', '副将技能升级', '研习神将技', '转熟练度'];
-    extra.forEach((name, i) => dyn.add(new Button(h, m.cx + (i % 2) * (m.cw / 2 + 2), y + Math.floor(i / 2) * 30, m.cw / 2 - 2, 26, name, () => {
-      if (i >= 2) return toast(h, `${name}在 P3 开放`);
+    ['副将技能学习', '副将技能升级'].forEach((name, i) => add(new Button(h, i * (m.cw / 2 + 2), y, m.cw / 2 - 2, 26, name, () => {
       const list = allGenerals(s).filter((g) => g.grade !== '常人');
       if (!list.length) return toast(h, '常人副将不能学技能。去许昌找招贤使者招英才、将才');
       pickGeneral(h, name, list, (g) => generalSkillPanel(h, g.uid));
-    })));
+    }, { clip: area })));
+    y += 32;
+    area.setContentHeight(y);
   };
   render();
 }
@@ -634,7 +672,7 @@ setHelpOpener((scene, topic) => helpPanel(scene as Host, topic));
 // 攻略分五页；topic 给了就翻到那一页、滚到那一条并标红（弹窗右上角的「？」用）
 const HELP_TABS: [string, string[]][] = [
   ['入门', ['战斗', '速战', '招降', '招将', '中计', '中毒', '前后排', '加点', '医馆', '寻路', '存档', '设置', '安卓版']],
-  ['成长', ['技能', '装备', '宝石', '坐骑', '体力丹', '化境', '转职', '跑环', '二环三环', '训练', '宝库', '阵法']],
+  ['成长', ['技能', '心法', '装备', '宝石', '坐骑', '体力丹', '化境', '转职', '跑环', '二环三环', '训练', '宝库', '阵法']],
   ['副将', ['副将', '名将', '羁绊', '馆驿', '婚姻结拜', '组队']],
   ['日常', ['每天', '福利', '抢宝', '银两环', '文曲星', '娱乐场', '挖宝', '摆摊', '生活', '徽章', '教派', '擂台', '演武塔', '成就称号', '录像']],
   ['国战', ['国战', '战功官职', '军团争霸', '诸州会武']],
@@ -649,7 +687,8 @@ export function helpPanel(h: Host, topic?: string): void {
     '【招将】战斗中主角可以用「招将」把出战副将换成另外的随行副将。',
     '【中计】乱：随机攻击场上目标，可能打自己人。封：无法行动。围：不能普攻和放技能，能用道具，挨打就醒。',
     '【中毒】巫蛊极毒能叠加，每回合开始时先结算，之后每回合是第一回合的一半。',
-    '【技能】放技能涨熟练度，熟练度满了去技能学校手动升级，升级后熟练度不清零。',
+    '【技能】放技能涨熟练度，熟练度满了去技能学校手动升级，升级后熟练度不清零。30级能学一个按性别不同的专属招式（直接3级起步），100级能学本职业的绝学（直接5级起步）。',
+    '【心法】60级在技能学校修一门心法，每个职业两门二选一（武士：血战、不动如山；文人：养气、智囊；异人：通玄、诡道），头一回免费，以后改修要花银两；转职后心法升成「·极」，效果再加一半。',
     '【加点】体质加气血和防御；力量加攻击和负重；智力加精力，不加技能伤害；敏捷加速度，速度快先出手。',
     '【前后排】敌人前排没倒下之前，普攻打不到后排；技能不受影响。',
     '【医馆】10级以前治疗免费。背包满了（负重）就买不了药、捡不了东西。',
@@ -687,7 +726,7 @@ export function helpPanel(h: Host, topic?: string): void {
     '【组队】「功能 → 组队」或濮阳的佣兵头领那里雇AI队友，跟你一起打20场。',
     '【录像】「功能 → 公告」里能回放最近8场战斗。',
     '【成就称号】角色面板里看成就、换称号；排行榜在「功能 → 排行」。',
-    '【国战】60级以后「功能 → 国战」投奔魏、蜀、吴其中一国。日子按天下历走：你每打一仗天下走一格，18 仗算一天，各国 AI 跟着补兵、打邻城；七天一个赛季，按城数排名发奖。你每天有8道军令（用完了去别处打几仗就到明天）：出征打和本国接壤的敌城削守军，驻守前线补兵；守军打光后守将出城，单挑赢了这座城就归本国（守将战不用军令；打光后一天之内对方补不上兵、别国也不来抢，过了这天就补回来）。另外两国也有玩家天天出征，专削本国前线兵少的城，记得分军令驻守；你夺来的城，原主会一心打回去。敌国都城还有自家的城接壤时守军打不光，要先拔掉周边。一国只剩两座城时成了哀兵，守得更硬。本国占着洛阳经验+10%，占着虎牢关银两+10%。沙盘上出了大事（要地易主、攻破都城、一国只剩两城、一国势大引来合纵），打完仗回来谋士会来报。',
+    '【国战】60级以后「功能 → 国战」投奔魏、蜀、吴其中一国。日子按天下历走：你每打一仗天下走一格，18 仗算一天，各国 AI 跟着补兵、打邻城；七天一个赛季，按城数排名发奖。你每天有8道军令（用完了去别处打几仗就到明天）：出征打和本国接壤的敌城削守军，驻守前线补兵；守军打光后守将出城，单挑赢了这座城就归本国（守将战不用军令；打光后一天之内对方补不上兵、别国也不来抢，过了这天就补回来）。另外两国也有玩家天天出征，专削本国前线兵少的城，记得分军令驻守；你夺来的城，原主会一心打回去。敌国都城还有自家的城接壤时守军打不光，要先拔掉周边。一国只剩两座城时成了哀兵，守得更硬。本国占着洛阳经验+10%，占着虎牢关银两+10%。沙盘上出了大事（要地易主、攻破都城、一国只剩两城、一国势大引来合纵），打完仗回来谋士会来报。国战打得越顺，各国越提防你：赢一仗「敌军戒备」+1、输一仗−3，戒备越高敌军越强、越常有敌国名人带队，战功也多给（沙盘左下角能看到）。',
     '【战功官职】出征、驻守、斩将都给战功：累计战功升官职（士卒到大将军），官职越高加的属性越多、每天俸禄越多；可用战功在「国战 → 战功」里换将军令、宝石、矿石。',
     '【军团争霸】入了教派就能打：四个教派一个赛季的循环赛（和国战同一套天下历），每天一轮，你替本教派打三阵，赢的阵越多本教派越可能赢这一轮。下个赛季按积分领奖。',
     '【演武塔】80级以后在「功能 → 擂台 → 演武塔」一层层往上打：第1层是80级的守兵，每层高1级、再强一点，每10层有名将把守。回满血上阵、不带药；打赢不耗次数，每天能输3次；每层第一次打赢给银两、经验，每5层多一个高级宝箱，每10层多一枚将军令或大将军令。',

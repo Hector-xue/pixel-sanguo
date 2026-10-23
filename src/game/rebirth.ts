@@ -1,7 +1,8 @@
 // 转职（洛阳左慈）：100 级以后重选性别、职业、头像。等级不变，加过的属性点全部退回重加，再多给一些；
-// 三个技能按顺序（性别专属、通用一、通用二）把等级和熟练度带到新职业。职业不对的武器自动卸下。
+// 技能按顺序（性别专属、通用一、通用二、30 级专属、100 级绝学）把等级和熟练度带到新职业，心法换成新职业同位置的那门。职业不对的武器自动卸下。
 // 副将 100 级以后也能转一次（花大将军令），转了才能继续升级。
-import { balance, classSkills, classes } from '../data';
+import { balance, classes, playerSkillIds } from '../data';
+import { rebirthXinfa } from './growth';
 import { weaponClassOk } from '../core/gear';
 import type { ClassId, Gender } from '../core/types';
 import { ATTR_KEYS } from '../core/types';
@@ -20,9 +21,11 @@ export function rebirth(s: Save, classId: ClassId, gender: Gender, avatar: numbe
   const why = canRebirth(s);
   if (why) return why;
   const p = s.player;
-  const old = classSkills(p.classId, p.gender).map((id) => p.skills.find((x) => x.id === id));
-  const fresh = classSkills(classId, gender);
+  // 进阶招式（30 级专属、100 级绝学）也按位置带过去
+  const old = playerSkillIds(p.classId, p.gender).map((id) => p.skills.find((x) => x.id === id));
+  const fresh = playerSkillIds(classId, gender);
   p.skills = fresh.map((id, i) => (old[i] ? { id, level: old[i]!.level, prof: old[i]!.prof } : null)).filter(Boolean) as typeof p.skills;
+  const fromClass = p.classId;
   // 退回加过的点
   const back = ATTR_KEYS.reduce((n, k) => n + p.added[k], 0);
   p.added = { con: 0, str: 0, int: 0, agi: 0 };
@@ -32,6 +35,7 @@ export function rebirth(s: Save, classId: ClassId, gender: Gender, avatar: numbe
   p.gender = gender;
   p.avatar = avatar;
   s.p3.reborn++;
+  rebirthXinfa(s, fromClass);
   // 职业不合的武器卸进背包
   const w = s.equip.weapon;
   if (w && !weaponClassOk(w, classId)) {

@@ -59,6 +59,27 @@ export const PASSIVES: Record<string, Passive> = {
   gz_jiaxu: { name: '乱武', desc: '普攻附带中毒', kind: 'venom', v: 0.3 },
 };
 
+// ===== 主角心法：60 级每个职业二选一，转职后升成「·极」（数值×1.5）。存档里只记 id，「·极」的键是 id + '_ji' =====
+export const XINFA: Record<'warrior' | 'scholar' | 'mystic', [string, string]> = {
+  warrior: ['xf_xuezhan', 'xf_tiebi'],
+  scholar: ['xf_yangqi', 'xf_zhinang'],
+  mystic: ['xf_tongxuan', 'xf_guidao'],
+};
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+const XF_BASE: Record<string, Omit<Passive, 'desc'> & { desc: (v: number) => string }> = {
+  xf_xuezhan: { name: '血战', kind: 'berserk', v: 0.25, desc: (v) => `气血不到一半时攻击+${pct(v)}` },
+  xf_tiebi: { name: '不动如山', kind: 'block', v: 0.25, desc: (v) => `挨普攻时${pct(v)}机会格挡，伤害减半` },
+  xf_yangqi: { name: '养气', kind: 'regen', v: 0.05, desc: (v) => `每回合开始回复${pct(v)}气血` },
+  xf_zhinang: { name: '智囊', kind: 'heal', v: 0.06, desc: (v) => `每回合开始给气血最少的队友回复${pct(v)}气血` },
+  xf_tongxuan: { name: '通玄', kind: 'spell', v: 0.18, desc: (v) => `技能伤害+${pct(v)}` },
+  xf_guidao: { name: '诡道', kind: 'crit', v: 10, desc: (v) => `暴击率+${Math.round(v)}` },
+};
+for (const [id, x] of Object.entries(XF_BASE)) {
+  PASSIVES[id] = { name: x.name, kind: x.kind, v: x.v, desc: x.desc(x.v) };
+  const ji = x.kind === 'crit' ? Math.round(x.v * 1.5) : Math.round(x.v * 150) / 100;
+  PASSIVES[`${id}_ji`] = { name: `${x.name}·极`, kind: x.kind, v: ji, desc: x.desc(ji) };
+}
+
 export function passiveOf(key: string | undefined): Passive | undefined {
   return key ? PASSIVES[key] : undefined;
 }

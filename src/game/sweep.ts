@@ -1,8 +1,8 @@
 // 速战：比自己低很多级的普通怪，跳过动画直接算出结果（同一套战斗内核，指令交给自动），还能一口气连打几场。
 // 头目、名将、不让逃的怪不给速战；要招降就手动打（速战不招降）。
-import { aiCommand, autoCommand, canCast, foesOf, living, needsCommand, resolveRound } from '../core/battle';
+import { aiCommand, autoCommand, canCast, foesOf, friendsOf, living, needsCommand, resolveRound } from '../core/battle';
 import type { BUnit, Battle, Command } from '../core/battle';
-import { balance, classSkills, items, locations, monsters, skills } from '../data';
+import { balance, items, locations, monsters, playerSkillIds, skills } from '../data';
 import type { MonsterGroup } from '../data';
 import { finishBattle, startBattle } from './encounter';
 import { playerStats } from './state';
@@ -28,10 +28,12 @@ function quickCommand(b: Battle, u: BUnit, s: Save): Command {
     if (drug) return { actor: u.id, type: 'item', item: drug, target: u.id };
   }
   if (u.kind === 'player' && u.status.trap <= 0) {
-    const own = classSkills(s.player.classId, s.player.gender).filter((id) => u.skills.some((x) => x.id === id) && canCast(u, id));
-    const aoe = own.find((id) => skills[id].kind === 'aoe');
+    const own = playerSkillIds(s.player.classId, s.player.gender).filter((id) => u.skills.some((x) => x.id === id) && canCast(u, id));
+    const heal = own.find((id) => skills[id].kind === 'heal');
+    if (heal && friendsOf(b, u).filter((f) => f.hp < f.maxHp * 0.55).length >= 2) return { actor: u.id, type: 'skill', skill: heal };
+    const aoe = own.find((id) => skills[id].kind === 'aoe' || (skills[id].kind === 'sweep' && foes.length >= 3));
     if (aoe && foes.length >= 2) return { actor: u.id, type: 'skill', skill: aoe };
-    const dmg = own.find((id) => ['nuke', 'cleave', 'poison'].includes(skills[id].kind));
+    const dmg = own.find((id) => ['nuke', 'cleave', 'poison', 'drain', 'multi'].includes(skills[id].kind));
     if (dmg) return { actor: u.id, type: 'skill', skill: dmg, target: [...foes].sort((a, c) => c.hp - a.hp)[0]?.id };
   }
   return autoCommand(b, u);

@@ -11,14 +11,14 @@ import {
 import {
   PLAYABLE, attackTargets, buyWithMerit, capitalCover, cityDef, cityReason, citiesOf, claimSalary, claimSeason, defendTargets, gzBattle,
   DAY_BATTLES, battlesToNextDay, calTick, guardOf, joinNation, joinReason, kindOf, nationDef, nationRanks, neighbors, nextRank, ordersLeft,
-  rankName, salary, salaryClaimed, shopItemId, syncWorld, turnOf, weekIndex,
+  gzAlert, gzAlertPower, rankName, salary, salaryClaimed, shopItemId, syncWorld, turnOf, weekIndex,
 } from '../game/guozhan';
 import type { GzMode } from '../game/guozhan';
 import type { Save } from '../game/state';
 import { store } from '../game/store';
 import type { Host } from './panels';
 import { fight, heroAvatar, row, rows, tabs } from './p3';
-import { Button, Modal, confirm, fitText, frame, hit, sfx, text, textLines, toast } from './widgets';
+import { Button, Modal, confirm, fitText, frame, hit, sfx, text, textLines, textWidth, toast } from './widgets';
 
 const G = systems.guozhan;
 
@@ -114,6 +114,11 @@ function mapTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y0: number
   g.fillStyle(0x2a3a2a).fillRect(mx, my, mw, mh);
   g.lineStyle(1, 0x000000, 0.6).strokeRect(mx, my, mw, mh);
   dyn.add(g);
+  // 敌军戒备：沙盘左下角一行，点一下说明
+  const al = gzAlert(s);
+  const alText = al ? `敌军戒备${al}：敌军+${Math.round((gzAlertPower(s) - 1) * 100)}%，战功+${Math.round(al * G.player.alert.meritPer * 100)}%` : '敌军戒备0';
+  dyn.add(text(h, mx + 4, my + mh - 15, alText, { color: al >= 20 ? 0xff9a78 : 0xe8dcb8, stroke: 0x000000 }));
+  dyn.add(hit(h, mx, my + mh - 18, Math.min(mw, textWidth(alText) + 10), 18, () => toast(h, `国战赢一仗戒备+1，输一仗−${G.player.alert.lossDrop}（最高${G.player.alert.cap}）。戒备越高，敌军越强、越常有敌国名人带队，战功也给得越多。`, 4200)));
   const pos = (id: string) => {
     const c = cityDef(id);
     return { x: mx + 16 + (c.x / 100) * (mw - 32), y: my + 14 + (c.y / 100) * (mh - 32) };
@@ -138,6 +143,7 @@ function mapTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y0: number
     g.fillStyle(0xffffff, 0.85).fillRect(p.x - r, p.y - r, Math.round(r * 2 * ratio), 2);
     if (c.kind === 'capital') g.fillStyle(0xf6d36a).fillRect(p.x - 2, p.y - 2, 4, 4);
     if (st.troops <= 0 && st.owner !== n) g.lineStyle(2, 0xff3020).strokeRect(p.x - r - 3, p.y - r - 3, r * 2 + 6, r * 2 + 6);
+
     else if (atk.includes(c.id)) g.lineStyle(1, 0xffa040).strokeRect(p.x - r - 3, p.y - r - 3, r * 2 + 6, r * 2 + 6);
     if (picked === c.id) g.lineStyle(2, 0xffffff).strokeRect(p.x - r - 4, p.y - r - 4, r * 2 + 8, r * 2 + 8);
     dyn.add(text(h, p.x, p.y + r + 1, c.name, { align: 'center', color: 0xf0e8d0, stroke: 0x000000 }));

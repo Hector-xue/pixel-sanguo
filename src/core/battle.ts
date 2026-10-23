@@ -19,6 +19,8 @@ export interface UnitStatus {
   seal: number;
   trap: number;
   guard: { amount: number; turns: number; since: number } | null;
+  // 鼓舞：攻击加几成，管几回合
+  rally?: { v: number; turns: number; since: number } | null;
   poison: PoisonStack[];
 }
 
@@ -136,7 +138,7 @@ export interface BattleInit {
 }
 
 export function emptyStatus(): UnitStatus {
-  return { chaos: 0, seal: 0, trap: 0, guard: null, poison: [] };
+  return { chaos: 0, seal: 0, trap: 0, guard: null, rally: null, poison: [] };
 }
 
 export function createBattle(init: BattleInit): Battle {
@@ -260,6 +262,7 @@ class Resolver {
         this.tell(u);
       }
     }
+    if (u.status.rally) m += u.status.rally.v;
     return u.atk * m;
   }
 
@@ -480,7 +483,75 @@ class Resolver {
         for (const t of foes) this.damage(t, this.magic(u, st, def, t));
         return;
       }
+      case 'sweep': {
+        this.emit({ t: 'act', actor: u.id, label: def.name, kind: 'cast', skill: cmd.skill });
+        for (const t of foes) this.damage(t, this.skillHit(u, st, def, t), {}, u);
+        return;
+      }
+      case 'multi': {
+        this.emit({ t: 'act', actor: u.id, label: def.name, kind: 'cast', skill: cmd.skill });
+        let first = this.retarget(cmd.target, foes);
+        for (let i = 0; i < (def.hits ?? 3); i++) {
+          const pool = foesOf(this.b, u);
+          if (!pool.length) break;
+          const t = first?.alive ? first : this.rng.pick(pool);
+          first = undefined;
+          this.damage(t, this.skillHit(u, st, def, t), {}, u);
+        }
+        return;
+      }
+      case 'heal': {
+        this.emit({ t: 'act', actor: u.id, label: def.name, kind: 'cast', skill: cmd.skill });
+        const pct = lerpLevel(def.pct, lvl) * profCoef(st);
+        for (const f of friends) {
+          const c = def.cleanse ? controlOf(f) : null;
+          if (c) {
+            f.status.chaos = f.status.seal = f.status.trap = 0;
+            this.emit({ t: 'statusEnd', target: f.id, status: c });
+          }
+          const hp = Math.min(f.maxHp - f.hp, Math.round(f.maxHp * pct));
+          if (hp > 0) {
+            f.hp += hp;
+            this.emit({ t: 'heal', target: f.id, hp, mp: 0 });
+          }
+        }
+        return;
+      }
+      case 'drain': {
+        const t = this.retarget(cmd.target, foes);
+        if (!t) return;
+        this.emit({ t: 'act', actor: u.id, label: def.name, target: t.id, kind: 'cast', skill: cmd.skill });
+        const dmg = Math.max(1, Math.round(this.magic(u, st, def, t)));
+        const before = t.hp;
+        this.damage(t, dmg, {}, u);
+        const hp = Math.min(u.maxHp - u.hp, Math.round((before - t.hp) * (def.drain ?? 0.5)));
+        if (hp > 0 && u.alive) {
+          u.hp += hp;
+          this.emit({ t: 'heal', target: u.id, hp, mp: 0 });
+        }
+        return;
+      }
+      case 'rally': {
+        this.emit({ t: 'act', actor: u.id, label: def.name, kind: 'cast', skill: cmd.skill });
+        const v = Math.round(lerpLevel(def.amount, lvl) * profCoef(st)) / 100;
+        for (const f of friends) {
+          const c = def.cleanse ? controlOf(f) : null;
+          if (c) {
+            f.status.chaos = f.status.seal = f.status.trap = 0;
+            this.emit({ t: 'statusEnd', target: f.id, status: c });
+          }
+          f.status.rally = { v, turns: def.turns ?? 3, since: this.b.round };
+          this.emit({ t: 'buff', target: f.id, label: `攻击+${Math.round(v * 100)}%` });
+        }
+        return;
+      }
     }
+  }
+
+  // 物理技能（横扫、连打）：按普攻的算法（扣防御、吃抗物理和护体、能暴击）再乘技能倍率
+  skillHit(u: BUnit, st: SkillState, def: SkillDef, t: BUnit): number {
+    const hit = this.physical(u, t);
+    return hit.dmg * lerpLevel(def.mul, st.level) * profCoef(st);
   }
 
   basicAttack(u: BUnit, targetId?: string): void {
@@ -712,6 +783,8 @@ export function resolveRound(b: Battle, cmds: Command[]): BEvent[] {
     u.defending = false;
     const g = u.status.guard;
     if (g && g.since !== b.round && --g.turns <= 0) u.status.guard = null;
+    const ra = u.status.rally;
+    if (ra && ra.since !== b.round && --ra.turns <= 0) u.status.rally = null;
   }
   return r.ev;
 }

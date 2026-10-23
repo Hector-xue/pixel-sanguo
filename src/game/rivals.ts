@@ -1,6 +1,6 @@
 // AI 玩家名册：擂台、决斗场、排行榜里的"其他玩家"。由存档种子生成，每个人的等级跟着主角走（有高有低），
 // 这样排行榜和擂台始终有对手。打的时候按他的职业、等级、同级装备做成战斗单位（镜像）。
-import { CLASS_IDS, classSkills, equips, recruits } from '../data';
+import { CLASS_IDS, equips, playerSkillIds, recruits } from '../data';
 import { emptyStatus } from '../core/battle';
 import type { BUnit } from '../core/battle';
 import { deriveStats, playerAttrsAt } from '../core/formulas';
@@ -88,7 +88,8 @@ function mirrorAttrs(cls: ClassId, level: number, reborn: boolean): Attrs {
 export function mirrorUnit(id: string, name: string, cls: ClassId, gender: Gender, variant: number, level: number, side: 'ally' | 'enemy', reborn = false): BUnit {
   const st = applyBonus(deriveStats(mirrorAttrs(cls, level, reborn), level, cls), gearsBonus(gearFor(level, cls)));
   const skLevel = Math.max(1, Math.min(5, Math.floor(level / 25) + 1));
-  const sk = classSkills(cls, gender).filter((_, i) => level >= [1, 10, 20][i]);
+  // AI 玩家也会进阶招式，只是比你晚十级（40 级专属、110 级绝学）
+  const sk = playerSkillIds(cls, gender).filter((_, i) => level >= [1, 10, 20, 40, 110][i]);
   return {
     id, name, side, kind: 'mirror', refId: id, classId: cls, gender, look: `hero_${cls}_${gender}`, variant, level, row: 0,
     maxHp: st.maxHp, hp: st.maxHp, maxMp: st.maxMp, mp: st.maxMp, atk: st.atk, def: st.def, spd: st.spd,

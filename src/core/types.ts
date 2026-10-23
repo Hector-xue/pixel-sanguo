@@ -39,7 +39,8 @@ export interface SkillState {
 export type ControlStatus = 'chaos' | 'seal' | 'trap';
 export const STATUS_NAMES: Record<ControlStatus, string> = { chaos: '乱', seal: '封', trap: '围' };
 
-export type SkillKind = 'cleave' | 'sacrifice' | 'guard' | 'control' | 'cleanse' | 'nuke' | 'poison' | 'aoe';
+// sweep 物理横扫全体、multi 物理连打几下（随机目标）、heal 全体回血（cleanse 顺带解控）、drain 法术伤害吸血、rally 全体攻击加成几回合
+export type SkillKind = 'cleave' | 'sacrifice' | 'guard' | 'control' | 'cleanse' | 'nuke' | 'poison' | 'aoe' | 'sweep' | 'multi' | 'heal' | 'drain' | 'rally';
 
 export interface SkillDef {
   name: string;
@@ -62,6 +63,12 @@ export interface SkillDef {
   chance?: [number, number];
   targets?: number[];
   base?: [number, number];
+  // multi：打几下；heal / rally：顺带解控；drain：吸回伤害的几成
+  // 主角进阶招式（学会时直接从较高的等级起步）
+  adv?: boolean;
+  hits?: number;
+  cleanse?: boolean;
+  drain?: number;
 }
 
 export type ItemUse = 'box' | 'bigbox' | 'stamina' | 'xinfa' | 'skillbook' | 'dig' | 'gemore' | 'feast';

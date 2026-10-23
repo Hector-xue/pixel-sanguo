@@ -59,5 +59,15 @@
     "name": "妖火燎原", "class": "mystic", "kind": "aoe", "target": "enemies", "resist": "fire",
     "desc": "群体攻击，必中",
     "mp": [18, 6], "base": [14, 6], "mul": [0.9, 0.08], "learnLevel": 5
-  }
+  },
+  "_advSrc": "30级专属、100级绝学是单机版自己加的【推定】（原版每职业只有三个技能，5级就学全了）",
+  "hengsao": {"name": "横扫千军", "class": "warrior", "kind": "sweep", "target": "enemies", "desc": "男武士30级专属：一刀横扫敌方全体，按普攻算再乘倍率", "mp": [20, 6], "mul": [0.7, 0.06], "learnLevel": 30, "adv": true},
+  "fengwu": {"name": "凤舞九天", "class": "warrior", "kind": "multi", "target": "enemy", "desc": "女武士30级专属：连出四刀，第一刀打选中的人，后面几刀随机", "mp": [20, 6], "mul": [0.75, 0.06], "hits": 4, "learnLevel": 30, "adv": true},
+  "wanfu": {"name": "万夫莫敌", "class": "warrior", "kind": "rally", "target": "allies", "desc": "武士100级绝学：鼓舞全军，三回合内攻击大增，中计的队友也被喝醒", "mp": [30, 8], "amount": [25, 4], "turns": 3, "learnLevel": 100, "adv": true, "cleanse": true},
+  "yunchou": {"name": "运筹帷幄", "class": "scholar", "kind": "heal", "target": "allies", "desc": "男文人30级专属：全队回复一成多气血", "mp": [24, 6], "pct": [0.12, 0.02], "learnLevel": 30, "adv": true},
+  "miaoshou": {"name": "妙手回春", "class": "scholar", "kind": "heal", "target": "allies", "desc": "女文人30级专属：全队回复气血，顺带解除乱、封、围", "mp": [24, 6], "pct": [0.08, 0.015], "cleanse": true, "learnLevel": 30, "adv": true},
+  "bamen": {"name": "八门金锁", "short": "封", "class": "scholar", "kind": "control", "status": "seal", "target": "enemy", "resist": "seal", "desc": "文人100级绝学：困住敌方好几个人，两回合不能行动", "mp": [36, 8], "chance": [0.4, 0.03], "targets": [3, 4, 5, 6, 6], "turns": 2, "learnLevel": 100, "adv": true},
+  "xixing": {"name": "吸星大法", "class": "mystic", "kind": "drain", "target": "enemy", "resist": "thunder", "desc": "男异人30级专属：单体雷击，打掉的气血吸回一半", "mp": [22, 6], "base": [20, 8], "mul": [1.3, 0.12], "drain": 0.5, "learnLevel": 30, "adv": true},
+  "mihun": {"name": "迷魂大法", "short": "乱", "class": "mystic", "kind": "control", "status": "chaos", "target": "enemy", "resist": "chaos", "desc": "女异人30级专属：迷乱敌方好几个人，两回合乱打", "mp": [24, 6], "chance": [0.45, 0.04], "targets": [2, 3, 3, 4, 4], "turns": 2, "learnLevel": 30, "adv": true},
+  "tianbeng": {"name": "天崩地裂", "class": "mystic", "kind": "aoe", "target": "enemies", "resist": "thunder", "desc": "异人100级绝学：天雷砸向敌方全体，比呼风唤雨重得多", "mp": [36, 8], "base": [20, 8], "mul": [1.3, 0.1], "learnLevel": 100, "adv": true}
 }

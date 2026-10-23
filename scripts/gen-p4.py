@@ -171,7 +171,9 @@ def main():
                'reinforcePct': 0.25, 'bigNationDamp': 0.08, 'allyVsLeader': 1.2, 'allyAttackBonus': 0.2, 'revengeMul': 1.4, 'revengeAttackBonus': 0.3, 'lastStandCities': 2, 'lastStandYield': 1.5, 'lastStandDef': 1.4, 'raidChance': 0.25, 'raidPower': 1, 'luck': [0.8, 1.2]},
         # 主角出征：打赢一场守军减 max×hitPct + 等级×hitPerLevel；驻守打赢补 max×defendPct
         'player': {'hitPct': 0.045, 'hitPerLevel': 1, 'defendPct': 0.06, 'captureTroopsPct': 0.35, 'capitalFloorPct': 0.15,
-                   'meritAtk': 12, 'meritDef': 8, 'meritBoss': 80, 'guardControlResist': 120, 'guardLevel': 3, 'guardEscorts': 3, 'mirrorChance': 0.35, 'joinCooldownDays': 7},
+                   'meritAtk': 12, 'meritDef': 8, 'meritBoss': 80, 'guardControlResist': 120, 'guardLevel': 3, 'guardEscorts': 3, 'mirrorChance': 0.35, 'joinCooldownDays': 7,
+                   # 敌军戒备：国战连胜一场戒备+1（敌军攻防血各+per、AI 玩家带队的机会+mirrorPer，到 twoMirrorsAt 来两个），输一场减 lossDrop（胜率自己稳在七八成）；战功跟着多给 meritPer
+                   'alert': {'per': 0.06, 'cap': 40, 'meritPer': 0.03, 'mirrorPer': 0.03, 'twoMirrorsAt': 10, 'lossDrop': 3}},
         'ranks': [{'name': n, 'merit': m} for n, m in RANKS],
         # 官职加成：每级 × 人物等级
         'rankBonus': {'hp': 0.8, 'atk': 0.08, 'def': 0.08},

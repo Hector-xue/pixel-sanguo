@@ -4,18 +4,18 @@
     "name": "武士",
     "baseAttrs": { "con": 5, "str": 6, "int": 2, "agi": 5 },
     "resist": { "phys": 20 },
-    "skills": { "male": "lipi", "female": "paishan", "common": ["sheming", "gujin"] }
+    "skills": { "male": "lipi", "female": "paishan", "common": ["sheming", "gujin"], "adv": {"male": "hengsao", "female": "fengwu", "ultimate": "wanfu"} }
   },
   "scholar": {
     "name": "文人",
     "baseAttrs": { "con": 6, "str": 5, "int": 5, "agi": 4 },
     "resist": {},
-    "skills": { "male": "chenhuo", "female": "simian", "common": ["huadi", "andu"] }
+    "skills": { "male": "chenhuo", "female": "simian", "common": ["huadi", "andu"], "adv": {"male": "yunchou", "female": "miaoshou", "ultimate": "bamen"} }
   },
   "mystic": {
     "name": "异人",
     "baseAttrs": { "con": 6, "str": 5, "int": 5, "agi": 4 },
     "resist": {},
-    "skills": { "male": "wulei", "female": "wugu", "common": ["hufeng", "yaohuo"] }
+    "skills": { "male": "wulei", "female": "wugu", "common": ["hufeng", "yaohuo"], "adv": {"male": "xixing", "female": "mihun", "ultimate": "tianbeng"} }
   }
 }

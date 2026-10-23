@@ -23,7 +23,7 @@ export interface ClassDef {
   name: string;
   baseAttrs: Attrs;
   resist: Partial<Resists>;
-  skills: { male: string; female: string; common: string[] };
+  skills: { male: string; female: string; common: string[]; adv: { male: string; female: string; ultimate: string } };
 }
 
 export interface MonsterGroup {
@@ -255,7 +255,7 @@ export interface GuozhanDef {
   soldiers: Record<NationId, string[]>;
   guards: Record<NationId, string[]>;
   ai: { attackChance: number; sendPct: number; minRatio: number; startPct: number; qunStartPct: number; qunYieldMul: number; reinforcePct: number; bigNationDamp: number; allyVsLeader: number; allyAttackBonus: number; revengeMul: number; revengeAttackBonus: number; lastStandCities: number; lastStandYield: number; lastStandDef: number; raidChance: number; raidPower: number; luck: [number, number] };
-  player: { hitPct: number; hitPerLevel: number; defendPct: number; captureTroopsPct: number; capitalFloorPct: number; meritAtk: number; meritDef: number; meritBoss: number; guardControlResist: number; guardLevel: number; guardEscorts: number; mirrorChance: number; joinCooldownDays: number };
+  player: { hitPct: number; hitPerLevel: number; defendPct: number; captureTroopsPct: number; capitalFloorPct: number; meritAtk: number; meritDef: number; meritBoss: number; guardControlResist: number; guardLevel: number; guardEscorts: number; mirrorChance: number; joinCooldownDays: number; alert: { per: number; cap: number; meritPer: number; mirrorPer: number; twoMirrorsAt: number; lossDrop: number } };
   ranks: { name: string; merit: number }[];
   rankBonus: { hp: number; atk: number; def: number };
   salaryPerRankLevel: number;
@@ -275,4 +275,14 @@ export const GENDER_NAMES: Record<Gender, string> = { male: '男', female: '女'
 export function classSkills(classId: ClassId, gender: Gender): string[] {
   const c = classes[classId].skills;
   return [gender === 'male' ? c.male : c.female, ...c.common];
+}
+
+// 主角才有的进阶招式：30 级性别专属、100 级绝学（副将、AI 玩家的技能还是原来那三个）
+export function advancedSkills(classId: ClassId, gender: Gender): string[] {
+  const a = classes[classId].skills.adv;
+  return [gender === 'male' ? a.male : a.female, a.ultimate];
+}
+
+export function playerSkillIds(classId: ClassId, gender: Gender): string[] {
+  return [...classSkills(classId, gender), ...advancedSkills(classId, gender)];
 }

@@ -2130,7 +2130,15 @@
       "guardLevel": 3,
       "guardEscorts": 3,
       "mirrorChance": 0.35,
-      "joinCooldownDays": 7
+      "joinCooldownDays": 7,
+      "alert": {
+        "per": 0.06,
+        "cap": 40,
+        "meritPer": 0.03,
+        "mirrorPer": 0.03,
+        "twoMirrorsAt": 10,
+        "lossDrop": 3
+      }
     },
     "ranks": [
       {

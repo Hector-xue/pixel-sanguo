@@ -42,11 +42,11 @@ describe('角色', () => {
 });
 
 describe('技能学校', () => {
-  it('只教本职业本性别的三个技能，按等级开放', () => {
+  it('只教本职业本性别的技能（三个老技能 + 30 级专属 + 100 级绝学），按等级开放', () => {
     const s = fresh('scholar', 'female');
     const rows = skillSchool(s);
-    expect(rows.map((r) => r.name)).toEqual(['四面楚歌', '画地为牢', '暗渡陈仓']);
-    expect(rows.map((r) => r.action)).toEqual(['learn', null, null]);
+    expect(rows.map((r) => r.name)).toEqual(['四面楚歌', '画地为牢', '暗渡陈仓', '妙手回春', '八门金锁']);
+    expect(rows.map((r) => r.action)).toEqual(['learn', null, null, null, null]);
   });
 
   it('熟练度够了手动升级，熟练度不清零', () => {

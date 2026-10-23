@@ -1,7 +1,7 @@
 // 存档与游戏规则（纯逻辑，可测）。界面只调这里的函数，不直接改存档字段。
 import { migrateTraining } from './training';
 import { migrateCalendar, migrateDaily } from './calendar';
-import { balance, bountyOptions, classSkills, classes, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation, systems } from '../data';
+import { balance, bountyOptions, classes, playerSkillIds, items, lockedExits, locations, mainQuests, monsters, npcs, skills, startLocation, systems } from '../data';
 import { p5Defaults } from './bond';
 import type { P5State } from './bond';
 import type { Dir, NationId, QuestDef } from '../data';
@@ -91,6 +91,8 @@ export interface Save {
     gold: number;
     boundSilver: number;
     skills: SkillState[];
+    // 心法（60 级二选一，见 growth.ts）
+    xinfa?: string;
   };
   generals: General[];
   inn: General[];
@@ -256,6 +258,8 @@ export interface P4State {
   world: GzWorld | null;
   // 国战纪事：这个赛季已经讲过的事（见 gzstory.ts）
   story?: string[];
+  // 敌军戒备：国战赢一仗 +1、输一仗减几点（见 guozhan.ts gzAlert）
+  streak?: number;
   seen: number;
   seasonClaim: { season: number; nation: NationId; rank: number; merit: number } | null;
   league: { week: number; sect: string | null; fought: number[]; wins: number[]; claim: { week: number; sect: string; rank: number } | null };
@@ -680,7 +684,7 @@ export function profCap(level: number): number {
 
 export function skillSchool(s: Save): SkillRow[] {
   const p = s.player;
-  return classSkills(p.classId, p.gender).map((id) => {
+  return playerSkillIds(p.classId, p.gender).map((id) => {
     const def = skills[id];
     const st = p.skills.find((x) => x.id === id) ?? null;
     if (!st) {
@@ -716,10 +720,16 @@ export function skillLevelText(level: number): string {
 export function learnSkill(s: Save, id: string): string {
   const row = skillSchool(s).find((r) => r.id === id);
   if (!row || row.action !== 'learn') return row?.reason || '不能学习';
-  s.player.skills.push({ id, level: 1, prof: 0 });
+  s.player.skills.push({ id, level: advStartLevel(id), prof: 0 });
   s.flags.learned = true;
   onFlag(s, 'learned');
   return `学会了${row.name}`;
+}
+
+// 进阶招式学得晚：30 级的从 3 级起步、100 级的从 5 级起步，不用从头练
+export function advStartLevel(id: string): number {
+  const def = skills[id];
+  return def.adv ? Math.max(1, Math.min(balance.skill.maxLevel, Math.floor(def.learnLevel / 10))) : 1;
 }
 
 export function upgradeSkill(s: Save, id: string): string {

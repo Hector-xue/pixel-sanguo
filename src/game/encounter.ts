@@ -2,6 +2,7 @@
 import { LOYALTY_EVERY, decayLoyalty } from './generals';
 import { trainAfterBattle } from './training';
 import { campMods } from './camp';
+import { xinfaKey } from './growth';
 import { PASSIVES, passiveOf } from '../core/passives';
 import { feastBonus, feastTick } from './life';
 import { applyFormation, clash, enemyFormation, myFormation } from './formation';
@@ -69,6 +70,7 @@ export function playerUnit(s: Save): BUnit {
     hp: Math.max(1, Math.min(p.hp, st.maxHp)), mp: Math.min(p.mp, st.maxMp),
     skills: p.skills.map((x) => ({ ...x })), aiSkills: [],
     historic: false, capturable: false, expYield: 0, silverYield: 0,
+    passive: xinfaKey(s),
   };
 }
 

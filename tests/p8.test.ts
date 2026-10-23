@@ -35,7 +35,8 @@ const passives = (ev: BEvent[]) => ev.filter((e) => e.t === 'passive').map((e) =
 describe('专属被动', () => {
   it('被动表里的人都真实存在（招得到的武将或名将）', () => {
     const ids = new Set([...recruits.yingcai, ...recruits.jiangcai].map((g) => g.id));
-    for (const k of Object.keys(PASSIVES)) expect(ids.has(k) || !!monsters[k], k).toBe(true);
+    // 主角心法（xf_ 开头）不是人
+    for (const k of Object.keys(PASSIVES)) expect(ids.has(k) || !!monsters[k] || k.startsWith('xf_'), k).toBe(true);
     for (const id of ids) expect(PASSIVES[id], id).toBeTruthy();
   });
 
