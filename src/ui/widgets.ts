@@ -341,6 +341,17 @@ export class Modal extends Phaser.GameObjects.Container {
   pw: number;
   ph: number;
 
+  // 看得见的高度：默认高度的弹窗内容少时缩到内容那么高（ph 不变，面板照旧按 ph 排版）
+  vh: number;
+  private frameG!: Phaser.GameObjects.Graphics;
+  private dimG!: Phaser.GameObjects.Graphics;
+  private paper!: Phaser.GameObjects.Image;
+  private blockZ!: Phaser.GameObjects.Zone;
+  private sig = '';
+  private fitOff = 0;
+  private fitted = false;
+  lift = 6;
+
   constructor(scene: Phaser.Scene, title: string, opts: { x?: number; y?: number; w?: number; h?: number; close?: string | null; onClose?: () => void; dim?: boolean } = {}) {
     super(scene, 0, 0);
     this.pw = opts.w ?? W - 16;
@@ -349,12 +360,16 @@ export class Modal extends Phaser.GameObjects.Container {
     this.ph = Math.min(opts.h ?? Math.min(room - 20, MODAL_MAX_H), room);
     this.px = opts.x ?? Math.round((W - this.pw) / 2);
     this.py = opts.y ?? SAFE_TOP + 20 + Math.round((room - this.ph) / 2);
+    this.vh = this.ph;
     const block = scene.add.zone(0, 0, W, H).setOrigin(0).setInteractive();
-    const g = scene.add.graphics();
     // 底下压暗；面板是漆木框 + 宣纸，标题写在朱漆题签上
-    if (opts.dim !== false) g.fillStyle(0x0a0604, 0.62).fillRect(0, 0, W, H);
-    woodFrame(g, this.px - 2, this.py - 2, this.pw + 4, this.ph + 4);
-    this.add([block, g, scene.add.image(this.px + 4, this.py + 4, paperTex(scene, this.pw - 8, this.ph - 8)).setOrigin(0)]);
+    this.dimG = scene.add.graphics();
+    if (opts.dim !== false) this.dimG.fillStyle(0x0a0604, 0.62).fillRect(0, -H, W, H * 3);
+    this.frameG = scene.add.graphics();
+    woodFrame(this.frameG, this.px - 2, this.py - 2, this.pw + 4, this.ph + 4);
+    this.paper = scene.add.image(this.px + 4, this.py + 4, paperTex(scene, this.pw - 8, this.ph - 8)).setOrigin(0);
+    this.blockZ = block;
+    this.add([block, this.dimG, this.frameG, this.paper]);
     const deco = scene.add.graphics();
     if (title) {
       const tw = Math.max(64, textWidth(title) + 28);
@@ -403,7 +418,60 @@ export class Modal extends Phaser.GameObjects.Container {
     scene.add.existing(this);
     // 淡入 + 轻轻上浮
     this.setAlpha(0).setY(6);
-    scene.tweens.add({ targets: this, alpha: 1, y: 0, duration: 140, ease: 'Quad.easeOut' });
+    scene.tweens.add({ targets: this, alpha: 1, lift: 0, duration: 140, ease: 'Quad.easeOut' });
+    // 只有默认高度的弹窗才按内容收缩
+    const auto = opts.h === undefined && opts.y === undefined;
+    const tick = () => {
+      if (!this.active) return void scene.events.off('postupdate', tick);
+      if (auto) this.autoFit();
+      this.y = this.fitOff + this.lift;
+    };
+    scene.events.on('postupdate', tick);
+  }
+
+  // 内容变了（翻页、刷新）就重新量一次：没有滚动列表的，缩到最下面那样东西再留一点边
+  private autoFit(): void {
+    let n = 0;
+    let sum = 0;
+    const each = (o: Phaser.GameObjects.GameObject) => {
+      n++;
+      sum += Math.round((o as unknown as { y: number }).y ?? 0);
+      const list = (o as Phaser.GameObjects.Container).list;
+      if (list) list.forEach(each);
+    };
+    this.inner.list.forEach(each);
+    const sig = `${n}:${sum}`;
+    if (sig === this.sig) return;
+    this.sig = sig;
+    let masked = false;
+    let bottom = this.py + 30;
+    const measure = (o: Phaser.GameObjects.GameObject) => {
+      const any = o as unknown as { visible?: boolean; mask?: unknown; list?: Phaser.GameObjects.GameObject[]; commandBuffer?: number[]; getBounds?: () => Phaser.Geom.Rectangle; type: string };
+      if (any.visible === false) return;
+      if (any.mask) masked = true;
+      if (any.type === 'Graphics' && any.commandBuffer) {
+        const m = (o as Phaser.GameObjects.Graphics).getWorldTransformMatrix();
+        const yb = graphicsBottom(any.commandBuffer);
+        if (yb > -Infinity) bottom = Math.max(bottom, m.ty - this.y + yb);
+      } else if (any.type !== 'Zone' && any.type !== 'Container' && any.getBounds) {
+        const b = any.getBounds();
+        if (b.height > 0) bottom = Math.max(bottom, b.bottom - this.y);
+      }
+      if (any.list) any.list.forEach(measure);
+    };
+    this.inner.list.forEach(measure);
+    let want = masked ? this.ph : Math.max(120, Math.min(this.ph, Math.round(bottom - this.py + 14)));
+    // 第一次量完以后只长不缩：翻页时框子不会一会儿大一会儿小
+    if (this.fitted) want = Math.max(want, this.vh);
+    this.fitted = true;
+    if (want === this.vh) return;
+    this.vh = want;
+    this.frameG.clear();
+    woodFrame(this.frameG, this.px - 2, this.py - 2, this.pw + 4, want + 4);
+    this.paper.setTexture(paperTex(this.scene, this.pw - 8, want - 8));
+    // 缩了就往下挪一半，还是居中
+    this.fitOff = Math.round((this.ph - want) / 2);
+    this.blockZ.setPosition(0, -this.fitOff);
   }
 
   // 内容区左上角
@@ -424,6 +492,23 @@ export class Modal extends Phaser.GameObjects.Container {
   }
 }
 let modalDepth = 0;
+
+// 一个 Graphics 画到的最下沿（读它的绘图指令：矩形、线、弧、三角）；什么都没画返回 -Infinity
+const ARGS: Record<number, number> = { 0: 7, 1: 0, 2: 0, 3: 4, 4: 2, 5: 2, 6: 3, 7: 2, 8: 0, 9: 0, 10: 6, 11: 6, 14: 0, 15: 0, 16: 2, 17: 2, 18: 1, 21: 8, 22: 6 };
+function graphicsBottom(buf: number[]): number {
+  let y = -Infinity;
+  for (let i = 0; i < buf.length;) {
+    const c = buf[i];
+    const k = ARGS[c];
+    if (k === undefined) return y;
+    if (c === 3) y = Math.max(y, buf[i + 2] + buf[i + 4]);
+    else if (c === 4 || c === 5) y = Math.max(y, buf[i + 2]);
+    else if (c === 0) y = Math.max(y, buf[i + 2] + buf[i + 3]);
+    else if (c === 10 || c === 11) y = Math.max(y, buf[i + 2], buf[i + 4], buf[i + 6]);
+    i += 1 + k;
+  }
+  return y;
+}
 
 let lastToast: Phaser.GameObjects.Container | null = null;
 export function toast(scene: Phaser.Scene, msg: string, ms = 1600): void {
