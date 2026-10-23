@@ -213,6 +213,11 @@ export class MainScene extends Phaser.Scene implements P.Host {
     this.ambient = [];
     this.followers = [];
     this.stage.removeAll(true);
+    this.heroWalk?.stop();
+    this.heroWalk = null;
+    this.hero = null;
+    this.heroShadow = null;
+    this.heroMark = null;
     const s = store.save;
     const loc = locations[s.location];
     const dp = daypart();
@@ -242,6 +247,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
       if ((p.kind === 'house') && !OUTDOOR_DARK.has(loc.art)) this.smoke(p.x + (img.flipX ? -10 : 10), p.y - img.height + 4);
     }
     actors.forEach((a, i) => this.drawActor(a, spots[i][0], spots[i][1]));
+    this.drawHero(top, bottom);
     if (gk) this.drawGatherSpot(gk, spots[actors.length][0], spots[actors.length][1]);
     if (!hasBadge(s, s.location)) this.drawBadge(top, bottom, spots);
     this.passersby(top);
@@ -351,9 +357,9 @@ export class MainScene extends Phaser.Scene implements P.Host {
       this.tweens.add({ targets: parts, y: '-=3', duration: 380, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
     const z = hit(this, x - 22, y - 58, 44, 80, () => {
-      // 点人：先跳一下表示点到了
+      // 点人：先跳一下表示点到了，主角走过去再说话 / 开打
       this.tweens.add({ targets: main, y: main.y - 4, duration: 70, yoyo: true });
-      a.onTap();
+      this.approach(x, y, a.onTap);
     }).setDepth(830);
     this.stage.add(z);
   }
@@ -429,8 +435,83 @@ export class MainScene extends Phaser.Scene implements P.Host {
     this.stage.add([plate, text(this, x, y + 5, label, { align: 'center', color: left ? 0xd8f0ff : 0x9a9a9a, stroke: 0x000000 }).setDepth(801)]);
     this.stage.add(hit(this, x - 26, y - 26, 52, 48, () => {
       if (!left) return toast(this, '这一处已经空了，多走几个地方再回来');
-      gatherGame(this, () => this.refresh());
+      this.approach(x, y, () => gatherGame(this, () => this.refresh()));
     }).setDepth(830));
+  }
+
+  // 主角站在路上（左下偏中，按十个人的站位算过不挡人、不压名牌）；点了谁就走过去
+  private hero: Phaser.GameObjects.Image | null = null;
+  private heroShadow: Phaser.GameObjects.Ellipse | null = null;
+  private heroWalk: Phaser.Tweens.Tween | null = null;
+  private heroMark: Phaser.GameObjects.Graphics | null = null;
+
+  private drawHero(top: number, bottom: number): void {
+    const s = store.save;
+    const x = Math.round(20 + 0.36 * (W - 40));
+    const y = Math.round(top + 0.86 * (bottom - top));
+    const look = heroLookKey(s.player.classId, s.player.gender);
+    const v = heroVariant(s);
+    this.heroShadow = this.add.ellipse(x, y + 1, 26, 6, 0x000000, 0.3).setStrokeStyle(1, 0x7fb0e0, 0.6).setDepth(y - 0.5);
+    this.hero = this.add.image(x, y, unitTex(this, look, v, 'idle')).setOrigin(0.5, FEET_Y / UNIT_H).setFlipX(true).setDepth(y);
+    // 头顶一颗蓝色小菱形：和路过的侠客分得清哪个是自己（不加名牌，名牌比人宽，会压到旁边的人）
+    const mark = this.add.graphics().setDepth(820);
+    mark.fillStyle(0x0a1a3a).fillTriangle(-6, 0, 6, 0, 0, 8).fillTriangle(-6, 0, 6, 0, 0, -6);
+    mark.fillStyle(0x7fd0ff).fillTriangle(-4, 0, 4, 0, 0, 5).fillTriangle(-4, 0, 4, 0, 0, -4);
+    mark.setPosition(x, y - 66);
+    this.heroMark = mark;
+    this.tweens.add({ targets: mark, y: '-=3', duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.stage.add([this.heroShadow, this.hero, mark]);
+    const hero = this.hero;
+    let f = false;
+    this.ambient.push(this.time.addEvent({ delay: 560, loop: true, callback: () => {
+      if (this.heroWalk?.isPlaying()) return;
+      f = !f;
+      hero.setTexture(unitTex(this, look, v, f ? 'idle2' : 'idle'));
+    } }));
+  }
+
+  // 走到 (tx, ty) 旁边再办事；离得近就直接办。走路时两帧快速交替，脚下影子跟着
+  private approach(tx: number, ty: number, fn: () => void): void {
+    const hero = this.hero;
+    const sh = this.heroShadow;
+    if (!hero?.active || !sh) return fn();
+    const s = store.save;
+    const look = heroLookKey(s.player.classId, s.player.gender);
+    const v = heroVariant(s);
+    const side = hero.x <= tx ? -1 : 1;
+    const nx = Math.max(16, Math.min(W - 16, tx + side * 30));
+    const ny = ty + 2;
+    const dist = Math.hypot(nx - hero.x, ny - hero.y);
+    this.heroWalk?.stop();
+    if (dist < 10) {
+      hero.setFlipX(tx > hero.x);
+      return fn();
+    }
+    hero.setFlipX(nx > hero.x);
+    if (this.heroMark) this.tweens.killTweensOf(this.heroMark);
+    let f = false;
+    let acc = 0;
+    this.heroWalk = this.tweens.add({ targets: [hero, sh], x: nx, y: (t: Phaser.GameObjects.GameObject) => (t === sh ? ny + 1 : ny), duration: Math.min(520, 120 + dist * 2.2), ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        hero.setDepth(hero.y);
+        sh.setDepth(hero.y - 0.5);
+        this.heroMark?.setPosition(hero.x, hero.y - 66);
+        if (++acc % 6 === 0) {
+          f = !f;
+          hero.setTexture(unitTex(this, look, v, f ? 'idle2' : 'idle'));
+        }
+      },
+      onComplete: () => {
+        hero.setTexture(unitTex(this, look, v, 'idle')).setFlipX(tx > hero.x);
+        // 小菱形的上下起伏一直在补间里跑，走完把它的落点挪过来
+        if (this.heroMark) {
+          this.tweens.killTweensOf(this.heroMark);
+          this.heroMark.setPosition(hero.x, hero.y - 66);
+          this.tweens.add({ targets: this.heroMark, y: '-=3', duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        }
+        if (this.scene.isActive()) fn();
+      },
+    });
   }
 
   // 游荡的江湖侠客：在后排慢慢来回走，点他可以切磋、雇来同行
