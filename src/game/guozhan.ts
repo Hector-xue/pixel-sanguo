@@ -12,7 +12,7 @@ import { generalUnit, monsterUnit, playerUnit } from './encounter';
 import { mirrorUnit, rivals } from './rivals';
 import type { Rival } from './rivals';
 import type { GzCity, GzWorld, Save } from './state';
-import { bump, gzRank, log, rollRng } from './state';
+import { bump, gzRank, log, rollRng, deployedUids } from './state';
 import { DAY_BATTLES, TURNS, battlesToNextDay, calDay, calTick, turnOf, weekIndex } from './calendar';
 import { grantReward, oreFor, randomGem } from './welfare';
 
@@ -363,9 +363,10 @@ export function cityReason(s: Save, w: GzWorld, id: string, mode: GzMode, t = ca
 function team(s: Save): { allies: BUnit[]; reserve: BUnit[] } {
   const allies = [playerUnit(s)];
   const reserve: BUnit[] = [];
+  const dep = deployedUids(s);
   for (const g of s.generals) {
     const u = generalUnit(g, s);
-    if (g.uid === s.activeGeneral && u.alive) allies.push(u);
+    if (dep.includes(g.uid) && u.alive) allies.push(u);
     else reserve.push(u);
   }
   return { allies, reserve };
@@ -460,7 +461,7 @@ export function gzBattle(s: Save, id: string, mode: GzMode, seed: number, t = ca
   }
   const { allies, reserve } = team(s);
   const aid = aidOf(s, w, id, mode);
-  if (aid && allies.length < 3) {
+  if (aid && allies.length < 5) {
     allies.push(aidUnit(aid, lv));
     title = `${title} · ${monsters[aid].name}助阵`;
   }

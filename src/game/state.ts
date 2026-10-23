@@ -95,6 +95,8 @@ export interface Save {
   generals: General[];
   inn: General[];
   activeGeneral: string | null;
+  // 第二、三个出战的副将（30 级、60 级各开一个出战位）
+  wings?: string[];
   nextUid: number;
   bag: Record<string, number>;
   location: string;
@@ -787,6 +789,54 @@ export function setActive(s: Save, uid: string | null): void {
   // 操练中的副将叫上场，就不再操练了
   if (uid !== null && s.p3?.training?.who === uid) s.p3.training = null;
   if (uid === null || s.generals.some((g) => g.uid === uid)) s.activeGeneral = uid;
+  if (uid) s.wings = (s.wings ?? []).filter((x) => x !== uid);
+}
+
+// ===== 出战位：1 级一个，30 级、60 级各多开一个 =====
+export const DEPLOY_LEVELS = [1, 30, 60];
+
+export function deploySlots(s: Save): number {
+  return DEPLOY_LEVELS.filter((lv) => s.player.level >= lv).length;
+}
+
+// 这一仗跟着上场的副将（按出战顺序，不超过出战位）
+export function deployedUids(s: Save): string[] {
+  const ids = [s.activeGeneral, ...(s.wings ?? [])].filter((x): x is string => !!x && s.generals.some((g) => g.uid === x));
+  return [...new Set(ids)].slice(0, deploySlots(s));
+}
+
+export function isDeployed(s: Save, uid: string): boolean {
+  return deployedUids(s).includes(uid);
+}
+
+// 副将详情里点「出战」/「休息」
+export function toggleDeploy(s: Save, uid: string): string {
+  const g = s.generals.find((x) => x.uid === uid);
+  if (!g) return '';
+  if (isDeployed(s, uid)) {
+    if (s.activeGeneral === uid) {
+      const rest = (s.wings ?? []).filter((x) => x !== uid);
+      s.activeGeneral = rest.shift() ?? null;
+      s.wings = rest;
+    } else s.wings = (s.wings ?? []).filter((x) => x !== uid);
+    return `${g.name}下场休息`;
+  }
+  const n = deployedUids(s).length;
+  const slots = deploySlots(s);
+  if (n >= slots) {
+    const next = DEPLOY_LEVELS[slots];
+    return next ? `出战位满了（${next}级再开一个），先让一个副将休息` : '出战位满了，先让一个副将休息';
+  }
+  if (s.p3?.training?.who === uid) s.p3.training = null;
+  if (!s.activeGeneral || !s.generals.some((x) => x.uid === s.activeGeneral)) s.activeGeneral = uid;
+  else s.wings = [...(s.wings ?? []).filter((x) => x !== uid && s.generals.some((y) => y.uid === x)), uid];
+  return `${g.name}出战`;
+}
+
+// 离队、进馆驿时把出战位腾出来
+function undeploy(s: Save, uid: string): void {
+  s.wings = (s.wings ?? []).filter((x) => x !== uid);
+  if (s.activeGeneral === uid) s.activeGeneral = s.wings.shift() ?? s.generals[0]?.uid ?? null;
 }
 
 export function moveToInn(s: Save, uid: string): string {
@@ -794,7 +844,7 @@ export function moveToInn(s: Save, uid: string): string {
   if (!g) return '';
   s.generals = s.generals.filter((x) => x !== g);
   s.inn.push(g);
-  if (s.activeGeneral === uid) s.activeGeneral = s.generals[0]?.uid ?? null;
+  undeploy(s, uid);
   return `${g.name}去馆驿休息了`;
 }
 
@@ -813,7 +863,7 @@ export function releaseGeneral(s: Save, uid: string): string {
   if (!g) return '';
   s.generals = s.generals.filter((x) => x !== g);
   s.inn = s.inn.filter((x) => x !== g);
-  if (s.activeGeneral === uid) s.activeGeneral = s.generals[0]?.uid ?? null;
+  undeploy(s, uid);
   return `${g.name}离开了队伍`;
 }
 

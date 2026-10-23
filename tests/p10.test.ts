@@ -4,10 +4,10 @@ import { SPEEDS, settings } from '../src/ui/settings';
 
 describe('背景音乐曲谱', () => {
   it('每首每声部都是整小节、没有认不出的记号、音高在能听的范围里', () => {
-    for (const [id, tr] of Object.entries(_test.TRACKS)) {
+    for (const [id, tr] of [...Object.entries(_test.TRACKS), ...Object.entries(_test.JINGLES).map(([k, v]) => [`乐句${k}`, v] as const)]) {
       for (const part of tr.parts) {
         const toks = part.notes.split(/\s+/).filter((x) => x && x !== '|');
-        expect(toks.length % 8, `${id} ${part.voice}`).toBe(0);
+        if (!id.startsWith('乐句')) expect(toks.length % 8, `${id} ${part.voice}`).toBe(0);
         for (const tk of toks) {
           const ok = part.voice === 'drum' ? /^[DxoG.-]$/.test(tk) : /^([1-7][',]*|-|\.)$/.test(tk);
           expect(ok, `${id} ${part.voice} 「${tk}」`).toBe(true);

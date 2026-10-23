@@ -3,7 +3,7 @@
 // 浏览器要先有一次点按才肯出声，所以第一次点屏幕时才真正开始放；切到后台就停
 import { VOLUME_GAIN, onSettings, settings } from './settings';
 
-export type TrackId = 'title' | 'town' | 'field' | 'battle' | 'boss';
+export type TrackId = 'title' | 'town' | 'field' | 'night' | 'cave' | 'battle' | 'guozhan' | 'boss';
 type Voice = 'zheng' | 'dizi' | 'bell' | 'bass' | 'drum';
 
 interface Part {
@@ -25,6 +25,7 @@ interface Track {
 const D4 = 293.66;
 const C4 = 261.63;
 const G4 = 392;
+const A3 = 220;
 
 const TRACKS: Record<TrackId, Track> = {
   // 标题：编钟领、筝分解和弦，慢
@@ -40,9 +41,10 @@ const TRACKS: Record<TrackId, Track> = {
   town: {
     bpm: 100, root: C4,
     parts: [
-      { voice: 'zheng', notes: '5 6 1\' 6 5 3 2 3 | 5 - 3 2 1 - . . | 2 3 5 3 2 1 6, 1 | 2 - - - . . . . | 3 5 6 5 3 2 1 2 | 3 - 5 3 2 - . . | 1 2 3 5 2 3 2 1 | 1 - - - . . . . |' },
-      { voice: 'zheng', oct: -1, vol: 0.45, notes: '. 1 . 5 . 1 . 5 | . 1 . 5 . 1 . 5 | . 6, . 3 . 6, . 3 | . 5, . 2 . 5, . 2 | . 1 . 5 . 1 . 5 | . 6, . 3 . 6, . 3 | . 2 . 6, . 5, . 2 | . 1 . 5 . 1 - - |' },
-      { voice: 'bass', oct: -2, vol: 0.7, notes: '1 . . . 5, . . . | 1 . . . 5, . . . | 6, . . . 3 . . . | 5, . . . 2 . . . | 1 . . . 5, . . . | 6, . . . 3 . . . | 2 . . . 5, . . . | 1 . . . 1 . . . |' },
+      // A 段明快，B 段转到羽音上略带惆怅，再回 A
+      { voice: 'zheng', notes: '5 6 1\' 6 5 3 2 3 | 5 - 3 2 1 - . . | 2 3 5 3 2 1 6, 1 | 2 - - - . . . . | 3 5 6 5 3 2 1 2 | 3 - 5 3 2 - . . | 1 2 3 5 2 3 2 1 | 1 - - - . . . . | 6 1\' 2\' 1\' 6 5 3 5 | 6 - 5 3 2 - . . | 3 5 6 1\' 6 5 3 2 | 3 - - - . . . . | 2 3 5 6 5 3 2 1 | 2 - 3 2 1 - . . | 6, 1 2 3 2 1 6, 5, | 6, - - - . . . . |' },
+      { voice: 'zheng', oct: -1, vol: 0.45, notes: '. 1 . 5 . 1 . 5 | . 1 . 5 . 1 . 5 | . 6, . 3 . 6, . 3 | . 5, . 2 . 5, . 2 | . 1 . 5 . 1 . 5 | . 6, . 3 . 6, . 3 | . 2 . 6, . 5, . 2 | . 1 . 5 . 1 - - | . 6, . 3 . 6, . 3 | . 5, . 2 . 5, . 2 | . 6, . 3 . 6, . 3 | . 3 . 6 . 3 . 6 | . 2 . 6, . 2 . 6, | . 2 . 6, . 2 . 6, | . 6, . 3 . 6, . 3 | . 6, . 3 . 6, - - |' },
+      { voice: 'bass', oct: -2, vol: 0.7, notes: '1 . . . 5, . . . | 1 . . . 5, . . . | 6, . . . 3 . . . | 5, . . . 2 . . . | 1 . . . 5, . . . | 6, . . . 3 . . . | 2 . . . 5, . . . | 1 . . . 1 . . . | 6, . . . 3 . . . | 5, . . . 2 . . . | 6, . . . 3 . . . | 3 . . . 6, . . . | 2 . . . 6, . . . | 2 . . . 5, . . . | 6, . . . 3 . . . | 6, . . . 6, . . . |' },
       { voice: 'drum', vol: 0.5, notes: 'o . . o . . o . |' },
     ],
   },
@@ -50,9 +52,9 @@ const TRACKS: Record<TrackId, Track> = {
   field: {
     bpm: 80, root: G4,
     parts: [
-      { voice: 'dizi', notes: '6, - 1 2 3 - - - | 2 3 5 3 2 - 1 - | 6, - 1 2 3 - 5 - | 6 - - - - - . . | 5 6 1\' 6 5 - 3 - | 2 3 5 3 2 - 1 - | 6, 1 2 3 2 1 6, - | 6, - - - - - . . |' },
-      { voice: 'zheng', oct: -1, vol: 0.55, notes: '6, 3 6 3 1 3 6 3 | 2 6 2\' 6 3 6 2\' 6 | 6, 3 6 3 1 3 6 3 | 6, 3 6 1\' 6 3 6, - | 5, 2 5 2 6 2 5 2 | 2 6 2\' 6 3 6 2\' 6 | 3 6 1\' 6 3 6 1\' 6 | 6, 3 6 3 6, - - - |' },
-      { voice: 'bass', oct: -2, vol: 0.6, notes: '6, - - - - - - - | 2 - - - - - - - | 6, - - - - - - - | 6, - - - - - - - | 5, - - - - - - - | 2 - - - - - - - | 3 - - - - - - - | 6, - - - - - - - |' },
+      { voice: 'dizi', notes: '6, - 1 2 3 - - - | 2 3 5 3 2 - 1 - | 6, - 1 2 3 - 5 - | 6 - - - - - . . | 5 6 1\' 6 5 - 3 - | 2 3 5 3 2 - 1 - | 6, 1 2 3 2 1 6, - | 6, - - - - - . . | 3 - 5 6 1\' - 6 - | 5 6 5 3 2 - 3 - | 5 - 3 2 1 - 2 - | 3 - - - - - . . | 6 - 5 3 5 - 6 - | 1\' - 6 5 3 - 2 - | 1 2 3 5 3 2 1 6, | 6, - - - - - . . |' },
+      { voice: 'zheng', oct: -1, vol: 0.55, notes: '6, 3 6 3 1 3 6 3 | 2 6 2\' 6 3 6 2\' 6 | 6, 3 6 3 1 3 6 3 | 6, 3 6 1\' 6 3 6, - | 5, 2 5 2 6 2 5 2 | 2 6 2\' 6 3 6 2\' 6 | 3 6 1\' 6 3 6 1\' 6 | 6, 3 6 3 6, - - - | 3 6 1\' 6 3 6 1\' 6 | 5, 2 5 2 6 2 5 2 | 1 3 5 3 1 3 5 3 | 3 6 1\' 6 3 6 3 - | 6, 3 6 3 1 3 6 3 | 1 3 5 3 1 3 5 3 | 1 3 5 3 2 3 6, 3 | 6, 3 6 3 6, - - - |' },
+      { voice: 'bass', oct: -2, vol: 0.6, notes: '6, - - - - - - - | 2 - - - - - - - | 6, - - - - - - - | 6, - - - - - - - | 5, - - - - - - - | 2 - - - - - - - | 3 - - - - - - - | 6, - - - - - - - | 3 - - - - - - - | 5, - - - - - - - | 1 - - - - - - - | 3 - - - - - - - | 6, - - - - - - - | 1 - - - - - - - | 1 - - - - - - - | 6, - - - - - - - |' },
     ],
   },
   // 战斗：战鼓、筝的急促反复、笛子在上面
@@ -60,9 +62,37 @@ const TRACKS: Record<TrackId, Track> = {
     bpm: 152, root: D4,
     parts: [
       { voice: 'zheng', oct: -1, vol: 0.75, notes: '6, 6, 1 6, 2 6, 3 2 | 6, 6, 1 6, 5, 6, 1 2 | 6, 6, 1 6, 2 6, 3 5 | 6 5 3 2 1 2 3 . |' },
-      { voice: 'dizi', vol: 0.8, notes: '6 - - 5 6 - 1\' - | 6 - 5 3 2 - 3 - | 5 - - 3 5 - 6 - | 3 - - - - - . . | 6 - - 5 6 - 1\' 2\' | 1\' - 6 5 3 - 5 - | 6 5 3 2 1 2 3 5 | 6 - - - - - . . |' },
+      { voice: 'dizi', vol: 0.8, notes: '6 - - 5 6 - 1\' - | 6 - 5 3 2 - 3 - | 5 - - 3 5 - 6 - | 3 - - - - - . . | 6 - - 5 6 - 1\' 2\' | 1\' - 6 5 3 - 5 - | 6 5 3 2 1 2 3 5 | 6 - - - - - . . | 3\' - 2\' 1\' 6 - 5 - | 6 - 1\' - 6 5 3 - | 5 - 6 - 1\' - 2\' - | 3\' - - - - - . . | 2\' - 1\' 6 5 - 6 - | 1\' - 6 5 3 - 2 - | 3 5 6 1\' 6 5 3 2 | 6, - - - - - . . |' },
       { voice: 'bass', oct: -2, vol: 0.8, notes: '6, . 6, . 6, . 5, . | 6, . 6, . 1 . 2 . | 6, . 6, . 6, . 5, . | 3 . 3 . 2 . 3 . |' },
       { voice: 'drum', notes: 'D . x . D D x . | D . x . D D x x |' },
+    ],
+  },
+  // 夜里的野外：笛子放慢，筝稀稀落落，偶尔一声钟
+  night: {
+    bpm: 60, root: A3,
+    parts: [
+      { voice: 'dizi', vol: 0.8, notes: '3 - - - 2 - 1 - | 6, - - - - - - - | 1 - 2 - 3 - 5 - | 3 - - - - - - - | 6 - 5 - 3 - 2 - | 1 - - - 2 - - - | 3 - 2 - 1 - 6, - | 6, - - - - - - - |' },
+      { voice: 'zheng', vol: 0.4, notes: '6, . . 3 . . 6 . | 6, . . 3 . . 6 . | 1 . . 5 . . 1\' . | 1 . . 5 . . 1\' . | 6, . . 3 . . 6 . | 1 . . 5 . . 1\' . | 2 . . 6 . . 2\' . | 6, . . 3 . . 6 . |' },
+      { voice: 'bell', vol: 0.3, notes: '3\' . . . . . . . | . . . . . . . . | . . . . . . . . | . . . . . . . . |' },
+    ],
+  },
+  // 宝洞、古墓：低音长鸣，钟声和木鱼隔很久响一下
+  cave: {
+    bpm: 66, root: D4,
+    parts: [
+      { voice: 'bass', oct: -1, vol: 0.7, notes: '6, - - - - - - - | 5, - - - - - - - | 6, - - - - - - - | 3, - - - 2, - - - |' },
+      { voice: 'bell', vol: 0.45, notes: '3 . . . . . 6, . | . . 2 . . . . . | 1 . . . . . 6, . | . . . . . . . . |' },
+      { voice: 'drum', vol: 0.6, notes: 'o . . . . . . . | . . . . o . . . |' },
+    ],
+  },
+  // 国战：行军鼓点，笛子吹号
+  guozhan: {
+    bpm: 112, root: C4,
+    parts: [
+      { voice: 'drum', notes: 'D . . . D . x . | D . D . D . x x |' },
+      { voice: 'bass', oct: -2, vol: 0.8, notes: '1 . 1 . 5, . 5, . | 6, . 6, . 5, . 5, . |' },
+      { voice: 'zheng', oct: -1, vol: 0.55, notes: '1 5 1\' 5 1 5 1\' 5 | 6, 3 6 3 5, 2 5 2 |' },
+      { voice: 'dizi', vol: 0.75, notes: '1\' - 5 - 6 - 1\' - | 2\' - 1\' 6 5 - - - | 6 - 5 3 5 - 6 - | 1\' - - - - - . . | 3\' - 2\' 1\' 2\' - 1\' 6 | 5 - 6 - 1\' - 2\' - | 3\' 2\' 1\' 6 5 6 1\' 2\' | 1\' - - - - - . . |' },
     ],
   },
   // 名将、首领：低沉，锣开场
@@ -356,8 +386,56 @@ export function sfx(kind: SfxKind): void {
   }
 }
 
+// ===== 短乐句：打赢、升级、打输。放一遍就停，放的时候背景音乐压低一点；走音效的音量 =====
+export type JingleId = 'win' | 'level' | 'lose';
+const JINGLES: Record<JingleId, Track> = {
+  win: { bpm: 168, root: C4, parts: [
+    { voice: 'zheng', notes: "1 3 5 6 5 - 1' - - - - -" },
+    { voice: 'bell', vol: 0.8, notes: ". . . . . . 1' - - - - -" },
+    { voice: 'bass', oct: -2, vol: 0.7, notes: '1 - - - 5, - 1 - - - - -' },
+    { voice: 'drum', vol: 0.7, notes: 'D . . . D . D . . . . .' },
+  ] },
+  level: { bpm: 180, root: D4, parts: [
+    { voice: 'bell', notes: "5 6 1' 2' 3' - 5' - - - - -" },
+    { voice: 'zheng', oct: -1, vol: 0.6, notes: "1 . 5 . 1' . 3' - - - - -" },
+  ] },
+  lose: { bpm: 84, root: A3, parts: [
+    { voice: 'dizi', notes: '3 - 2 - 1 - 6, - - - - -' },
+    { voice: 'bass', oct: -1, vol: 0.6, notes: '6, - - - 5, - 6, - - - - -' },
+  ] },
+};
+
+export function playJingle(id: JingleId): void {
+  if (settings().sfx === 0) return;
+  const c = ensure();
+  if (!c || !sfxBus || c.state !== 'running') return;
+  const tr = JINGLES[id];
+  const step = 60 / tr.bpm / 2;
+  const t0 = c.currentTime + 0.05;
+  const out = c.createGain();
+  // 音效总线上的音量是按小芯片音调的，乐句要放大一些才和背景音乐相当
+  out.gain.value = 1.6;
+  out.connect(sfxBus);
+  let len = 0;
+  tr.parts.forEach((part) => {
+    parse(part).forEach((st, i) => {
+      if (st.tone === null) return;
+      const t = t0 + i * step;
+      if (typeof st.tone === 'string') drum(out, st.tone, t, part.vol ?? 1);
+      else play(out, part.voice, t, tr.root * Math.pow(2, st.tone / 12), st.len * step, part.vol ?? 1);
+    });
+    len = Math.max(len, parse(part).length * step);
+  });
+  // 背景音乐让一让
+  if (now) {
+    now.gain.gain.setTargetAtTime(0.3, c.currentTime, 0.05);
+    now.gain.gain.setTargetAtTime(1, t0 + len + 0.3, 0.4);
+  }
+  setTimeout(() => out.disconnect(), (len + 3) * 1000);
+}
+
 // 测试用：曲谱解析
-export const _test = { parse, TRACKS };
+export const _test = { parse, TRACKS, JINGLES };
 
 // 开发时在浏览器里量音量用
 if (typeof window !== 'undefined' && import.meta.env?.DEV) {

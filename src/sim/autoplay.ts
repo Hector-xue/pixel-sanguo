@@ -16,7 +16,7 @@ import { buyGear, canEquip, combineGem, combineOre, equipGear, forge, forgeRows,
 import type { Save } from '../game/state';
 import {
   acceptQuest, allocate, arrive, bagCap, bagCount, bagUsed, buy, currentQuest, findPath, heal, learnSkill, moveToInn, moveToTeam,
-  npcLocation, playerStats, sell, setActive, skillSchool, turnInQuest, upgradeSkill,
+  deploySlots, isDeployed, npcLocation, playerStats, sell, setActive, skillSchool, turnInQuest, upgradeSkill,
 } from '../game/state';
 import { buyGold, buyMount, ride, shopBuy, visited } from '../game/town';
 import { arenaBattle, challengers } from '../game/arena';
@@ -271,9 +271,12 @@ function upkeep(sim: Sim): void {
       const row = generalSkillRows(g).find((r) => r.action === 'learn' && !r.changesClass);
       if (row) {
         const was = s.activeGeneral;
-        setActive(s, null);
+        const wings = s.wings;
+        s.activeGeneral = null;
+        s.wings = [];
         generalLearn(s, g.uid, row.id);
-        setActive(s, was);
+        s.activeGeneral = was;
+        s.wings = wings;
       }
     }
     // 文人自己没输出：全队都是文人时让一个将才改学异人技能；出战优先带能打的
@@ -282,12 +285,17 @@ function upkeep(sim: Sim): void {
       const row = g && generalSkillRows(g).find((r) => r.cls === 'mystic' && r.action === 'learn');
       if (g && row) {
         setActive(s, null);
+        s.wings = [];
         generalLearn(s, g.uid, row.id);
       }
     }
     const score = (g: (typeof s.generals)[number]) => g.level + (g.grade === '常人' ? 0 : 6) + (p.classId === 'scholar' && g.classId !== 'scholar' ? 15 : 0);
-    const best = [...s.generals].sort((a, c) => score(c) - score(a))[0];
-    if (best && best.hp > 0) setActive(s, best.uid);
+    // 出战位有几个就带几个最能打的
+    const ranked = [...s.generals].filter((g) => g.hp > 0).sort((a, c) => score(c) - score(a));
+    if (ranked.length) {
+      setActive(s, ranked[0].uid);
+      s.wings = ranked.slice(1, deploySlots(s)).map((g) => g.uid);
+    }
   }
   const st = playerStats(s);
   const low = s.player.hp < st.maxHp * 0.6 || s.generals.some((g) => g.hp <= 1) || bagCount(s, DRUGS.find(([lv]) => p.level < lv)![1]) < 3;
@@ -433,7 +441,7 @@ function doFlag(sim: Sim, flag: string): boolean {
       setFormation(s, s.player.level >= 10 ? 'fengshi' : 'changshe');
       return !!s.flags.formationSet;
     case 'trained': {
-      const g = s.generals.find((x) => x.uid !== s.activeGeneral) ?? s.inn[0];
+      const g = s.generals.find((x) => !isDeployed(s, x.uid)) ?? s.inn[0];
       if (g) setTrainee(s, g.uid);
       return !!s.flags.trained;
     }

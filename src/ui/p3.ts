@@ -26,7 +26,7 @@ import { candidateName, candidates, divorce, giftCost, giftsLeft, giveGift, hire
 import { canSell, collectStall, fairPrice, putOnStall, setStallName, settleStall, takeOffStall } from '../game/stall';
 import type { Grade, Save } from '../game/state';
 import { allGenerals, makeRecruit, ownsRecruit, recruitLevel } from '../game/generals';
-import { bagCount, findGeneral, generalStats, playerStats, sectRank } from '../game/state';
+import { bagCount, findGeneral, generalStats, isDeployed, playerStats, sectRank } from '../game/state';
 import { store } from '../game/store';
 import { TRAIN_SHARE, setTrainee, trainee } from '../game/training';
 import { expandVault, shopBuy, vaultStore, vaultTake, vaultUsed } from '../game/town';
@@ -240,9 +240,9 @@ export function trainingPanel(h: Host): void {
       render();
     }));
     y += 26;
-    const list = allGenerals(s).filter((g) => g.uid !== s.activeGeneral);
+    const list = allGenerals(s).filter((g) => !isDeployed(s, g.uid));
     if (!list.length) {
-      dyn.add(text(h, m.cx, y, '除了出战的那位，还没有别的副将。先去招一个。', { wrap: m.cw, color: C.gray }));
+      dyn.add(text(h, m.cx, y, '除了出战的，还没有别的副将。先去招一个。', { wrap: m.cw, color: C.gray }));
       return;
     }
     const r = rows(h, m, dyn, y);

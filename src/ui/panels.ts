@@ -21,9 +21,8 @@ import { mirrorUnit } from '../game/rivals';
 import {
   abandonBounty, acceptBounty, acceptQuest, allocate, bagCap, bagUsed, buy, currentQuest, findGeneral, generalStats, heal,
   healCost, learnSkill, log, moveToInn, moveToTeam, npcMark, playerAttrs, playerStats, profCap, questDestination,
-  questProgressText, quickRecover, releaseGeneral, sell, sellPrice, serialize, setActive, skillSchool,
-  targetHpMp, turnInBounty, turnInQuest, upgradeSkill, useItem, skillLevelText,
-} from '../game/state';
+  questProgressText, quickRecover, releaseGeneral, sell, sellPrice, serialize, skillSchool,
+  targetHpMp, turnInBounty, turnInQuest, upgradeSkill, useItem, skillLevelText, DEPLOY_LEVELS, deploySlots, deployedUids, isDeployed, toggleDeploy } from '../game/state';
 import { generalRebirth, generalRebirthReason } from '../game/rebirth';
 import type { Target } from '../game/state';
 import { store } from '../game/store';
@@ -281,9 +280,10 @@ export function generalsPanel(h: Host): void {
       const pv = g.recruitId ? PASSIVES[g.recruitId] : undefined;
       dyn.add(text(h, m.cx + 32, y + 19, `${g.grade} · ${classes[g.classId].name}${fc ? ` · ${FACTION_NAMES[fc]}` : ''}${pv ? ` · ${pv.name}` : ''}`, { color: C.brown }));
       if (genTab === 'team') {
-        const active = s.activeGeneral === g.uid;
+        const active = isDeployed(s, g.uid);
         dyn.add(new Button(h, m.cx + m.cw - 50, y + 6, 50, 24, active ? '战' : '休', () => {
-          setActive(s, active ? null : g.uid);
+          const r = toggleDeploy(s, g.uid);
+          if (r.includes('满')) toast(h, r);
           h.refresh();
           render();
         }, { style: active ? 'red' : 'tan' }));
@@ -308,7 +308,7 @@ export function generalsPanel(h: Host): void {
       }
     }
     if (!list.length) dyn.add(text(h, m.cx + 4, m.cy + 36, genTab === 'team' ? '还没有副将。\n在野外把怪物打到残血，用「招降」收服。新手任务里赵云会教你。' : '馆驿里没有副将。随行满3个后，再招降的会自动放到这里。', { wrap: m.cw - 8, color: C.gray }));
-    dyn.add(text(h, m.cx, m.py + m.ph - 40, '「战」：每场战斗带它上场；其余随行副将在战斗中用「招将」换上。', { wrap: m.cw, color: C.gray }));
+    dyn.add(text(h, m.cx, m.py + m.ph - 40, `「战」：每场战斗带它上场，现在有${deploySlots(s)}个出战位${deploySlots(s) < DEPLOY_LEVELS.length ? `（${DEPLOY_LEVELS[deploySlots(s)]}级再开一个）` : ''}；其余随行副将在战斗中用「招将」换上。`, { wrap: m.cw, color: C.gray }));
   };
   render();
 }
@@ -328,7 +328,7 @@ export function generalDetail(h: Host, uid: string): void {
   m.inner.add(fg);
   m.inner.add(h.add.image(L - 2, y + 2, avatarTex(h, g.look)).setOrigin(0).setScale(2));
   m.inner.add(text(h, L + 56, y + 4, g.name, { color: C.darkRed, scale: 2 }));
-  m.inner.add(text(h, L + 56, y + 34, `ID ${g.uid.slice(1).padStart(5, '0')} · ${inTeam ? (s.activeGeneral === uid ? '参战' : '休息') : '馆驿'}`, { color: C.brown }));
+  m.inner.add(text(h, L + 56, y + 34, `ID ${g.uid.slice(1).padStart(5, '0')} · ${inTeam ? (isDeployed(s, uid) ? '参战' : '休息') : '馆驿'}`, { color: C.brown }));
   y += 58;
   y = section(m, y, '基本');
   kv(m, L, y, '头衔', g.grade);
@@ -417,10 +417,10 @@ export function generalDetail(h: Host, uid: string): void {
     }],
   ];
   if (inTeam) {
-    btns.push([s.activeGeneral === uid ? '休息' : '出战', () => {
-      setActive(s, s.activeGeneral === uid ? null : uid);
+    btns.push([isDeployed(s, uid) ? '休息' : '出战', () => {
+      const r = toggleDeploy(s, uid);
       m.close();
-      done(h);
+      done(h, r);
     }]);
     btns.push(['去馆驿', () => {
       const r = moveToInn(s, uid);
@@ -787,9 +787,10 @@ function sparWith(h: Host, pl: AiPlayer): void {
   const s = store.save;
   const allies = [playerUnit(s)];
   const reserve = [];
+  const dep = deployedUids(s);
   for (const g of s.generals) {
     const u = generalUnit(g);
-    if (g.uid === s.activeGeneral && u.alive) allies.push(u);
+    if (dep.includes(g.uid) && u.alive) allies.push(u);
     else reserve.push(u);
   }
   for (const u of [...allies, ...reserve]) {

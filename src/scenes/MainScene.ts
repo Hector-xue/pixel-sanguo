@@ -44,7 +44,7 @@ import { announce } from '../game/guozhan';
 import { autoTick } from '../game/cloud';
 import { checkAchievements } from '../game/achv';
 import { treasureNow } from '../game/events';
-import { log } from '../game/state';
+import { isDeployed, log } from '../game/state';
 import { today } from '../game/calendar';
 import { playMusic } from '../ui/audio';
 
@@ -150,7 +150,8 @@ export class MainScene extends Phaser.Scene implements P.Host {
   // 存档变了就整页重画，简单可靠；舞台只在地点、时辰、人物变了才重建（不然动画会一直重来）
   refresh(): void {
     // 城里城外两首曲子
-    playMusic(locations[store.save.location]?.town ? 'town' : 'field');
+    const here = locations[store.save.location];
+    playMusic(here?.town ? 'town' : OUTDOOR_DARK.has(here?.art) ? 'cave' : daypart() === 'night' ? 'night' : 'field');
     const got = checkAchievements(store.save);
     if (got.length) this.time.delayedCall(300, () => toast(this, got.join('\n'), 2800));
     store.commit();
@@ -606,13 +607,14 @@ export class MainScene extends Phaser.Scene implements P.Host {
       const gx = 258 + i * 33;
       const gy = y + 6;
       const gen = s.generals[i];
-      const active = gen && gen.uid === s.activeGeneral;
+      const active = gen && isDeployed(s, gen.uid);
       const fg = this.add.graphics();
       fg.fillStyle(active ? UI.goldHi : 0x6a5a48).fillRect(gx, gy, 30, 30);
       fg.fillStyle(active ? 0x5a2a10 : 0x24160c).fillRect(gx + 1, gy + 1, 28, 28);
       this.layer.add(fg);
       if (gen) {
-        this.layer.add(this.add.image(gx + 3, gy + 2, avatarTex(this, gen.look)).setOrigin(0));
+        // 没出战的副将头像压暗，一眼看出这一仗谁上场
+        this.layer.add(this.add.image(gx + 3, gy + 2, avatarTex(this, gen.look)).setOrigin(0).setAlpha(active ? 1 : 0.45));
         const gs = generalStats(gen);
         this.layer.add(bar(this, gx + 2, gy + 25, 26, 3, gen.hp / gs.maxHp, C.red, C.darkRed));
         this.layer.add(hit(this, gx, gy, 30, 30, () => P.generalDetail(this, gen.uid)));

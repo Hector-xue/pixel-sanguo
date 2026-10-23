@@ -15,8 +15,7 @@ import type { Stats } from '../core/types';
 import type { General, Save } from './state';
 import {
   addGeneral, addItem, addProf, heroVariant, checkCollect, findGeneral, generalStats, grantGeneralExp, grantPlayerExp,
-  log, makeGeneral, onBattleKills, onCapture, playerStats, questDropAllowed,
-} from './state';
+  log, makeGeneral, onBattleKills, onCapture, playerStats, questDropAllowed, deployedUids } from './state';
 import { afterGuard } from './dig';
 import { afterArena } from './arena';
 import { afterContest } from './contest';
@@ -133,9 +132,10 @@ export function startGroupBattle(s: Save, group: MonsterGroup, seed: number): Ba
   const enemies = rollEnemies(group, rng);
   const allies = [playerUnit(s)];
   const reserve: BUnit[] = [];
+  const dep = deployedUids(s);
   for (const g of s.generals) {
     const u = generalUnit(g, s);
-    if (g.uid === s.activeGeneral && u.alive) allies.push(u);
+    if (dep.includes(g.uid) && u.alive) allies.push(u);
     else reserve.push(u);
   }
   const merc = mercUnit(s);

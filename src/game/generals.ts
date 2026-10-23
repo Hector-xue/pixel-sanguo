@@ -6,6 +6,7 @@ import type { ClassId } from '../core/types';
 import { ATTR_KEYS } from '../core/types';
 import type { General, Grade, Save } from './state';
 import {
+  isDeployed,
   addGeneral, bagCount, bump, findGeneral, generalStats, grantGeneralExp, huajingReason, log, onFlag, profCap, removeItem, rollApt, rollRng,
 } from './state';
 
@@ -229,7 +230,7 @@ export function generalLearn(s: Save, uid: string, skillId: string): string {
   if (!g) return '';
   const row = generalSkillRows(g).find((r) => r.id === skillId);
   if (!row || row.action !== 'learn') return row?.reason || '不能学';
-  if (s.activeGeneral === uid) return '先把这个副将设成「休息」再学技能';
+  if (isDeployed(s, uid)) return '先把这个副将设成「休息」再学技能';
   if (row.changesClass) {
     g.classId = row.cls;
     g.skills = [];

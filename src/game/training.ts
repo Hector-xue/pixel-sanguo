@@ -3,7 +3,7 @@
 import { balance } from '../data';
 import { expToNext } from '../core/formulas';
 import type { Save } from './state';
-import { bump, findGeneral, grantGeneralExp, log, onFlag } from './state';
+import { bump, findGeneral, grantGeneralExp, log, onFlag, isDeployed } from './state';
 
 export const TRAIN_SHARE = 0.5;
 
@@ -19,7 +19,7 @@ export function setTrainee(s: Save, uid: string | null): string {
   }
   const g = findGeneral(s, uid);
   if (!g) return '';
-  if (s.activeGeneral === uid) return '出战的副将本来就在拿经验，挑一个歇着的';
+  if (isDeployed(s, uid)) return '出战的副将本来就在拿经验，挑一个歇着的';
   s.p3.training = { who: uid };
   s.flags.trained = true;
   onFlag(s, 'trained');
@@ -54,6 +54,6 @@ export function migrateTraining(s: Save, now = Date.now()): void {
   if (g) {
     const exp = Math.floor(hours * Math.round(expToNext(g.level) * balance.training.expRatioPerHour));
     if (exp > 0) grantGeneralExp(g, exp);
-    s.p3.training = s.activeGeneral === g.uid ? null : { who: g.uid };
+    s.p3.training = isDeployed(s, g.uid) ? null : { who: g.uid };
   } else s.p3.training = null;
 }

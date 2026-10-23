@@ -571,7 +571,9 @@ class Resolver {
       return;
     }
     this.emit({ t: 'act', actor: u.id, label: '招将', kind: 'none' });
-    const current = this.b.units.find((x) => x.side === 'ally' && x.kind === 'general');
+    // 场上不止一个副将时：先换倒下的，再换气血最少的（只有一个副将时和原来一样）
+    const gens = this.b.units.filter((x) => x.side === 'ally' && x.kind === 'general');
+    const current = gens.find((x) => !x.alive) ?? gens.sort((a, c) => a.hp / Math.max(1, a.maxHp) - c.hp / Math.max(1, c.maxHp))[0];
     this.b.reserve = this.b.reserve.filter((r) => r !== incoming);
     if (current) {
       this.b.units = this.b.units.filter((x) => x !== current);

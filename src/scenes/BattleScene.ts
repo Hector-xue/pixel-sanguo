@@ -25,7 +25,7 @@ import { Button, H, SAFE_TOP, W, drawBar, sfx, text, textWidth, wrap } from '../
 import { fit } from '../ui/textfit';
 import { PAPER, UI, paperTex, titlePlaque, vgrad, woodFrame } from '../art/chrome';
 import { FORMS, clashText } from '../game/formation';
-import { playMusic } from '../ui/audio';
+import { playJingle, playMusic } from '../ui/audio';
 import { saveSettings, settings } from '../ui/settings';
 import { passiveOf } from '../core/passives';
 import type { FormId } from '../game/formation';
@@ -56,8 +56,9 @@ const BACK_SPREAD: Record<number, Record<number, number[]>> = {
   2: { 1: [0.5], 2: [0, 0.5], 3: [0, 0.5, 1] },
   3: { 1: [0.25], 2: [0.25, 0.75], 3: [0.25, 0.75, 0.75] },
 };
-// 主角、出战副将、雇来的队友
-const ALLY_SLOTS: [number, number][] = [[302, 0.48], [244, 0.92], [250, 0.06]];
+// 主角站右边中间；副将（最多三个）和雇来的队友按上场顺序占后面这几格
+const HERO_SLOT: [number, number] = [302, 0.48];
+const ALLY_SLOTS: [number, number][] = [[244, 0.92], [250, 0.06], [196, 0.3], [196, 0.7]];
 const gy = (v: number) => Math.round(G_TOP + v * (G_BOT - G_TOP));
 
 interface View {
@@ -147,6 +148,8 @@ export class BattleScene extends Phaser.Scene {
   private replay: ReplayRecord | null = null;
   private replayAt = 0;
   private speed = 1;
+  // 我方各人占哪一格
+  private allySlot = new Map<string, number>();
 
   constructor() {
     super('Battle');
@@ -160,6 +163,7 @@ export class BattleScene extends Phaser.Scene {
     this.speed = data.replay ? 1 : st.speed;
     this.b = data.replay ? createBattle(JSON.parse(JSON.stringify(data.replay.init))) : data.battle!;
     this.views.clear();
+    this.allySlot = new Map();
     this.auto = !data.replay && st.keepAuto && st.lastAuto;
     this.popup = null;
     this.banner = null;
@@ -195,7 +199,7 @@ export class BattleScene extends Phaser.Scene {
     this.autoBtn = new Button(this, W - 68, H - 36, 56, 24, this.auto ? '手动' : '自动', () => this.toggleAuto(), { style: this.auto ? 'red' : 'tan' }).setDepth(270);
     // 名将、首领另换一首
     const boss = this.b.units.some((u) => u.side === 'enemy' && u.monsterId && (monsters[u.monsterId]?.boss || monsters[u.monsterId]?.historic));
-    playMusic(boss ? 'boss' : 'battle');
+    playMusic(boss ? 'boss' : this.b.tag?.startsWith('gz:') ? 'guozhan' : 'battle');
     if (this.replay) {
       this.autoBtn.setVisible(false);
       new Button(this, W - 132, H - 36, 56, 24, '退出', () => this.scene.start('Main'), { style: 'tan' }).setDepth(270);
@@ -371,7 +375,16 @@ export class BattleScene extends Phaser.Scene {
       const sp = table[Math.min(3, same.length)] ?? SPREAD[3];
       return [ROW_X[u.row], gy(sp[Math.min(same.indexOf(u), sp.length - 1)])];
     }
-    const [x, v] = ALLY_SLOTS[u.kind === 'player' ? 0 : u.kind === 'mirror' ? 2 : 1];
+    if (u.kind === 'player') return [HERO_SLOT[0], gy(HERO_SLOT[1])];
+    // 第一次上场按顺序占一格；招将换上来的接替换下去那位的位置
+    let k = this.allySlot.get(u.id);
+    if (k === undefined) {
+      const used = new Set(this.allySlot.values());
+      k = ALLY_SLOTS.findIndex((_, i) => !used.has(i));
+      if (k < 0) k = ALLY_SLOTS.length - 1;
+      this.allySlot.set(u.id, k);
+    }
+    const [x, v] = ALLY_SLOTS[k];
     return [x, gy(v)];
   }
 
@@ -1015,6 +1028,10 @@ export class BattleScene extends Phaser.Scene {
           break;
         }
         case 'summon': {
+          if (e.out && this.allySlot.has(e.out)) {
+            this.allySlot.set(e.in, this.allySlot.get(e.out)!);
+            this.allySlot.delete(e.out);
+          }
           if (e.out) {
             const o = this.views.get(e.out);
             if (o) {
@@ -1426,8 +1443,9 @@ export class BattleScene extends Phaser.Scene {
     if (this.replay) return this.replayEnd();
     const sum = finishBattle(store.save, this.b);
     store.flush();
-    sfx(sum.outcome === 'win' ? 'win' : sum.outcome === 'lose' ? 'lose' : 'step');
-    if (sum.lines.some((l) => l.includes('升到'))) this.time.delayedCall(700, () => sfx('level'));
+    if (sum.outcome === 'win' || sum.outcome === 'lose') playJingle(sum.outcome);
+    else sfx('step');
+    if (sum.lines.some((l) => l.includes('升到'))) this.time.delayedCall(1400, () => playJingle('level'));
     // 胜利：活着的我方举起兵器
     if (sum.outcome === 'win') for (const v of this.views.values()) if (!v.flip && !v.dead) this.pose(v, 'cast');
     this.time.delayedCall(sum.outcome === 'win' ? 500 : 200, () => this.showSummary(sum));

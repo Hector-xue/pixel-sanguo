@@ -8,7 +8,7 @@ import { generalUnit, playerUnit } from './encounter';
 import { mirrorUnit, rivalGeneralUnit, rivalLevel, rivals } from './rivals';
 import type { Rival } from './rivals';
 import type { Save } from './state';
-import { bump, findGeneral, onFlag } from './state';
+import { bump, findGeneral, onFlag, deployedUids } from './state';
 import { calTick, calDay, tomorrowHint } from './calendar';
 
 const A = balance.arena;
@@ -54,9 +54,10 @@ export function challengers(s: Save, kind: Ladder): { rank: number; rival: Rival
 function sides(s: Save): { allies: BUnit[]; reserve: BUnit[] } {
   const allies = [playerUnit(s)];
   const reserve: BUnit[] = [];
+  const dep = deployedUids(s);
   for (const g of s.generals) {
     const u = generalUnit(g, s);
-    if (g.uid === s.activeGeneral && u.alive) allies.push(u);
+    if (dep.includes(g.uid) && u.alive) allies.push(u);
     else reserve.push(u);
   }
   // 切磋满血满精力上

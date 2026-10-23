@@ -7,7 +7,7 @@ import { expToNext } from '../core/formulas';
 import { Rng } from '../core/rng';
 import { generalUnit, monsterUnit, playerUnit } from './encounter';
 import type { Save } from './state';
-import { arrive, bagCount, bump, grantPlayerExp, log, removeItem, rollRng } from './state';
+import { arrive, bagCount, bump, grantPlayerExp, log, removeItem, rollRng, deployedUids } from './state';
 import { DAY_BATTLES, calDay, calTick, dayHour, tomorrowHint } from './calendar';
 import { visited } from './town';
 import { grantReward, rollLoot } from './welfare';
@@ -68,9 +68,10 @@ export function treasureBattle(s: Save, seed: number): Battle | string {
   enemies.forEach((e) => (e.name = '宝藏守卫'));
   const allies = [playerUnit(s)];
   const reserve: BUnit[] = [];
+  const dep = deployedUids(s);
   for (const g of s.generals) {
     const u = generalUnit(g, s);
-    if (g.uid === s.activeGeneral && u.alive) allies.push(u);
+    if (dep.includes(g.uid) && u.alive) allies.push(u);
     else reserve.push(u);
   }
   return createBattle({ seed: (rng.next() * 4294967296) >>> 0, allies, reserve, enemies, items: { ...s.bag }, title: '宝藏守卫', canFlee: false, tag: 'treasure' });

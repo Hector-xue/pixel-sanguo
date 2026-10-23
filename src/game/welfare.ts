@@ -4,7 +4,7 @@ import type { LootEntry, Reward } from '../data';
 import { Rng } from '../core/rng';
 import { giveRandomRecruit, giveRecruit } from './generals';
 import type { Save } from './state';
-import { addItem, addProf, bump, dayKey, dayNum, findGeneral, generalStats, log, playerStats, removeItem, rollRng } from './state';
+import { addItem, addProf, bump, dayKey, dayNum, findGeneral, generalStats, isDeployed, log, playerStats, removeItem, rollRng } from './state';
 
 // ===== 发奖励 =====
 export function grantReward(s: Save, r: Reward): string[] {
@@ -105,18 +105,21 @@ export function readSkillBookGeneral(s: Save, uid: string, skillId: string): str
 export function eatPill(s: Save): string {
   const p = s.player;
   const st = playerStats(s);
-  const g = s.generals.find((x) => x.uid === s.activeGeneral);
-  const gs = g ? generalStats(g) : null;
-  const full = p.hp >= st.maxHp && p.mp >= st.maxMp && (!g || !gs || (g.hp >= gs.maxHp && g.mp >= gs.maxMp));
+  const gens = s.generals.filter((x) => isDeployed(s, x.uid));
+  const full = p.hp >= st.maxHp && p.mp >= st.maxMp && gens.every((g) => {
+    const gs = generalStats(g);
+    return g.hp >= gs.maxHp && g.mp >= gs.maxMp;
+  });
   if (full) return '气血精力都是满的';
   if (!removeItem(s, 'tilidan', 1)) return '没有体力丹';
   p.hp = st.maxHp;
   p.mp = st.maxMp;
-  if (g && gs) {
+  for (const g of gens) {
+    const gs = generalStats(g);
     g.hp = gs.maxHp;
     g.mp = gs.maxMp;
   }
-  return `服下体力丹，${g ? `你和${g.name}` : '你'}的气血精力都回满了`;
+  return `服下体力丹，${gens.length ? `你和${gens.map((g) => g.name).join('、')}` : '你'}的气血精力都回满了`;
 }
 
 // ===== 江湖行记：七个里程碑，达成就能领（替代原来的七日签到；s.signin.count 是已领到第几个） =====

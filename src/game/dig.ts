@@ -6,7 +6,7 @@ import { Rng } from '../core/rng';
 import { generalUnit, monsterUnit, playerUnit } from './encounter';
 import type { BUnit } from '../core/battle';
 import type { Save } from './state';
-import { addItem, bagCap, bagUsed, bump, log, removeItem, rollRng } from './state';
+import { addItem, bagCap, bagUsed, bump, log, removeItem, rollRng, deployedUids } from './state';
 import { grantReward, rollLoot } from './welfare';
 
 const D = systems.dig;
@@ -61,9 +61,10 @@ export function guardBattle(s: Save, seed: number): Battle {
   const enemies: BUnit[] = Array.from({ length: n }, (_, i) => monsterUnit(`e${i}`, 'hubaoshouwei', lv, i < 3 ? 0 : 1));
   const allies = [playerUnit(s)];
   const reserve: BUnit[] = [];
+  const dep = deployedUids(s);
   for (const g of s.generals) {
     const u = generalUnit(g, s);
-    if (g.uid === s.activeGeneral && u.alive) allies.push(u);
+    if (dep.includes(g.uid) && u.alive) allies.push(u);
     else reserve.push(u);
   }
   return createBattle({ seed: (rng.next() * 4294967296) >>> 0, allies, reserve, enemies, items: { ...s.bag }, title: '护宝守卫', canFlee: false, tag: 'dig' });

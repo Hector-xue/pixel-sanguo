@@ -11,7 +11,7 @@ import { hashStr } from './guozhan';
 import { mirrorUnit, rivalGeneralUnit, rivals } from './rivals';
 import type { Rival } from './rivals';
 import type { Save } from './state';
-import { bump, levelCap, log } from './state';
+import { bump, levelCap, log, deployedUids } from './state';
 import { grantReward } from './welfare';
 
 const L = systems.league;
@@ -21,9 +21,10 @@ const SECTS = systems.sect.sects;
 function sparTeam(s: Save): { allies: BUnit[]; reserve: BUnit[] } {
   const allies = [playerUnit(s)];
   const reserve: BUnit[] = [];
+  const dep = deployedUids(s);
   for (const g of s.generals) {
     const u = generalUnit(g, s);
-    if (g.uid === s.activeGeneral) allies.push(u);
+    if (dep.includes(g.uid)) allies.push(u);
     else reserve.push(u);
   }
   for (const u of [...allies, ...reserve]) {
