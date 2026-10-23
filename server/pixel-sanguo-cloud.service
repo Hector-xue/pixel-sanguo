@@ -1,0 +1,49 @@
+# 像素三国云存档（sanguo.ivyea.com/api/cloud/* → 127.0.0.1:8032）。
+# 代码是部署出去的一份副本 /opt/pixel-sanguo-cloud/cloud_api.py（server/deploy.sh 拷过去，不直接跑开发目录），
+# 数据 /var/lib/pixel-sanguo-cloud。用专用的低权限用户跑，systemd 沙箱只放开数据目录可写、只许连网络。
+[Unit]
+Description=像素三国 云存档接口
+After=network.target
+
+[Service]
+Type=simple
+User=sanguo-cloud
+Group=sanguo-cloud
+Environment=CLOUD_DB=/var/lib/pixel-sanguo-cloud/cloud.db
+Environment=CLOUD_LISTEN=127.0.0.1:8032
+ExecStart=/usr/bin/python3 -I /opt/pixel-sanguo-cloud/cloud_api.py
+WorkingDirectory=/var/lib/pixel-sanguo-cloud
+StateDirectory=pixel-sanguo-cloud
+StateDirectoryMode=0700
+UMask=0077
+Restart=always
+RestartSec=3
+MemoryMax=200M
+TasksMax=64
+StandardOutput=journal
+StandardError=journal
+
+# 沙箱：整个系统只读、看不见 /home 和 /root、没有设备、没有特权，只能开 IPv4/IPv6/本地套接字
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+
+[Install]
+WantedBy=multi-user.target

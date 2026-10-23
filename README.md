@@ -19,7 +19,7 @@ npm run build
 
 推到 `main` 后 GitHub Actions 会自动跑单测、构建，用 Capacitor 打安卓包并签名，再一起发布到 GitHub Pages（`.github/workflows/pages.yml`）。单测不过不会发布；安卓包编不出来网页照发（那一版不带安装包）。签名密钥在仓库 secret `ANDROID_KEYSTORE_B64` / `ANDROID_KEYSTORE_PASSWORD`（换了密钥，老用户就不能覆盖升级了）。
 
-云存档服务在 `server/cloud_api.py`（只用 Python 标准库 + sqlite），部署在 sanguo.ivyea.com 那台机器上（systemd `pixel-sanguo-cloud`，监听 127.0.0.1:8032，nginx 把 `/api/cloud/` 转过去）。测试：`python3 -m unittest discover -s server`。
+云存档服务在 `server/cloud_api.py`（只用 Python 标准库 + sqlite），部署在 sanguo.ivyea.com 那台机器上（systemd `pixel-sanguo-cloud`，监听 127.0.0.1:8032，nginx 把 `/api/cloud/` 转过去）。改完代码跑 `sudo bash server/deploy.sh`：把代码副本拷到 `/opt/pixel-sanguo-cloud`、装 `server/pixel-sanguo-cloud.service`（专用低权限用户 `sanguo-cloud` + systemd 沙箱），重启后检查健康，起不来自动换回原来的。测试：`python3 -m unittest discover -s server`。
 
 ```bash
 npx vite-node scripts/make-icons.ts   # 重新生成主屏图标（改了头像画法时）
