@@ -372,7 +372,8 @@ if (typeof window !== 'undefined') {
 }
 
 // ===== 音效 =====
-export type SfxKind = 'click' | 'hit' | 'crit' | 'magic' | 'heal' | 'win' | 'lose' | 'step' | 'miss' | 'level';
+// slash 刀风、thunder 闷雷、drum 战鼓、chime 清铃（进阶招式各配一种）
+export type SfxKind = 'click' | 'hit' | 'crit' | 'magic' | 'heal' | 'win' | 'lose' | 'step' | 'miss' | 'level' | 'slash' | 'thunder' | 'drum' | 'chime';
 
 const NOTES: Record<SfxKind, [number, number, OscillatorType][]> = {
   click: [[880, 0.03, 'square']],
@@ -385,6 +386,10 @@ const NOTES: Record<SfxKind, [number, number, OscillatorType][]> = {
   win: [[523, 0.1, 'square'], [659, 0.1, 'square'], [784, 0.1, 'square'], [1046, 0.25, 'square']],
   lose: [[392, 0.15, 'triangle'], [330, 0.15, 'triangle'], [262, 0.3, 'triangle']],
   level: [[784, 0.08, 'square'], [988, 0.08, 'square'], [1175, 0.2, 'square']],
+  slash: [[1400, 0.02, 'sawtooth'], [700, 0.03, 'sawtooth'], [350, 0.05, 'sawtooth'], [175, 0.06, 'square']],
+  thunder: [[110, 0.08, 'sawtooth'], [70, 0.12, 'square'], [55, 0.25, 'sawtooth']],
+  drum: [[98, 0.07, 'square'], [0, 0.05, 'square'], [98, 0.07, 'square'], [131, 0.12, 'square']],
+  chime: [[1046, 0.06, 'triangle'], [1318, 0.06, 'triangle'], [1568, 0.06, 'triangle'], [2093, 0.14, 'triangle']],
 };
 
 export function sfx(kind: SfxKind): void {

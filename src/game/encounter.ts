@@ -16,7 +16,7 @@ import { Rng } from '../core/rng';
 import type { Stats } from '../core/types';
 import type { General, Save } from './state';
 import {
-  addGeneral, addItem, addProf, heroVariant, checkCollect, findGeneral, generalStats, grantGeneralExp, grantPlayerExp,
+  addGeneral, addItem, addProf, bump, heroVariant, checkCollect, findGeneral, generalStats, grantGeneralExp, grantPlayerExp,
   log, makeGeneral, onBattleKills, onCapture, playerStats, questDropAllowed, deployedUids } from './state';
 import { afterGuard } from './dig';
 import { afterArena } from './arena';
@@ -162,6 +162,20 @@ export interface BattleSummary {
   rows: { name: string; exp: number; silver: number }[];
   drops: { name: string; n: number }[];
   lines: string[];
+  // 野外打赢的：连胜几场（输一场清零，逃跑不算）、是不是新纪录、这一仗打得怎么样（甲乙丙）
+  streak?: number;
+  record?: boolean;
+  grade?: '甲' | '乙' | '丙';
+}
+
+// 评价：三回合内、没人倒下、还剩六成血是甲；没人倒下、剩三成五以上是乙；其余丙
+export function battleGrade(b: Battle): '甲' | '乙' | '丙' {
+  const allies = [...b.units, ...b.reserve].filter((u) => u.side === 'ally' && b.units.includes(u));
+  const down = allies.filter((u) => !u.alive).length;
+  const hp = allies.reduce((n, u) => n + Math.max(0, u.hp), 0) / Math.max(1, allies.reduce((n, u) => n + u.maxHp, 0));
+  if (!down && b.round <= 3 && hp >= 0.6) return '甲';
+  if (!down && hp >= 0.35) return '乙';
+  return '丙';
 }
 
 // 打完写回存档：血量、精力、药品消耗、熟练度、经验银两、掉落、招降、任务进度
@@ -213,6 +227,15 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
     }
   }
 
+  if (b.outcome === 'win') {
+    bump(s, 'winStreak');
+    sum.streak = s.life.winStreak;
+    if (sum.streak > (s.life.bestStreak ?? 0)) {
+      s.life.bestStreak = sum.streak;
+      sum.record = sum.streak >= 5;
+    }
+    sum.grade = battleGrade(b);
+  } else if (b.outcome === 'lose') s.life.winStreak = 0;
   if (b.outcome === 'win' && !b.spar) {
     // 本国占着洛阳、虎牢关：经验、银两加成
     const buff = gzBuff(s);
