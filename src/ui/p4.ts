@@ -9,13 +9,14 @@ import {
   claimKuaqu, claimLeague, contestPending, kuaquBattle, kuaquReason, kuaquView, leagueBattle, leagueView,
 } from '../game/contest';
 import {
-  PLAYABLE, attackTargets, buyWithMerit, cityDef, cityReason, citiesOf, claimSalary, claimSeason, defendTargets, gzBattle,
+  PLAYABLE, attackTargets, buyWithMerit, capitalCover, cityDef, cityReason, citiesOf, claimSalary, claimSeason, defendTargets, gzBattle,
   DAY_BATTLES, battlesToNextDay, calTick, guardOf, joinNation, joinReason, kindOf, nationDef, nationRanks, neighbors, nextRank, ordersLeft,
   rankName, salary, salaryClaimed, shopItemId, syncWorld, turnOf, weekIndex,
 } from '../game/guozhan';
 import type { GzMode } from '../game/guozhan';
 import type { Save } from '../game/state';
 import { store } from '../game/store';
+import { fit } from './textfit';
 import type { Host } from './panels';
 import { fight, heroAvatar, row, rows, tabs } from './p3';
 import { Button, Modal, confirm, frame, hit, sfx, text, toast } from './widgets';
@@ -171,7 +172,14 @@ function mapTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y0: number
   dyn.add(gb);
   dyn.add(text(h, m.cx + 8, y + 6, `${c.name}（${k.name}）`, { color: natColor(st.owner), stroke: 0x000000 }));
   dyn.add(text(h, m.cx + m.cw - 8, y + 6, `${nationDef(st.owner).full}　守军${Math.max(0, st.troops)}/${k.max}`, { align: 'right', color: C.darkBrown }));
-  dyn.add(text(h, m.cx + 8, y + 24, `守将：${monsters[guardOf(w, id)].name}　接壤：${neighbors(id).map((x) => cityDef(x).name).join('、')}`, { wrap: m.cw - 16, color: C.brown }));
+  const info = text(h, m.cx + 8, y + 24, `守将：${monsters[guardOf(w, id)].name}　接壤：${neighbors(id).map((x) => cityDef(x).name).join('、')}`, { wrap: m.cw - 16, color: C.brown });
+  dyn.add(info);
+  // 一句当前局势：原主要打回来 / 都城有接应
+  const cover = st.owner !== n ? capitalCover(w, id) : [];
+  const note = st.owner === n && st.lostBy ? `${nationDef(st.lostBy).full}一心要夺回这座城，兵少了记得驻守`
+    : cover.length ? `有${cover.map((x) => cityDef(x).name).join('、')}接应，守军打不光` : '';
+  const ny = y + 26 + info.height;
+  if (note && ny + 14 <= y + 58) dyn.add(text(h, m.cx + 8, ny, fit(note, m.cw - 16), { color: C.red }));
   const btns: [string, GzMode][] = [];
   if (st.owner !== n && st.troops <= 0) btns.push(['单挑守将', 'boss']);
   else if (atk.includes(id)) btns.push(['出征', 'atk']);

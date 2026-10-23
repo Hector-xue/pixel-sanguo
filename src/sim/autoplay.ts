@@ -1,7 +1,7 @@
 // 自动通关模拟：用自动战斗跑主线（新手篇 + 许昌篇），检查任务能不能走通、升级节奏合不合适。单测和数值调整都用它。
 import { FEASTS, RECIPES, canCook, cook, cookHere, eatFeast, gather, spotKind, spotLeft } from '../game/life';
 import type { Quality } from '../game/life';
-import { attackTargets, claimSalary, claimSeason, gzBattle, joinNation, ordersLeft, syncWorld } from '../game/guozhan';
+import { attackTargets, capitalCover, claimSalary, claimSeason, defendTargets, gzBattle, joinNation, kindOf, ordersLeft, syncWorld } from '../game/guozhan';
 import { claimKuaqu, claimLeague, kuaquBattle, kuaquReason, kuaquView, leagueBattle, leagueView } from '../game/contest';
 import { findBadge } from '../game/badges';
 import { setFormation } from '../game/formation';
@@ -535,9 +535,13 @@ function endgame(sim: Sim): void {
       const w = syncWorld(s);
       const ts = attackTargets(s, w);
       const broken = ts.find((id) => w.cities[id].troops <= 0);
-      const id = broken ?? ts.sort((a, c) => w.cities[a].troops - w.cities[c].troops)[0];
+      // 刚夺来的城兵少、原主又想打回去：兵不到四成先去驻守
+      const weak = defendTargets(s, w).find((id) => w.cities[id].lostBy && w.cities[id].troops < kindOf(id).max * 0.4);
+      // 有接应的敌国都城打不光，先打别的
+      const open = ts.filter((x) => !capitalCover(w, x).length);
+      const id = broken ?? weak ?? (open.length ? open : ts).sort((a, c) => w.cities[a].troops - w.cities[c].troops)[0];
       if (id) {
-        const b = gzBattle(s, id, broken ? 'boss' : 'atk', rng.int(0, 2 ** 31));
+        const b = gzBattle(s, id, broken ? 'boss' : weak ? 'def' : 'atk', rng.int(0, 2 ** 31));
         if (typeof b !== 'string') {
           const before = s.life.gzCaptures ?? 0;
           eg.gzFights++;

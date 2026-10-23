@@ -168,9 +168,9 @@ def main():
         'guards': guards,
         # AI 每回合：各城自己补兵；每国有一定概率从前线挑一座城去打邻城
         'ai': {'attackChance': 0.6, 'sendPct': 0.6, 'minRatio': 0.85, 'startPct': 0.7, 'qunStartPct': 0.45, 'qunYieldMul': 0.35,
-               'reinforcePct': 0.25, 'bigNationDamp': 0.08, 'allyVsLeader': 1.2, 'allyAttackBonus': 0.2, 'luck': [0.8, 1.2]},
+               'reinforcePct': 0.25, 'bigNationDamp': 0.08, 'allyVsLeader': 1.2, 'allyAttackBonus': 0.2, 'revengeMul': 1.4, 'revengeAttackBonus': 0.3, 'lastStandCities': 2, 'lastStandYield': 1.5, 'lastStandDef': 1.4, 'raidChance': 0.25, 'raidPower': 1, 'luck': [0.8, 1.2]},
         # 主角出征：打赢一场守军减 max×hitPct + 等级×hitPerLevel；驻守打赢补 max×defendPct
-        'player': {'hitPct': 0.055, 'hitPerLevel': 2, 'defendPct': 0.06, 'captureTroopsPct': 0.35,
+        'player': {'hitPct': 0.045, 'hitPerLevel': 1, 'defendPct': 0.06, 'captureTroopsPct': 0.35, 'capitalFloorPct': 0.15,
                    'meritAtk': 12, 'meritDef': 8, 'meritBoss': 80, 'guardControlResist': 120, 'guardLevel': 3, 'guardEscorts': 3, 'mirrorChance': 0.35, 'joinCooldownDays': 7},
         'ranks': [{'name': n, 'merit': m} for n, m in RANKS],
         # 官职加成：每级 × 人物等级

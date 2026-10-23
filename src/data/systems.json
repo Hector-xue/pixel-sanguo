@@ -2084,16 +2084,24 @@
       "bigNationDamp": 0.08,
       "allyVsLeader": 1.2,
       "allyAttackBonus": 0.2,
+      "revengeMul": 1.4,
+      "revengeAttackBonus": 0.3,
+      "lastStandCities": 2,
+      "lastStandYield": 1.5,
+      "lastStandDef": 1.4,
+      "raidChance": 0.25,
+      "raidPower": 1,
       "luck": [
         0.8,
         1.2
       ]
     },
     "player": {
-      "hitPct": 0.055,
-      "hitPerLevel": 2,
+      "hitPct": 0.045,
+      "hitPerLevel": 1,
       "defendPct": 0.06,
       "captureTroopsPct": 0.35,
+      "capitalFloorPct": 0.15,
       "meritAtk": 12,
       "meritDef": 8,
       "meritBoss": 80,

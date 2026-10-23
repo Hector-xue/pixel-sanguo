@@ -1,7 +1,7 @@
 // 声音：音效（方波小芯片音）和背景音乐。曲子用 WebAudio 当场合成，不带音频文件：
 // 五声音阶，筝（拨弦）、笛（带颤音的长音）、编钟、低音和战鼓、小鼓、木鱼、锣几种音色；按场景换曲，换的时候淡入淡出。
 // 浏览器要先有一次点按才肯出声，所以第一次点屏幕时才真正开始放；切到后台就停
-import { VOLUME_GAIN, onSettings, settings } from './settings';
+import { VOLUME_GAIN, onSettings, settings, trackFor } from './settings';
 
 export type TrackId = 'title' | 'town' | 'field' | 'night' | 'cave' | 'battle' | 'guozhan' | 'boss';
 type Voice = 'zheng' | 'dizi' | 'bell' | 'bass' | 'drum';
@@ -20,6 +20,8 @@ interface Track {
   // 「1」是哪个音（赫兹）
   root: number;
   parts: Part[];
+  // 整首响度：按实测（最大音量下的均方根）拉齐，免得城镇、野外来回走忽大忽小；战斗曲本来就该响一点
+  gain?: number;
 }
 
 const D4 = 293.66;
@@ -30,6 +32,7 @@ const A3 = 220;
 const TRACKS: Record<TrackId, Track> = {
   // 标题：编钟领、筝分解和弦，慢
   title: {
+    gain: 1.2,
     bpm: 66, root: D4,
     parts: [
       { voice: 'bell', notes: '3 - 5 - 6 - - - | 5 - 3 - 2 - - - | 1 - 2 - 3 - 5 - | 2 - - - - - - - | 3 - 5 - 6 - 1\' - | 6 - 5 - 3 - - - | 2 - 3 - 2 - 1 - | 6, - - - 1 - - - |' },
@@ -39,6 +42,7 @@ const TRACKS: Record<TrackId, Track> = {
   },
   // 城镇：筝领、轻快，木鱼打拍
   town: {
+    gain: 1.7,
     bpm: 100, root: C4,
     parts: [
       // A 段明快，B 段转到羽音上略带惆怅，再回 A
@@ -50,6 +54,7 @@ const TRACKS: Record<TrackId, Track> = {
   },
   // 野外：笛子领，羽调，悠长
   field: {
+    gain: 0.8,
     bpm: 80, root: G4,
     parts: [
       { voice: 'dizi', notes: '6, - 1 2 3 - - - | 2 3 5 3 2 - 1 - | 6, - 1 2 3 - 5 - | 6 - - - - - . . | 5 6 1\' 6 5 - 3 - | 2 3 5 3 2 - 1 - | 6, 1 2 3 2 1 6, - | 6, - - - - - . . | 3 - 5 6 1\' - 6 - | 5 6 5 3 2 - 3 - | 5 - 3 2 1 - 2 - | 3 - - - - - . . | 6 - 5 3 5 - 6 - | 1\' - 6 5 3 - 2 - | 1 2 3 5 3 2 1 6, | 6, - - - - - . . |' },
@@ -78,6 +83,7 @@ const TRACKS: Record<TrackId, Track> = {
   },
   // 宝洞、古墓：低音长鸣，钟声和木鱼隔很久响一下
   cave: {
+    gain: 2.4,
     bpm: 66, root: D4,
     parts: [
       { voice: 'bass', oct: -1, vol: 0.7, notes: '6, - - - - - - - | 5, - - - - - - - | 6, - - - - - - - | 3, - - - 2, - - - |' },
@@ -283,7 +289,7 @@ function startTrack(id: TrackId): void {
   const track = TRACKS[id];
   const gain = c.createGain();
   gain.gain.setValueAtTime(0, c.currentTime);
-  gain.gain.setTargetAtTime(1, c.currentTime + 0.1, 0.3);
+  gain.gain.setTargetAtTime(track.gain ?? 1, c.currentTime + 0.1, 0.3);
   gain.connect(musicBus);
   now = { id, track, steps: track.parts.map(parse), gain, next: c.currentTime + 0.15, i: 0 };
   timer ??= window.setInterval(tick, 50);
@@ -307,12 +313,30 @@ function tick(): void {
   }
 }
 
-// 场景里调用：换到这首（同一首就接着放）
+// 场景里调用：换到这个场合的曲子（同一首就接着放；设置里可以给场合换曲或关掉）
+let preview: TrackId | null = null;
 export function playMusic(id: TrackId): void {
   want = id;
+  if (preview) return;
   if (!unlocked || settings().music === 0) return;
-  if (now?.id === id) return;
-  startTrack(id);
+  const t = trackFor(id);
+  if (!t) return stopMusic();
+  if (now?.id === t) return;
+  startTrack(t);
+}
+
+// 设置里试听：先放这首（null = 停），previewMusic(null, true) 结束试听、回到当前场合
+export function previewMusic(id: TrackId | null, done = false): void {
+  if (done) {
+    preview = null;
+    if (want) playMusic(want);
+    else stopMusic();
+    return;
+  }
+  preview = id;
+  if (!unlocked || settings().music === 0) return;
+  if (!id) return stopMusic();
+  if (now?.id !== id) startTrack(id);
 }
 
 function stopMusic(): void {
@@ -428,8 +452,9 @@ export function playJingle(id: JingleId): void {
   });
   // 背景音乐让一让
   if (now) {
-    now.gain.gain.setTargetAtTime(0.3, c.currentTime, 0.05);
-    now.gain.gain.setTargetAtTime(1, t0 + len + 0.3, 0.4);
+    const g = now.track.gain ?? 1;
+    now.gain.gain.setTargetAtTime(0.3 * g, c.currentTime, 0.05);
+    now.gain.gain.setTargetAtTime(g, t0 + len + 0.3, 0.4);
   }
   setTimeout(() => out.disconnect(), (len + 3) * 1000);
 }

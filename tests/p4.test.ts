@@ -8,7 +8,7 @@ import {
 } from '../src/game/contest';
 import { finishBattle } from '../src/game/encounter';
 import {
-  PLAYABLE, attackTargets, buyWithMerit, citiesOf, claimSalary, claimSeason, cityReason, defendTargets, gzBattle, gzBuff, joinNation,
+  PLAYABLE, attackTargets, buyWithMerit, capitalCover, citiesOf, claimSalary, claimSeason, cityReason, defendTargets, gzBattle, gzBuff, joinNation,
   DAY_BATTLES, SEASON_BATTLES, calTick, nationRanks, neighbors, ordersLeft, rankName, seasonTurns, syncWorld, turnOf, weekIndex, weekday,
 } from '../src/game/guozhan';
 import { joinSect } from '../src/game/sect';
@@ -184,6 +184,52 @@ describe('国战沙盘', () => {
     expect(s.p4.world!.cities[id].owner).toBe('wei');
     expect(s.life.gzCaptures).toBe(1);
     expect(s.p4.merit).toBe(G.player.meritBoss);
+  });
+
+  it('夺来的城记着原主；敌国都城有接应时守军打不光；敌国玩家会出征削本国的城', () => {
+    const s = hero(80);
+    joinNation(s, 'wei', MON);
+    const w = syncWorld(s, MON);
+    const id = attackTargets(s, w)[0];
+    const was = w.cities[id].owner;
+    w.cities[id].troops = 0;
+    w.cities[id].broken = w.turn;
+    settle(s, gzBattle(s, id, 'boss', 4), 'win');
+    expect(s.p4.world!.cities[id].lostBy).toBe(was);
+    // 吴国都城建业：接壤的吴城还在，守军最少留一成半
+    const s2 = hero(160);
+    joinNation(s2, 'wei', MON);
+    const w2 = syncWorld(s2, MON);
+    const cap = 'jianye';
+    expect(capitalCover(w2, cap).length).toBeGreaterThan(0);
+    // 留一座吴城接应，其余接壤的城归魏（这样建业能打到）
+    neighbors(cap).forEach((x, i) => (w2.cities[x].owner = i === 0 ? 'wu' : 'wei'));
+    expect(capitalCover(w2, cap)).toEqual([neighbors(cap)[0]]);
+    // 这几仗里 AI 不打仗，免得接应的城被别国抢走
+    const ai = { ...G.ai };
+    Object.assign(G.ai, { attackChance: 0, allyAttackBonus: 0, revengeAttackBonus: 0 });
+    const floor = Math.round(G.kinds.capital.max * G.player.capitalFloorPct);
+    w2.cities[cap].troops = 10;
+    const sum = settle(s2, gzBattle(s2, cap, 'atk', 5, MON), 'win');
+    expect(s2.p4.world!.cities[cap].troops).toBeGreaterThanOrEqual(10);
+    expect(sum.lines.join()).toContain('接应');
+    w2.cities[cap].troops = floor + 50;
+    settle(s2, gzBattle(s2, cap, 'atk', 6, MON), 'win');
+    expect(s2.p4.world!.cities[cap].troops).toBeGreaterThanOrEqual(floor);
+    // 接应的城没了，就能打光
+    w2.cities[neighbors(cap)[0]].owner = 'wei';
+    w2.cities[cap].troops = 100;
+    settle(s2, gzBattle(s2, cap, 'atk', 7, MON), 'win');
+    expect(s2.p4.world!.cities[cap].troops).toBe(0);
+    Object.assign(G.ai, ai);
+    // 敌国玩家出征的战报：一个赛季里总有
+    const s3 = hero(80);
+    joinNation(s3, 'shu', MON);
+    const w3 = syncWorld(s3, NEXT - 1);
+    expect(w3.events.some((e) => e.text.includes('出征'))).toBe(true);
+    // 没入国就没有
+    const s4 = hero(80);
+    expect(syncWorld(s4, NEXT - 1).events.some((e) => e.text.includes('出征'))).toBe(false);
   });
 
   it('驻守补兵；占着洛阳经验加成；官职加属性、有俸禄；战功能换东西', () => {

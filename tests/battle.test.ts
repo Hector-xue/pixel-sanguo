@@ -284,3 +284,14 @@ describe('战后经验', () => {
     expect(expLevelMul(20, 5)).toBe(0.2);
   });
 });
+
+describe('计策中几个人', () => {
+  it('技能练过 5 级还是按最后一档算，不会退回 1 个人', () => {
+    for (const level of [5, 6, 9]) {
+      const a = mk('a', 'ally', { spd: 50, skills: [{ id: 'chenhuo', level, prof: 99999 }] });
+      const es = ['e1', 'e2', 'e3', 'e4'].map((id) => mk(id, 'enemy'));
+      const ev = resolveRound(battle([a], es), [{ actor: 'a', type: 'skill', skill: 'chenhuo', target: 'e1' }, ...es.map((e) => idle(e.id))]);
+      expect(ev.filter((x) => x.t === 'status').length, `level ${level}`).toBe(3);
+    }
+  });
+});

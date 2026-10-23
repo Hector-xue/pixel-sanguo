@@ -6,6 +6,7 @@ import type { ClassId } from '../core/types';
 import {
   changePassword, download, info, loadCred, login, logout, markApplied, register, setAuto, upload,
 } from '../game/cloud';
+import { SLOTS } from '../game/store';
 import type { CloudError, CloudInfo, CloudSummary } from '../game/cloud';
 import { deserialize } from '../game/state';
 import { store } from '../game/store';
@@ -26,6 +27,7 @@ function brief(x: CloudSummary | null): string {
 }
 
 const errText = (e: unknown) => (e as CloudError).message || '出错了';
+const SLOT_NAMES = ['一', '二', '三'];
 
 export interface CloudHost extends Phaser.Scene {
   refresh?: () => void;
@@ -65,7 +67,8 @@ export function cloudPanel(h: CloudHost, inGame: boolean, onLoaded: () => void):
     }
   };
 
-  const apply = (rev: number, raw: string) => {
+  // slot：下到本机第几个存档位（和云端同一位）；不是当前这一位就先切过去
+  const apply = (rev: number, raw: string, slot: number) => {
     let s;
     try {
       s = deserialize(raw);
@@ -73,20 +76,22 @@ export function cloudPanel(h: CloudHost, inGame: boolean, onLoaded: () => void):
       toast(h, `云端存档读不了：${(e as Error).message}`, 2600);
       return;
     }
+    if (slot !== store.slot) store.useSlot(slot);
     store.set(s);
-    markApplied(rev, raw);
+    markApplied(rev, raw, slot);
     close();
-    toast(h, `已换成云端存档（${s.player.name} ${s.player.level}级）`, 2400);
+    toast(h, `存档${SLOT_NAMES[slot]}已换成云端存档（${s.player.name} ${s.player.level}级）`, 2400);
     onLoaded();
   };
 
-  const pull = (rev?: number) => {
-    const local = store.has() ? store.save : null;
+  const pull = (rev?: number, slot = store.slot) => {
+    const peek = store.peek(slot);
+    const local = slot === store.slot && store.has() ? { name: store.save.player.name, level: store.save.player.level } : peek;
     const go = () => run('下载中', async () => {
-      const out = await download(rev);
-      apply(out.rev, out.save);
+      const out = await download(rev, slot);
+      apply(out.rev, out.save, slot);
     });
-    if (local) confirm(h, `用云端存档替换本机的？本机现在是 ${local.player.name} ${local.player.level}级，替换后找不回来（可以先上传或导出）。`, go, '替换');
+    if (local) confirm(h, `用云端存档替换本机存档${SLOT_NAMES[slot]}？本机现在是 ${local.name} ${local.level}级，替换后找不回来（可以先上传或导出）。`, go, '替换');
     else go();
   };
 
@@ -146,11 +151,12 @@ export function cloudPanel(h: CloudHost, inGame: boolean, onLoaded: () => void):
       return;
     }
     dyn.add(text(h, m.cx, y, `账号：${cred.account}`, { color: C.darkRed }));
+    dyn.add(text(h, m.cx + m.cw, y, `当前：存档${SLOT_NAMES[store.slot]}`, { align: 'right', color: C.brown }));
     y += 20;
     const g = h.add.graphics();
     frame(g, m.cx, y, m.cw, 58, 'tan');
     dyn.add(g);
-    dyn.add(text(h, m.cx + 8, y + 6, `云端：${brief(cloud.summary)}`, { color: C.darkBrown }));
+    dyn.add(text(h, m.cx + 8, y + 6, `云端存档${SLOT_NAMES[store.slot]}：${brief(cloud.summary)}`, { color: C.darkBrown }));
     dyn.add(text(h, m.cx + 8, y + 22, cloud.rev ? `第${cloud.rev}版 · ${when(cloud.at)}` : '还没上传过', { color: C.brown }));
     dyn.add(text(h, m.cx + 8, y + 38, store.has() ? `本机：${store.save.server}·${store.save.player.name} ${store.save.player.level}级` : '本机：没有存档', { color: C.brown }));
     y += 66;
@@ -176,6 +182,18 @@ export function cloudPanel(h: CloudHost, inGame: boolean, onLoaded: () => void):
       for (const v of cloud.history) {
         dyn.add(text(h, m.cx + 4, y + 5, `第${v.rev}版 ${when(v.at)} ${v.summary.level}级`, { color: C.darkBrown }));
         dyn.add(new Button(h, m.cx + m.cw - 60, y, 60, 22, '取回', () => pull(v.rev)));
+        y += 26;
+      }
+      y += 4;
+    }
+    // 云端别的存档位：能下到本机同一位（会切到那一位）
+    const others = cloud.slots.filter((x) => x.slot !== store.slot && x.slot < SLOTS);
+    if (others.length) {
+      dyn.add(text(h, m.cx, y, '云端其他存档位', { color: C.darkRed }));
+      y += 18;
+      for (const o of others) {
+        dyn.add(text(h, m.cx + 4, y + 5, `存档${SLOT_NAMES[o.slot]}：${o.summary.name} ${o.summary.level}级 · ${when(o.at)}`, { color: C.darkBrown }));
+        dyn.add(new Button(h, m.cx + m.cw - 60, y, 60, 22, '下载', () => pull(undefined, o.slot)));
         y += 26;
       }
       y += 4;

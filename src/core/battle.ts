@@ -425,7 +425,8 @@ class Resolver {
         const first = this.retarget(cmd.target, foes);
         if (!first || !def.status) return;
         this.emit({ t: 'act', actor: u.id, label: def.name, target: first.id, kind: 'cast', skill: cmd.skill });
-        const n = def.targets?.[lvl - 1] ?? 1;
+        // 表只写到 5 级：再往上按最后一档算（原来查不到就退回 1 个人，越练越少）
+        const n = def.targets ? def.targets[Math.min(lvl, def.targets.length) - 1] : 1;
         const others = this.rng.shuffle(foes.filter((f) => f !== first)).slice(0, n - 1);
         const chance = Math.min(0.95, lerpLevel(def.chance, lvl) * profCoef(st));
         for (const t of [first, ...others]) {

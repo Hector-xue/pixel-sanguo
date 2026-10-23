@@ -84,20 +84,26 @@ function aiTurn(s: Save, w: GzWorld): void {
   const rng = new Rng(hashStr(`${s.seed}-gz-${w.season}-${w.turn}`));
   const counts: Record<string, number> = {};
   for (const c of G.cities) counts[w.cities[c.id].owner] = (counts[w.cities[c.id].owner] ?? 0) + 1;
+  // 哀兵：一国只剩两座城以内，补兵更快、守城更硬（不然一国一垮，整张图一天就被吞掉）
+  const lastStand = (n: NationId) => n !== 'qun' && (counts[n] ?? 0) <= A.lastStandCities;
+  const defOf = (id: string) => kindOf(id).def * (lastStand(w.cities[id].owner) ? A.lastStandDef : 1);
   for (const c of G.cities) {
     const st = w.cities[c.id];
     const k = G.kinds[c.kind];
     if (routed(w, c.id)) continue;
     // 地盘越大补兵越慢（免得一家独大一路滚雪球），董卓余部只守不攻、补得也慢
-    const damp = st.owner === 'qun' ? A.qunYieldMul : Math.max(0.5, 1 - A.bigNationDamp * Math.max(0, counts[st.owner] - 4));
+    const damp = st.owner === 'qun' ? A.qunYieldMul : lastStand(st.owner) ? A.lastStandYield : Math.max(0.5, 1 - A.bigNationDamp * Math.max(0, counts[st.owner] - 4));
     st.troops = Math.min(k.max, st.troops + Math.round(k.yield * damp));
   }
   // 合纵：城最多的那一国（领先两座以上）会被另外两国当成头号对手，打它更积极、也更拼命
   const ranks = nationRanks(w);
   const leader = ranks[0].cities - ranks[1].cities >= 2 ? ranks[0].id : null;
+  // 打这座城有多拼命：合纵打领头的、收复被你夺走的城，各自乘上去
+  const drive = (t: GzCity, n: NationId) => (leader && t.owner === leader && n !== leader ? A.allyVsLeader : 1) * (t.lostBy === n ? A.revengeMul : 1);
   for (const n of rng.shuffle([...PLAYABLE])) {
     const mine = citiesOf(w, n);
     if (!mine.length) continue;
+    rivalRaid(s, w, n, rng);
     const front = mine.filter((id) => frontier(w, id) && !routed(w, id));
     // 后方的城把一部分兵调到最缺兵的前线
     if (front.length) {
@@ -112,15 +118,17 @@ function aiTurn(s: Save, w: GzWorld): void {
         w.cities[weakest].troops += m;
       }
     }
-    if (!rng.chance(leader && n !== leader ? Math.min(0.95, A.attackChance + A.allyAttackBonus) : A.attackChance)) continue;
+    // 被你夺走城的那一国一心想打回来：边上有它丢的城就更想出兵，打那座城也更拼命
+    const revenge = front.some((id) => neighbors(id).some((x) => w.cities[x].lostBy === n && w.cities[x].owner !== n));
+    const chance = A.attackChance + (leader && n !== leader ? A.allyAttackBonus : 0) + (revenge ? A.revengeAttackBonus : 0);
+    if (!rng.chance(Math.min(0.95, chance))) continue;
     let best: { from: string; to: string; ratio: number } | null = null;
     for (const from of front) {
       for (const to of neighbors(from)) {
         const t = w.cities[to];
         // 守将正出城和你单挑的城，别家不来插手
         if (t.owner === n || routed(w, to)) continue;
-        const vsLeader = leader && t.owner === leader && n !== leader ? A.allyVsLeader : 1;
-        const ratio = (w.cities[from].troops * A.sendPct * vsLeader) / Math.max(1, t.troops * kindOf(to).def) * rng.range(0.9, 1.1);
+        const ratio = (w.cities[from].troops * A.sendPct * drive(t, n)) / Math.max(1, t.troops * defOf(to)) * rng.range(0.9, 1.1);
         if (!best || ratio > best.ratio) best = { from, to, ratio };
       }
     }
@@ -129,8 +137,8 @@ function aiTurn(s: Save, w: GzWorld): void {
     const tgt = w.cities[best.to];
     const send = Math.round(src.troops * A.sendPct);
     src.troops -= send;
-    const att = send * rng.range(A.luck[0], A.luck[1]) * (leader && tgt.owner === leader && n !== leader ? A.allyVsLeader : 1);
-    const def = Math.max(1, tgt.troops) * kindOf(best.to).def * rng.range(A.luck[0], A.luck[1]);
+    const att = send * rng.range(A.luck[0], A.luck[1]) * drive(tgt, n);
+    const def = Math.max(1, tgt.troops) * defOf(best.to) * rng.range(A.luck[0], A.luck[1]);
     const name = cityDef(best.to).name;
     if (att > def && cityDef(best.to).kind === 'capital') {
       // 都城 AI 打不下来，只能围城杀伤（要靠玩家斩守将才能夺都城）
@@ -141,12 +149,31 @@ function aiTurn(s: Save, w: GzWorld): void {
       tgt.owner = n;
       tgt.troops = Math.max(100, Math.round(send * (1 - def / att)));
       delete tgt.broken;
+      delete tgt.lostBy;
       event(w, `${natName(n)}从${cityDef(best.from).name}出兵，攻占了${natName(was).replace('军', '')}的${name}`, true);
     } else {
-      tgt.troops = Math.max(50, Math.round(tgt.troops - (att / kindOf(best.to).def) * 0.6));
+      tgt.troops = Math.max(50, Math.round(tgt.troops - (att / defOf(best.to)) * 0.6));
       event(w, `${natName(n)}进攻${name}，被${natName(tgt.owner)}击退`, false);
     }
   }
+}
+
+// 敌国的 AI 玩家也在出征：你入了国以后，另外两国各有人每天打几仗，专挑本国前线兵少的城削守军
+// （不然只有你一个人在打，本国几乎季季第一）。削不光，打光守军、斩将夺城只有你会
+function rivalRaid(s: Save, w: GzWorld, n: NationId, rng: Rng): void {
+  const me = s.p4.nation;
+  const A = G.ai;
+  if (!me || n === me || !rng.chance(A.raidChance)) return;
+  const front = citiesOf(w, n).filter((id) => frontier(w, id));
+  const targets = [...new Set(front.flatMap((id) => neighbors(id)))].filter((x) => w.cities[x].owner === me && w.cities[x].troops > 1 && !routed(w, x));
+  if (!targets.length) return;
+  const to = targets.reduce((a, b) => (w.cities[a].troops / kindOf(a).max <= w.cities[b].troops / kindOf(b).max ? a : b));
+  const c = w.cities[to];
+  const dmg = Math.round((kindOf(to).max * G.player.hitPct + s.player.level * G.player.hitPerLevel) * A.raidPower);
+  c.troops = Math.max(1, c.troops - dmg);
+  const rs = rivalsOf(s, n);
+  const who = rs.length ? rng.pick(rs).name : natName(n);
+  event(w, `${natName(n).replace('军', '国')}的${who}出征${cityDef(to).name}，守军折了${dmg}人`, false);
 }
 
 // 把世界推进到天下历第 t 格：跨了赛季先把旧赛季打完、结算，再开新局
@@ -329,6 +356,13 @@ export function attackTargets(s: Save, w: GzWorld): string[] {
   return [...set];
 }
 
+// 敌国都城的接应：和它接壤、还归同一国的城（有接应时守军打不光）
+export function capitalCover(w: GzWorld, id: string): string[] {
+  if (cityDef(id).kind !== 'capital') return [];
+  const o = w.cities[id].owner;
+  return neighbors(id).filter((x) => w.cities[x].owner === o);
+}
+
 export function defendTargets(s: Save, w: GzWorld): string[] {
   const n = s.p4.nation;
   if (!n) return [];
@@ -500,8 +534,11 @@ export function afterGz(s: Save, b: Battle, t = calTick(s)): string[] {
       lines.push(`${name}已经被本国拿下了`);
     } else {
       const dmg = Math.round(max * P.hitPct + s.player.level * P.hitPerLevel);
-      c.troops = Math.max(0, c.troops - dmg);
+      // 都城还有自家的城接应，守军打不光（一天就斩将夺都城，整国一下就垮了）
+      const floor = capitalCover(w, id).length ? Math.round(max * P.capitalFloorPct) : 0;
+      c.troops = Math.max(Math.min(c.troops, floor), c.troops - dmg);
       lines.push(`击溃${name}守军${dmg}人（还剩${c.troops}），战功+${P.meritAtk}`);
+      if (floor && c.troops <= floor) lines.push(`${name}有${capitalCover(w, id).map((x) => cityDef(x).name).join('、')}接应，守军打不光——先拿下这几座城，让${name}成孤城`);
       lines.push(...addMerit(s, P.meritAtk));
       if (c.troops <= 0) {
         c.broken = w.turn;
@@ -520,6 +557,7 @@ export function afterGz(s: Save, b: Battle, t = calTick(s)): string[] {
     c.owner = n;
     c.troops = Math.round(max * P.captureTroopsPct);
     delete c.broken;
+    c.lostBy = was;
     event(w, `${s.player.name}率${natName(n)}攻下了${natName(was).replace('军', '')}的${name}`, true);
     s.p4.seen = w.seq;
     lines.push(`斩将夺城！${name}归了${nationDef(n).full}，战功+${P.meritBoss}`);

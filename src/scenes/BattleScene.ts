@@ -57,8 +57,8 @@ const BACK_SPREAD: Record<number, Record<number, number[]>> = {
   3: { 1: [0.25], 2: [0.25, 0.75], 3: [0.25, 0.75, 0.75] },
 };
 // 主角站右边中间；副将（最多三个）和雇来的队友按上场顺序占后面这几格
-const HERO_SLOT: [number, number] = [302, 0.48];
-const ALLY_SLOTS: [number, number][] = [[244, 0.92], [250, 0.06], [196, 0.3], [196, 0.7]];
+const HERO_SLOT: [number, number] = [302, 0.52];
+const ALLY_SLOTS: [number, number][] = [[244, 0.92], [250, 0.04], [196, 0.3], [196, 0.7]];
 const gy = (v: number) => Math.round(G_TOP + v * (G_BOT - G_TOP));
 
 interface View {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { _test } from '../src/ui/audio';
-import { SPEEDS, settings } from '../src/ui/settings';
+import { SPEEDS, TRACK_IDS, saveSettings, settings, trackFor } from '../src/ui/settings';
 
 describe('背景音乐曲谱', () => {
   it('每首每声部都是整小节、没有认不出的记号、音高在能听的范围里', () => {
@@ -42,6 +42,17 @@ describe('本机设置', () => {
     expect(SPEEDS).toContain(st.speed);
     expect(st.keepAuto).toBe(false);
     expect(st.shake).toBe(true);
+    expect(st.tracks).toEqual({});
+  });
+
+  it('选曲：每首曲子都有场合名；场合可以换曲、关掉，没改的放原曲', () => {
+    expect([...TRACK_IDS].sort()).toEqual(Object.keys(_test.TRACKS).sort());
+    saveSettings({ tracks: { battle: 'boss', town: 'off' } });
+    expect(trackFor('battle')).toBe('boss');
+    expect(trackFor('town')).toBeNull();
+    expect(trackFor('field')).toBe('field');
+    saveSettings({ tracks: {} });
+    expect(trackFor('town')).toBe('town');
   });
 });
 

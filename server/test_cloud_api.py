@@ -82,6 +82,47 @@ class CloudTest(unittest.TestCase):
         self.assertEqual(self.call("info", {}, tok2)[0], 401)
         self.assertEqual(self.call("info", {}, out["token"])[0], 200)
 
+    def test_slots(self):
+        tok = self.call("register", {"account": "slotter", "password": "123456"})[1]["token"]
+        save2 = json.dumps({**json.loads(SAVE), "player": {"name": "二号", "level": 70, "classId": "scholar"}})
+        # 不带 slot 的老客户端 = 第一个位子
+        self.assertEqual(self.call("upload", {"save": SAVE, "base": 0}, tok)[1]["rev"], 1)
+        # 第二个位子版本号自己从 1 数，和第一个位子互不冲突
+        st, out, _ = self.call("upload", {"save": save2, "base": 0, "slot": 1}, tok)
+        self.assertEqual((st, out["rev"], out["slot"]), (200, 1, 1))
+        self.assertEqual(self.call("upload", {"save": SAVE, "base": 1}, tok)[1]["rev"], 2)
+        st, out, _ = self.call("upload", {"save": save2, "base": 0, "slot": 1}, tok)
+        self.assertEqual((st, out["error"]), (409, "conflict"))
+        st, out, _ = self.call("info", {"slot": 1}, tok)
+        self.assertEqual((out["slot"], out["rev"], out["summary"]["name"]), (1, 1, "二号"))
+        self.assertEqual([(x["slot"], x["rev"], x["summary"]["name"]) for x in out["slots"]], [(0, 2, "测试"), (1, 1, "二号")])
+        st, out, _ = self.call("download", {"slot": 1}, tok)
+        self.assertEqual(json.loads(out["save"])["player"]["name"], "二号")
+        self.assertEqual(self.call("download", {"slot": 2}, tok)[0], 404)
+        self.assertEqual(self.call("download", {"slot": 3}, tok)[1]["error"], "bad_slot")
+        self.assertEqual(self.call("upload", {"save": SAVE, "base": 0, "slot": "x"}, tok)[1]["error"], "bad_slot")
+
+    def test_migrate_old_db(self):
+        import sqlite3
+        path = os.path.join(TMP, "old.db")
+        c = sqlite3.connect(path)
+        c.executescript(
+            """
+            CREATE TABLE saves (account TEXT NOT NULL, rev INTEGER NOT NULL, at REAL NOT NULL, summary TEXT NOT NULL, data BLOB NOT NULL,
+              PRIMARY KEY (account, rev));
+            INSERT INTO saves VALUES ('老玩家', 1, 1.0, '{}', x'7b7d');
+            INSERT INTO saves VALUES ('老玩家', 2, 2.0, '{}', x'7b7d');
+            """
+        )
+        c.commit()
+        cloud_api._migrate(c)
+        self.assertIn("slot", [r[1] for r in c.execute("PRAGMA table_info(saves)")])
+        self.assertEqual(c.execute("SELECT account, slot, rev FROM saves ORDER BY rev").fetchall(), [("老玩家", 0, 1), ("老玩家", 0, 2)])
+        # 再跑一次不出事
+        cloud_api._migrate(c)
+        c.execute("INSERT INTO saves (account, slot, rev, at, summary, data) VALUES ('老玩家', 1, 1, 3.0, '{}', x'7b7d')")
+        c.close()
+
     def test_validation(self):
         self.assertEqual(self.call("register", {"account": "ab", "password": "123456"})[1]["error"], "bad_account")
         self.assertEqual(self.call("register", {"account": "abc", "password": "123"})[1]["error"], "bad_password")

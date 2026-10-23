@@ -219,6 +219,8 @@ export interface GzCity {
   troops: number;
   // 你把守军打光时走到第几回合：之后一天（24 回合）不补兵、不调兵进来，留给你去单挑守将
   broken?: number;
+  // 被你斩将夺来的城：原来是哪一国的（它会一直想打回去，直到这座城再换主）
+  lostBy?: NationId;
 }
 
 export interface GzEvent {

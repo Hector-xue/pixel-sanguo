@@ -28,13 +28,17 @@ import type { Target } from '../game/state';
 import { store } from '../game/store';
 import { today, tomorrowHint } from '../game/calendar';
 import { cloudPanel } from './cloud';
+import { forgetSlot } from '../game/cloud';
 import type { ChatBox } from './chat';
 import { fillText, showDialog } from './dialog';
 import { digTalk, generalSkillPanel, pickGeneral, recruitPanel, ringTalk, useMisc } from './fun';
 import { equipGrid, gearDetail, power, rolePanel } from './role';
 import * as X from './p3';
 import { Button, Modal, ScrollArea, bar, confirm, frame, sfx, text, textLines, toast } from './widgets';
-import { SPEEDS, VOLUME_NAMES, saveSettings, settings } from './settings';
+import { SPEEDS, TRACK_IDS, TRACK_NAMES, VOLUME_NAMES, saveSettings, settings } from './settings';
+import type { TrackPick } from './settings';
+import { previewMusic } from './audio';
+import type { TrackId } from './audio';
 
 export interface Host extends Phaser.Scene {
   refresh(): void;
@@ -668,7 +672,7 @@ export function helpPanel(h: Host): void {
     '【组队】「功能 → 组队」或濮阳的佣兵头领那里雇AI队友，跟你一起打20场。',
     '【录像】「功能 → 公告」里能回放最近8场战斗。',
     '【成就称号】角色面板里看成就、换称号；排行榜在「功能 → 排行」。',
-    '【国战】60级以后「功能 → 国战」投奔魏、蜀、吴其中一国。日子按天下历走：你每打一仗天下走一格，18 仗算一天，各国 AI 跟着补兵、打邻城；七天一个赛季，按城数排名发奖。你每天有8道军令（用完了去别处打几仗就到明天）：出征打和本国接壤的敌城削守军，驻守前线补兵；守军打光后守将出城，单挑赢了这座城就归本国（守将战不用军令；打光后一天之内对方补不上兵、别国也不来抢，过了这天就补回来）。本国占着洛阳经验+10%，占着虎牢关银两+10%。',
+    '【国战】60级以后「功能 → 国战」投奔魏、蜀、吴其中一国。日子按天下历走：你每打一仗天下走一格，18 仗算一天，各国 AI 跟着补兵、打邻城；七天一个赛季，按城数排名发奖。你每天有8道军令（用完了去别处打几仗就到明天）：出征打和本国接壤的敌城削守军，驻守前线补兵；守军打光后守将出城，单挑赢了这座城就归本国（守将战不用军令；打光后一天之内对方补不上兵、别国也不来抢，过了这天就补回来）。另外两国也有玩家天天出征，专削本国前线兵少的城，记得分军令驻守；你夺来的城，原主会一心打回去。敌国都城还有自家的城接壤时守军打不光，要先拔掉周边。一国只剩两座城时成了哀兵，守得更硬。本国占着洛阳经验+10%，占着虎牢关银两+10%。',
     '【战功官职】出征、驻守、斩将都给战功：累计战功升官职（士卒到大将军），官职越高加的属性越多、每天俸禄越多；可用战功在「国战 → 战功」里换将军令、宝石、矿石。',
     '【军团争霸】入了教派就能打：四个教派一个赛季的循环赛（和国战同一套天下历），每天一轮，你替本教派打三阵，赢的阵越多本教派越可能赢这一轮。下个赛季按积分领奖。',
     '【诸州会武】80级以后，每个赛季的第六、七天在「国战 → 会武」和兖州、徐州的高手过招，赢了给本州加分，下个赛季按三州的名次领奖。',
@@ -712,6 +716,10 @@ export function settingsPanel(h: Host): void {
     head('声音');
     pick('背景音乐', VOLUME_NAMES, st.music, (i) => saveSettings({ music: i }));
     pick('音效', VOLUME_NAMES, st.sfx, (i) => saveSettings({ sfx: i }));
+    const changed = Object.keys(st.tracks).length;
+    dyn.add(text(h, m.cx, y + 5, '选曲', { color: C.darkBrown }));
+    dyn.add(new Button(h, m.cx + 70, y, m.cw - 70, 22, changed ? `各场合放哪首（改了${changed}处）` : '各场合放哪首', () => musicPanel(h, render)));
+    y += 30;
     y += 6;
     head('战斗');
     pick('动画速度', SPEEDS.map((v) => (v === 1 ? '正常' : `${v}倍`)), SPEEDS.indexOf(st.speed), (i) => saveSettings({ speed: SPEEDS[i] }));
@@ -736,16 +744,68 @@ export function settingsPanel(h: Host): void {
       cloudPanel(h, true, () => h.scene.restart());
     }, { style: 'red' }));
     y += 36;
-    dyn.add(new Button(h, m.cx, y, half, 28, '回到标题', () => {
+    dyn.add(new Button(h, m.cx, y, half, 28, '换存档位', () => {
+      store.flush();
+      h.scene.start('Title', { slots: true });
+    }));
+    dyn.add(new Button(h, m.cx + half + 6, y, half, 28, '回到标题', () => {
       store.flush();
       h.scene.start('Title');
     }));
-    dyn.add(new Button(h, m.cx + half + 6, y, half, 28, '删除存档', () => confirm(h, '删除后无法恢复，确定吗？建议先导出。', () => {
+    y += 36;
+    dyn.add(new Button(h, m.cx, y, m.cw, 28, `删除存档${'一二三'[store.slot]}（${store.save.player.name}）`, () => confirm(h, '删除后无法恢复，确定吗？建议先导出。', () => {
+      forgetSlot(store.slot);
       store.clear();
       h.scene.start('Title');
     }, '删除'), { style: 'red' }));
     y += 38;
     dyn.add(text(h, m.cx, y, '游戏会自动保存在这个设备上；登录云存档后也能存到服务器上。设置只记在这台设备上。', { wrap: m.cw, color: C.gray }));
+  };
+  render();
+}
+
+// 选曲：每个场合放原曲、换成别的某首，或者关掉；点一下换一首并当场试听
+function musicPanel(h: Host, onDone: () => void): void {
+  const done = () => {
+    previewMusic(null, true);
+    onDone();
+  };
+  const m = new Modal(h, '选曲', { w: 300, onClose: done });
+  const dyn = h.add.container(0, 0);
+  m.inner.add(dyn);
+  const label = (scene: TrackId, v: TrackPick) => (v === 'off' ? '关（不放音乐）' : v === scene ? `原曲` : `换成「${TRACK_NAMES[v]}」`);
+  const render = () => {
+    dyn.removeAll(true);
+    const st = settings();
+    let y = m.cy + 2;
+    if (st.music === 0) {
+      dyn.add(text(h, m.cx, y, '背景音乐现在关着，先在设置里把音量调起来才听得到。', { wrap: m.cw, color: C.red }));
+      y += 36;
+    }
+    for (const scene of TRACK_IDS) {
+      const v = st.tracks[scene] ?? scene;
+      dyn.add(text(h, m.cx, y + 5, TRACK_NAMES[scene], { color: C.darkBrown }));
+      dyn.add(new Button(h, m.cx + 84, y, m.cw - 84, 22, label(scene, v), () => {
+        // 原曲 → 其他各首 → 关 → 原曲
+        const order: TrackPick[] = [scene, ...TRACK_IDS.filter((x) => x !== scene), 'off'];
+        const next = order[(order.indexOf(v) + 1) % order.length];
+        const tracks = { ...st.tracks };
+        if (next === scene) delete tracks[scene];
+        else tracks[scene] = next;
+        saveSettings({ tracks });
+        previewMusic(next === 'off' ? null : next);
+        render();
+      }, { style: v === scene ? 'tan' : 'red' }));
+      y += 28;
+    }
+    y += 4;
+    dyn.add(new Button(h, m.cx, y, m.cw, 26, '全部恢复原曲', () => {
+      saveSettings({ tracks: {} });
+      previewMusic(null, true);
+      render();
+    }, { disabled: !Object.keys(st.tracks).length }));
+    y += 34;
+    dyn.add(text(h, m.cx, y, '点一下换一首，当场试听；关掉这个窗口回到眼下这一处的曲子。', { wrap: m.cw, color: C.gray }));
   };
   render();
 }

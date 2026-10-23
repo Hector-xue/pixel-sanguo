@@ -244,8 +244,8 @@ export interface GuozhanDef {
   links: [string, string][];
   soldiers: Record<NationId, string[]>;
   guards: Record<NationId, string[]>;
-  ai: { attackChance: number; sendPct: number; minRatio: number; startPct: number; qunStartPct: number; qunYieldMul: number; reinforcePct: number; bigNationDamp: number; allyVsLeader: number; allyAttackBonus: number; luck: [number, number] };
-  player: { hitPct: number; hitPerLevel: number; defendPct: number; captureTroopsPct: number; meritAtk: number; meritDef: number; meritBoss: number; guardControlResist: number; guardLevel: number; guardEscorts: number; mirrorChance: number; joinCooldownDays: number };
+  ai: { attackChance: number; sendPct: number; minRatio: number; startPct: number; qunStartPct: number; qunYieldMul: number; reinforcePct: number; bigNationDamp: number; allyVsLeader: number; allyAttackBonus: number; revengeMul: number; revengeAttackBonus: number; lastStandCities: number; lastStandYield: number; lastStandDef: number; raidChance: number; raidPower: number; luck: [number, number] };
+  player: { hitPct: number; hitPerLevel: number; defendPct: number; captureTroopsPct: number; capitalFloorPct: number; meritAtk: number; meritDef: number; meritBoss: number; guardControlResist: number; guardLevel: number; guardEscorts: number; mirrorChance: number; joinCooldownDays: number };
   ranks: { name: string; merit: number }[];
   rankBonus: { hp: number; atk: number; def: number };
   salaryPerRankLevel: number;

@@ -7,6 +7,8 @@
 - 上传：带上「我上次同步时的版本号 base」。服务器上的版本比 base 新（别的设备传过）就回 409，
   让玩家自己决定覆盖还是先下载，**绝不静默覆盖**。每个账号保留最近 3 个版本，可以退回上一个。
 - 下载：取最新版或指定版本。
+- 存档位：游戏里有 3 个存档位，每个位子在云端各存各的（slot 0～2，版本号各自从 1 数起）；
+  不带 slot 的老版本客户端按第一个位子算。
 
 # 防护
 - 同一 IP：注册每小时 5 次、登录每 10 分钟 20 次、其余请求每分钟 60 次；所有来源合计写入每小时上限。
@@ -75,12 +77,32 @@ def db() -> sqlite3.Connection:
             CREATE TABLE IF NOT EXISTS tokens (
               token_hash TEXT PRIMARY KEY, account TEXT NOT NULL, created REAL NOT NULL, last REAL NOT NULL);
             CREATE TABLE IF NOT EXISTS saves (
-              account TEXT NOT NULL, rev INTEGER NOT NULL, at REAL NOT NULL, summary TEXT NOT NULL, data BLOB NOT NULL,
-              PRIMARY KEY (account, rev));
+              account TEXT NOT NULL, slot INTEGER NOT NULL DEFAULT 0, rev INTEGER NOT NULL, at REAL NOT NULL,
+              summary TEXT NOT NULL, data BLOB NOT NULL, PRIMARY KEY (account, slot, rev));
             """
         )
+        _migrate(_db)
         _db.commit()
     return _db
+
+
+def _migrate(c: sqlite3.Connection) -> None:
+    """老库的 saves 没有 slot 列（主键是 account+rev）：整表搬进新表，原有存档都算第一个位子。"""
+    cols = [r[1] for r in c.execute("PRAGMA table_info(saves)")]
+    if "slot" in cols:
+        return
+    c.executescript(
+        """
+        BEGIN;
+        CREATE TABLE saves_new (
+          account TEXT NOT NULL, slot INTEGER NOT NULL DEFAULT 0, rev INTEGER NOT NULL, at REAL NOT NULL,
+          summary TEXT NOT NULL, data BLOB NOT NULL, PRIMARY KEY (account, slot, rev));
+        INSERT INTO saves_new (account, slot, rev, at, summary, data) SELECT account, 0, rev, at, summary, data FROM saves;
+        DROP TABLE saves;
+        ALTER TABLE saves_new RENAME TO saves;
+        COMMIT;
+        """
+    )
 
 
 def _rate_ok(ip: str, kind: str) -> bool:
@@ -175,15 +197,37 @@ def _auth(header: str) -> str:
     return row[0]
 
 
-def _latest(acc: str):
-    return db().execute("SELECT rev, at, summary FROM saves WHERE account=? ORDER BY rev DESC LIMIT 1", (acc,)).fetchone()
+SLOTS = 3
 
 
-def _info(acc: str) -> dict:
-    rows = db().execute("SELECT rev, at, summary FROM saves WHERE account=? ORDER BY rev DESC", (acc,)).fetchall()
+def _slot(body: dict) -> int:
+    try:
+        n = int(body.get("slot") or 0)
+    except (TypeError, ValueError):
+        n = -1
+    if not 0 <= n < SLOTS:
+        raise ApiError(400, "bad_slot", "存档位不对")
+    return n
+
+
+def _latest(acc: str, slot: int):
+    return db().execute("SELECT rev, at, summary FROM saves WHERE account=? AND slot=? ORDER BY rev DESC LIMIT 1", (acc, slot)).fetchone()
+
+
+def _info(acc: str, slot: int = 0) -> dict:
+    """这个位子的最新版和历史版本，外加三个位子各自的最新版（slots，空位不列）。"""
+    rows = db().execute("SELECT rev, at, summary FROM saves WHERE account=? AND slot=? ORDER BY rev DESC", (acc, slot)).fetchall()
     hist = [{"rev": r, "at": int(at * 1000), "summary": json.loads(sm)} for r, at, sm in rows]
     top = hist[0] if hist else None
-    return {"account": acc, "rev": top["rev"] if top else 0, "at": top["at"] if top else 0, "summary": top["summary"] if top else None, "history": hist}
+    tops = db().execute(
+        "SELECT slot, MAX(rev) FROM saves WHERE account=? GROUP BY slot ORDER BY slot", (acc,)
+    ).fetchall()
+    slots = []
+    for sl, rv in tops:
+        r = db().execute("SELECT at, summary FROM saves WHERE account=? AND slot=? AND rev=?", (acc, sl, rv)).fetchone()
+        slots.append({"slot": sl, "rev": rv, "at": int(r[0] * 1000), "summary": json.loads(r[1])})
+    return {"account": acc, "slot": slot, "rev": top["rev"] if top else 0, "at": top["at"] if top else 0,
+            "summary": top["summary"] if top else None, "history": hist, "slots": slots}
 
 
 # ===== 各个接口 =====
@@ -226,7 +270,7 @@ def api_login(body: dict, ip: str) -> dict:
 
 
 def api_info(body: dict, acc: str) -> dict:
-    return _info(acc)
+    return _info(acc, _slot(body))
 
 
 def api_upload(body: dict, acc: str) -> dict:
@@ -239,8 +283,9 @@ def api_upload(body: dict, acc: str) -> dict:
         raise ApiError(503, "disk", "服务器空间不够，暂时不能上传")
     summary = _summary(text)
     base = int(body.get("base") or 0)
+    slot = _slot(body)
     c = db()
-    top = _latest(acc)
+    top = _latest(acc, slot)
     cur = top[0] if top else 0
     if cur != base and not body.get("force"):
         raise ApiError(409, "conflict", "云端的存档比你上次同步的新（可能是别的设备传的）", {"rev": cur, "at": int(top[1] * 1000), "summary": json.loads(top[2])})
@@ -248,22 +293,24 @@ def api_upload(body: dict, acc: str) -> dict:
         raise ApiError(503, "busy", "服务器有点忙，过一会儿再试")
     rev = cur + 1
     now = time.time()
-    c.execute("INSERT INTO saves VALUES (?,?,?,?,?)", (acc, rev, now, json.dumps(summary, ensure_ascii=False), text.encode("utf-8")))
-    c.execute("DELETE FROM saves WHERE account=? AND rev <= ?", (acc, rev - KEEP))
+    c.execute("INSERT INTO saves (account, slot, rev, at, summary, data) VALUES (?,?,?,?,?,?)",
+              (acc, slot, rev, now, json.dumps(summary, ensure_ascii=False), text.encode("utf-8")))
+    c.execute("DELETE FROM saves WHERE account=? AND slot=? AND rev <= ?", (acc, slot, rev - KEEP))
     c.commit()
-    return {"rev": rev, "at": int(now * 1000), "summary": summary}
+    return {"rev": rev, "at": int(now * 1000), "summary": summary, "slot": slot}
 
 
 def api_download(body: dict, acc: str) -> dict:
     rev = body.get("rev")
+    slot = _slot(body)
     c = db()
     if rev:
-        row = c.execute("SELECT rev, at, summary, data FROM saves WHERE account=? AND rev=?", (acc, int(rev))).fetchone()
+        row = c.execute("SELECT rev, at, summary, data FROM saves WHERE account=? AND slot=? AND rev=?", (acc, slot, int(rev))).fetchone()
     else:
-        row = c.execute("SELECT rev, at, summary, data FROM saves WHERE account=? ORDER BY rev DESC LIMIT 1", (acc,)).fetchone()
+        row = c.execute("SELECT rev, at, summary, data FROM saves WHERE account=? AND slot=? ORDER BY rev DESC LIMIT 1", (acc, slot)).fetchone()
     if not row:
-        raise ApiError(404, "empty", "云端还没有存档")
-    return {"rev": row[0], "at": int(row[1] * 1000), "summary": json.loads(row[2]), "save": row[3].decode("utf-8")}
+        raise ApiError(404, "empty", "云端这个存档位还没有存档" if slot else "云端还没有存档")
+    return {"rev": row[0], "at": int(row[1] * 1000), "summary": json.loads(row[2]), "save": row[3].decode("utf-8"), "slot": slot}
 
 
 def api_logout(body: dict, acc: str, header: str) -> dict:

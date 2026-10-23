@@ -12,7 +12,7 @@ import { SLOTS, store } from '../game/store';
 import { showDialog } from '../ui/dialog';
 import { overlayInput } from '../ui/input';
 import { cloudPanel } from '../ui/cloud';
-import { isApp } from '../game/cloud';
+import { forgetSlot, isApp } from '../game/cloud';
 import { Button, H, SAFE_TOP, W, confirm, frame, goldFrame, hit, text, toast } from '../ui/widgets';
 import { UI } from '../art/chrome';
 import { playMusic } from '../ui/audio';
@@ -35,12 +35,14 @@ export class TitleScene extends Phaser.Scene {
     super('Title');
   }
 
-  create(data?: { relayout?: boolean }): void {
+  // slots：从游戏里「设置 → 换存档位」过来，直接进存档位页
+  create(data?: { relayout?: boolean; slots?: boolean }): void {
     this.page = null;
     setChrome('#4a8fd8');
     playMusic('title');
     titleBackdrop(this, W, H);
     if (data?.relayout) this.current();
+    else if (data?.slots) this.showSlots();
     else this.showHome();
   }
 
@@ -185,6 +187,7 @@ export class TitleScene extends Phaser.Scene {
         }, { style: 'red' }));
         p.add(new Button(this, 276, y + 14, 56, 24, '删除', () => confirm(this, `删除存档${names[i]}（${info.name} ${info.level}级）？删了找不回来，建议先进游戏在「功能 → 设置」导出。`, () => {
           store.removeSlot(i);
+          forgetSlot(i);
           if (i === store.slot) store.useSlot(i);
           this.showSlots();
         }, '删除')));

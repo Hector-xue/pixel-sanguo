@@ -42,8 +42,16 @@ export function showTip(scene: Phaser.Scene, tip: Tip, onClose?: () => void): vo
   scene.tweens.add({ targets: c, alpha: 1, y: 0, duration: 220, ease: 'Quad.easeOut' });
   sfx('click');
   showing = c;
+  // 弹窗打开时提示卡会压住弹窗的标题和关闭钮：先收起，这条不算看过，弹窗关了再出
+  const onAdd = (o: Phaser.GameObjects.GameObject) => {
+    if (!(o instanceof Modal) || !c.active) return;
+    if (store.has()) delete store.save.flags[`tip_${tip.key}`];
+    close();
+  };
+  scene.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, onAdd);
   const close = () => {
     if (!c.active) return;
+    scene.events.off(Phaser.Scenes.Events.ADDED_TO_SCENE, onAdd);
     scene.tweens.add({ targets: c, alpha: 0, y: -10, duration: 160, onComplete: () => {
       c.destroy();
       if (showing === c) showing = null;
