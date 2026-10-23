@@ -228,6 +228,8 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
   }
 
   if (b.outcome === 'win') {
+    bump(s, 'wins');
+    if (b.tag === 'taofa') bump(s, 'taofa');
     bump(s, 'winStreak');
     sum.streak = s.life.winStreak;
     if (sum.streak > (s.life.bestStreak ?? 0)) {
@@ -235,7 +237,11 @@ export function finishBattle(s: Save, b: Battle, now = Date.now()): BattleSummar
       sum.record = sum.streak >= 5;
     }
     sum.grade = battleGrade(b);
-  } else if (b.outcome === 'lose') s.life.winStreak = 0;
+    if (sum.grade === '甲') bump(s, 'gradeA');
+  } else if (b.outcome === 'lose') {
+    s.life.winStreak = 0;
+    bump(s, 'losses');
+  }
   if (b.outcome === 'win' && !b.spar) {
     // 本国占着洛阳、虎牢关：经验、银两加成
     const buff = gzBuff(s);

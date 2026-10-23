@@ -3,7 +3,7 @@
 import { items, locations } from '../data';
 import { oreFor } from './welfare';
 import type { Save } from './state';
-import { addItem, bagCount, log, onFlag, removeItem, rollRng } from './state';
+import { addItem, bagCount, bump, log, onFlag, removeItem, rollRng } from './state';
 
 export type GatherKind = 'fish' | 'mine' | 'herb';
 export type LifeKind = GatherKind | 'cook';
@@ -158,6 +158,7 @@ export function gather(s: Save, kind: GatherKind, qs: Quality[]): GatherResult {
   if (up) lines.push(up);
   if (real.length) {
     s.flags.gathered = true;
+    bump(s, 'gathers');
     onFlag(s, 'gathered');
   }
   if (real.some((g) => g.id === 'yu_jin' || g.id === 'yao_shen' || g.id === 'zhenkuang')) log(s, `${LIFE_NAMES[kind]}得到了${real.map((g) => items[g.id].name).join('、')}`);
@@ -206,6 +207,7 @@ export function cook(s: Save, rid: string): string {
   const up = gainExp(s, 'cook', 6 + r.lv * 4);
   if (up) lines.push(up);
   s.flags.cooked = true;
+  bump(s, 'cooks');
   onFlag(s, 'cooked');
   return lines.join('\n');
 }

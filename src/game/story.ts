@@ -9,7 +9,7 @@ import { balance, locations, monsters } from '../data';
 import type { MonsterGroup, QuestDef } from '../data';
 import { generalUnit, monsterUnit, playerUnit, startGroupBattle } from './encounter';
 import type { Save } from './state';
-import { currentQuest, deployedUids, log, npcName, questNeed } from './state';
+import { bump, currentQuest, deployedUids, log, npcName, questNeed } from './state';
 import { bossUnit } from './tower';
 
 export const TAOFA_MUL = 2;
@@ -105,6 +105,7 @@ export function afterDuel(s: Save, b: Battle): string[] {
   if (b.outcome !== 'win') return [`没能胜过${name}，回去练练再来（名将战按切磋算，什么也没丢）`];
   s.main.state = 'ready';
   s.main.count = 1;
+  bump(s, 'duels');
   const line = `胜过${name}！任务【${q.title}】完成，回去找${npcName(q.turnIn)}`;
   log(s, line);
   return [line];

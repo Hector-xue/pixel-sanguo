@@ -23,6 +23,8 @@ export interface P5State {
   badges: Record<string, number>;
   // 演武塔：最高层、今天输了几次（见 tower.ts）
   tower?: { best: number; day: string; losses: number };
+  // 本周军功簿（见 weekly.ts）
+  week?: { idx: number; keys: string[]; base: Record<string, number>; claimed: string[]; bonus: boolean };
 }
 
 export function p5Defaults(): P5State {

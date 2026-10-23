@@ -637,7 +637,8 @@ function nextBanner(scene: Phaser.Scene): void {
     bannerOn = false;
     return;
   }
-  if (tipOpen) {
+  // 指引卡开着、或者开着弹窗（横幅在任务栏下面，会压住弹窗的标题和关闭钮）：先等一等
+  if (tipOpen || scene.children.list.some((o) => o instanceof Modal)) {
     bannerOn = true;
     scene.time.delayedCall(800, () => nextBanner(scene));
     return;
@@ -673,8 +674,14 @@ function nextBanner(scene: Phaser.Scene): void {
   };
   scene.tweens.add({ targets: c, x: 12, duration: 220, ease: 'Quad.easeOut' });
   scene.time.delayedCall(2600, done);
+  // 播的时候打开了弹窗：先收起让开（这条算播过，剩下的等弹窗关了再播）
+  const onAdd = (o: Phaser.GameObjects.GameObject) => {
+    if (o instanceof Modal) done();
+  };
+  scene.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, onAdd);
   // 场景切走了（进了战斗）：这条算播过，剩下的等回到主界面接着播
   c.once(Phaser.GameObjects.Events.DESTROY, () => {
+    scene.events.off(Phaser.Scenes.Events.ADDED_TO_SCENE, onAdd);
     if (!gone) bannerOn = false;
   });
 }

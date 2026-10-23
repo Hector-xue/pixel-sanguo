@@ -6,7 +6,7 @@ window.__probePanels = async () => {
   const mods = {
     P: window.__P, X: window.__X, F: window.__F, R: window.__R, T: window.__T, G4: window.__G4,
     L: await import('/src/ui/life.ts'), FM: await import('/src/ui/formation.ts'),
-    D: await import('/src/ui/daily.ts'), CL: await import('/src/ui/changelog.ts'),
+    D: await import('/src/ui/daily.ts'), CL: await import('/src/ui/changelog.ts'), RC: await import('/src/ui/record.ts'),
   };
   const jobs = [];
   const add = (label, fn) => jobs.push([label, fn]);
@@ -15,6 +15,7 @@ window.__probePanels = async () => {
   for (const n of ['sectPanel', 'trainingPanel', 'rankPanel', 'achvPanel', 'teamPanel', 'stallPanel', 'replayPanel']) add('X.' + n, () => mods.X[n](sc));
   for (const t of [0, 1, 2, 3]) add('X.vaultPanel#' + t, () => mods.X.vaultPanel(sc, t));
   add('D.dailyPanel', () => mods.D.dailyPanel(sc));
+  for (const t of [0, 1]) add('RC.recordPanel#' + t, () => mods.RC.recordPanel(sc, t));
   add('CL.changelogPanel', () => mods.CL.changelogPanel(sc));
   add('CL.whatsNew', () => mods.CL.changelogPanel(sc, true));
   add('X.treasurePanel', () => mods.X.treasurePanel(sc, () => {}));

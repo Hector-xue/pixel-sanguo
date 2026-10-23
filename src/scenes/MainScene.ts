@@ -13,6 +13,8 @@ import { randomSeed } from '../core/rng';
 import type { Battle } from '../core/battle';
 import { duelBattle, duelReason, taofaBattle, taofaReason } from '../game/story';
 import { isUnlocked, markUnlocked, nextUnlock, pendingUnlocks } from '../game/unlocks';
+import { weekPending } from '../game/weekly';
+import { recordPanel } from '../ui/record';
 import { expToNext } from '../core/formulas';
 import { playersAt } from '../game/chatter';
 import { groupLabel, startBattle, startGroupBattle } from '../game/encounter';
@@ -82,7 +84,7 @@ const SHICHEN = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', 
 // 功能菜单：名字对应的图标
 const FUNC_KEYS: Record<string, string> = {
   状态: 'status', 物品: 'items', 副将: 'generals', 任务: 'quest', 组队: 'team', 排行: 'rank', 国战: 'guozhan', 福利: 'welfare',
-  擂台: 'arena', 帮派: 'sect', 训练: 'train', 宝库: 'vault', 生活: 'life', 阵法: 'formation', 攻略: 'guide', 设置: 'settings',
+  擂台: 'arena', 帮派: 'sect', 训练: 'train', 宝库: 'vault', 生活: 'life', 阵法: 'formation', 攻略: 'guide', 设置: 'settings', 军功: 'record',
 };
 
 function shichen(d = new Date()): string {
@@ -835,7 +837,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
     g.fillStyle(UI.goldLo).fillRect(0, y + 1, W, 1);
     this.layer.add(g);
     const town = !!loc.town && !!loc.facilities?.length;
-    const funcDot = s.player.free > 0 || s.main.state === 'ready' || welfarePending(s) || X.festivalPending(s) || G4.guozhanPending(s);
+    const funcDot = s.player.free > 0 || s.main.state === 'ready' || welfarePending(s) || X.festivalPending(s) || G4.guozhanPending(s) || (isUnlocked(s, '军功') && weekPending(s) > 0);
     const items: [string, string, () => void, boolean, boolean][] = [
       ['house', town ? '设施' : '野外', () => (town ? this.facilitySheet() : toast(this, '野外没有设施，回城镇才能用医馆、钱庄这些')), false, !town],
       ['map', '地图', () => this.mapSheet(), false, false],
@@ -952,7 +954,7 @@ export class MainScene extends Phaser.Scene implements P.Host {
       ['状态', () => P.statusPanel(this), s.player.free > 0], ['物品', () => P.bagPanel(this), false], ['副将', () => P.generalsPanel(this), false],
       ['任务', () => P.questPanel(this), s.main.state === 'ready'], ['组队', () => X.teamPanel(this), false], ['排行', () => X.rankPanel(this), false],
       ['国战', () => G4.guozhanPanel(this), G4.guozhanPending(s)], ['福利', () => welfarePanel(this), welfarePending(s) || X.festivalPending(s)], ['擂台', () => X.arenaPanel(this), false],
-      ['帮派', () => X.sectPanel(this), false], ['训练', () => X.trainingPanel(this), false], ['宝库', () => X.vaultPanel(this), false],
+      ['帮派', () => X.sectPanel(this), false], ['训练', () => X.trainingPanel(this), false], ['宝库', () => X.vaultPanel(this), false], ['军功', () => recordPanel(this), weekPending(s) > 0],
       ['生活', () => lifePanel(this), false], ['阵法', () => formationPanel(this), false], ['攻略', () => P.helpPanel(this), false], ['设置', () => P.settingsPanel(this), false],
     ];
     return items.filter(([name]) => isUnlocked(s, name));

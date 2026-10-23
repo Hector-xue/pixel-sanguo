@@ -6,9 +6,10 @@ import { contestPending, kuaquLeft, kuaquOpen, leagueLeft } from './contest';
 import { festivalKey, luckyDraws, silverRingLeft, treasureLeft, treasureNow, wenquToday } from './events';
 import { ordersLeft, salary, salaryClaimed } from './guozhan';
 import type { Save } from './state';
+import { weekPending, weekRows } from './weekly';
 import { milestoneReady, suppliesReady } from './welfare';
 
-export type DailyGo = 'welfare' | 'festival' | 'arena' | 'duel' | 'treasure' | 'wenqu' | 'lucky' | 'silverRing' | 'guozhan' | 'league' | 'kuaqu' | 'claims';
+export type DailyGo = 'welfare' | 'festival' | 'arena' | 'duel' | 'treasure' | 'wenqu' | 'lucky' | 'silverRing' | 'guozhan' | 'league' | 'kuaqu' | 'claims' | 'week';
 
 export interface DailyItem {
   go: DailyGo;
@@ -28,6 +29,12 @@ export function dailyItems(s: Save, t = calTick(s)): DailyItem[] {
   const fk = festivalKey();
   if (fk && !s.p3.festival.includes(fk)) add('festival', '节日礼包', '今天过节，礼包还没领', true);
 
+  // 本周军功簿：有能领的就算一件
+  if (lv >= 12) {
+    const rows = weekRows(s, t);
+    const ready = weekPending(s);
+    add('week', '军功簿', ready ? `${ready}份能领` : `本周${rows.filter((r) => r.claimed).length}/${rows.length}件`, ready > 0);
+  }
   const wq = wenquToday(s, t).left;
   add('wenqu', '文曲星答题', wq ? `还剩${wq}题` : '答完了', wq > 0);
   const lucky = Math.max(0, systems.lucky.free - luckyDraws(s, t));

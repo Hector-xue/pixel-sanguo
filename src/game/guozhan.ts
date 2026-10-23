@@ -467,7 +467,7 @@ function attackerOf(w: GzWorld, id: string): NationId {
 }
 
 // 敌军戒备：打得越顺，各国越提防你——敌军攻防血按戒备加强、AI 玩家更常带队，战功也按戒备多给。
-// 赢一仗 +1，输一仗 −lossDrop：胜率自己稳在七八成，不管练得多强都有得打
+// 赢一仗 +1，输一仗减 lossDrop：胜率自己稳在七八成，不管练得多强都有得打
 export function gzAlert(s: Save): number {
   return Math.min(G.player.alert.cap, s.p4.streak ?? 0);
 }

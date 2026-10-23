@@ -1,5 +1,6 @@
 // 今日事务面板：今天还剩什么、点「去办」直接打开那个面板；设施里的事（幸运王、抢宝）和 NPC 的事（文曲星、银两环）先寻路过去
 import { C } from '../art/palette';
+import { recordPanel } from './record';
 import { locations, npcs } from '../data';
 import { tomorrowHint } from '../game/calendar';
 import { dailyItems } from '../game/daily';
@@ -52,6 +53,7 @@ function open(h: Host, go: DailyGo): void {
     case 'league': return G4.guozhanPanel(h, 3);
     case 'kuaqu': return G4.guozhanPanel(h, 4);
     case 'claims': return G4.guozhanPanel(h);
+    case 'week': return recordPanel(h, 0);
     case 'lucky': return goThen(h, hasFac('casino'), '娱乐场', () => casinoPanel(h, 2));
     case 'treasure': return goThen(h, hasFac('battlefield'), '战场', () => X.treasurePanel(h, () => battlefieldPanel(h)));
     case 'wenqu': {

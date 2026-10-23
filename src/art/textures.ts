@@ -95,6 +95,13 @@ const UI_ICONS: Record<string, string[]> = {
 // 功能菜单的图标：16×16 字符画，比上面的小图标多几种颜色（f 肤、F 肤影、c 浅褐、q 浅蓝、v 天青）
 const FUNC_PAL: Record<string, number> = { ...ICON_PAL, f: C.skin, F: C.skinShade, c: C.lightBrown, q: C.lightBlue, v: C.sky };
 export const FUNC_ICONS: Record<string, string[]> = {
+  // 军功簿 红绶金牌
+  record: [
+    '................', '...kkk....kkk...', '...krrk..krrk...', '....krrkkrrk....',
+    '.....krrrrk.....', '......kkkk......', '.....kggggk.....', '....kgyyyggk....',
+    '...kgyywyyggk...', '...kgyyyyyggk...', '...kggyyyyogk...', '....kgggggok....',
+    '.....kooook.....', '......kkkk......', '................', '................',
+  ],
   // 状态 半身像
   status: [
     '................', '......kkkk......', '.....kBBBBk.....', '....kBBBBBBk....',

@@ -118,7 +118,7 @@ function mapTab(h: Host, m: Modal, dyn: Phaser.GameObjects.Container, y0: number
   const al = gzAlert(s);
   const alText = al ? `敌军戒备${al}：敌军+${Math.round((gzAlertPower(s) - 1) * 100)}%，战功+${Math.round(al * G.player.alert.meritPer * 100)}%` : '敌军戒备0';
   dyn.add(text(h, mx + 4, my + mh - 15, alText, { color: al >= 20 ? 0xff9a78 : 0xe8dcb8, stroke: 0x000000 }));
-  dyn.add(hit(h, mx, my + mh - 18, Math.min(mw, textWidth(alText) + 10), 18, () => toast(h, `国战赢一仗戒备+1，输一仗−${G.player.alert.lossDrop}（最高${G.player.alert.cap}）。戒备越高，敌军越强、越常有敌国名人带队，战功也给得越多。`, 4200)));
+  dyn.add(hit(h, mx, my + mh - 18, Math.min(mw, textWidth(alText) + 10), 18, () => toast(h, `国战赢一仗戒备+1，输一仗减${G.player.alert.lossDrop}（最高${G.player.alert.cap}）。戒备越高，敌军越强、越常有敌国名人带队，战功也给得越多。`, 4200)));
   const pos = (id: string) => {
     const c = cityDef(id);
     return { x: mx + 16 + (c.x / 100) * (mw - 32), y: my + 14 + (c.y / 100) * (mh - 32) };

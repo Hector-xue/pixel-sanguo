@@ -14,6 +14,7 @@ import { UNLOCKS, isUnlocked, markUnlocked, nextUnlock, pendingUnlocks } from '.
 import { playerUnit } from '../src/game/encounter';
 import { autoplay } from '../src/sim/autoplay';
 import { heroLook, heroVariantOf } from '../src/art/units';
+import { WEEK_PICKS, claimWeek, claimWeekBonus, recordLines, weekRows, weekState } from '../src/game/weekly';
 
 const A = systems.guozhan.player.alert;
 
@@ -239,5 +240,42 @@ describe('头像 4～6', () => {
     // 造型（时装）照样叠在新头像上
     expect(heroLook('warrior', 'male', heroVariantOf(3, 1)).outfit).toEqual(heroLook('warrior', 'male', 3).outfit);
     expect(heroLook('warrior', 'male', heroVariantOf(4, 1)).scar).toBe(true);
+  });
+});
+
+describe('本周军功簿', () => {
+  it('换周重挑四件、第一件是打赢；进度按换周时记的底算；领完四件才能领全满奖', () => {
+    const s = hero(85);
+    const w = weekState(s);
+    expect(w.keys.length).toBe(WEEK_PICKS);
+    expect(w.keys[0]).toBe('win');
+    expect(weekState(s)).toBe(w);
+    s.life.wins = (s.life.wins ?? 0) + 59;
+    expect(weekRows(s)[0].done).toBe(59);
+    expect(claimWeek(s, 'win')).toContain('还差1');
+    s.life.wins += 5;
+    const silver = s.player.silver;
+    claimWeek(s, 'win');
+    expect(s.player.silver).toBeGreaterThan(silver);
+    expect(claimWeek(s, 'win')).toContain('领过');
+    expect(claimWeekBonus(s)).toContain('四件');
+    // 天下历过了一周：换一批、从零算
+    s.battles += 7 * 18;
+    const w2 = weekState(s);
+    expect(w2.idx).toBe(w.idx + 1);
+    expect(weekRows(s)[0].done).toBe(0);
+  });
+
+  it('做不了的不挑（没入国就没有国战那件）', () => {
+    const s = hero(85);
+    for (let k = 0; k < 20; k++) {
+      s.battles += 7 * 18;
+      expect(weekState(s).keys).not.toContain('gz');
+    }
+  });
+
+  it('战绩总账能算出来', () => {
+    const s = hero(30);
+    expect(recordLines(s).length).toBeGreaterThan(8);
   });
 });
