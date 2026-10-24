@@ -178,6 +178,11 @@ export class BattleScene extends Phaser.Scene {
   private seenPassive = new Set<string>();
   // 正在放化境大招：这一下的伤害震得更狠
   private heavy = false;
+  // 放技能时战场压黑（照原版：只剩人和招式），deco 是要跟着藏起来的花草、滤镜
+  private curtain!: Phaser.GameObjects.Rectangle;
+  private deco: (Phaser.GameObjects.GameObject & { alpha: number })[] = [];
+  private lamps: Phaser.GameObjects.Arc[] = [];
+  private staged: string | null = null;
 
   constructor() {
     super('Battle');
@@ -204,6 +209,9 @@ export class BattleScene extends Phaser.Scene {
     this.mode = 'log';
     this.seenPassive = new Set();
     this.heavy = false;
+    this.deco = [];
+    this.lamps = [];
+    this.staged = null;
   }
 
   create(): void {
@@ -221,7 +229,9 @@ export class BattleScene extends Phaser.Scene {
     this.drawTopBar(s.player.name);
     this.order = this.add.container(0, 0).setDepth(240);
     for (const u of this.b.units) this.makeView(u, true);
-    this.fx = this.add.container(0, 0).setDepth(50);
+    this.curtain = this.add.rectangle(0, FIELD_Y, W, FIELD_H, 0x000000, 1).setOrigin(0).setDepth(99).setAlpha(0);
+    // 地上的光圈、焦痕压在黑幕上面、人物下面
+    this.fx = this.add.container(0, 0).setDepth(99.5);
     this.marker = this.add.graphics().setDepth(210).setVisible(false);
     this.cueTop = this.add.container(0, 0).setDepth(210);
     this.cueGround = this.add.container(0, 0).setDepth(60);
@@ -346,6 +356,7 @@ export class BattleScene extends Phaser.Scene {
     const glows: [number, number][] = [];
     for (const p of props) {
       const img = this.add.image(p.x, p.y, propTex(this, p.kind, p.seed)).setOrigin(0.5, 1).setDepth(p.y < G_TOP ? 20 + p.y / 100 : spriteDepth(p.y));
+      this.deco.push(img);
       if (p.x > W / 2 && p.kind !== 'sign') img.setFlipX(true);
       const gl = GLOW[p.kind];
       if (gl) for (const [gx0, gy0] of gl) glows.push([Math.round(p.x - img.width / 2 + (img.flipX ? img.width - gx0 : gx0)), Math.round(p.y - img.height + gy0)]);
@@ -353,13 +364,16 @@ export class BattleScene extends Phaser.Scene {
     // 时辰滤镜与暖光，和主界面一样
     const tint: Record<string, number | null> = { dawn: 0xffe4c8, day: null, dusk: 0xffccb0, night: 0x6a74b0 };
     const tt = dark ? null : tint[dp];
-    if (tt) timeTint(this, 0, FIELD_Y, W, FIELD_H, tt).setDepth(205);
+    if (tt) this.deco.push(timeTint(this, 0, FIELD_Y, W, FIELD_H, tt).setDepth(205));
     if (dark || dp === 'night' || dp === 'dusk') for (const [x, y] of glows) {
       const c = this.add.circle(x, y, 16, 0xffa040, 0.22).setBlendMode(Phaser.BlendModes.ADD).setDepth(206);
       this.tweens.add({ targets: c, alpha: { from: 0.6, to: 1 }, duration: 700 + Math.random() * 300, yoyo: true, repeat: -1 });
+      // 灯火一直在闪，黑场时单独藏（visible，不和闪烁的 alpha 打架）
+      this.lamps.push(c);
     }
     // 两边和下沿压暗一点，视线往中间收，也接住下面的指令盘
     const vg = this.add.graphics().setDepth(207);
+    this.deco.push(vg);
     for (let k = 0; k < 6; k++) {
       vg.fillStyle(0x000000, 0.06).fillRect(0, FIELD_Y, 4 + k * 4, FIELD_H).fillRect(W - 4 - k * 4, FIELD_Y, 4 + k * 4, FIELD_H);
       vg.fillStyle(0x000000, 0.07).fillRect(0, PANEL_Y - 4 - k * 4, W, 4 + k * 4);
@@ -442,13 +456,29 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // 招式名：朱漆题签从战场上方浮出来
-  private showBanner(label: string, hold = 0): void {
+  private showBanner(label: string, hold = 0, big = false): void {
     this.banner?.destroy();
-    const c = this.add.container(W / 2, SAFE_TOP + TOP_H + 44).setDepth(245);
+    // 技能横幅贴着顶栏，盖住出手顺序那一排（放招时用不上），不挡人头和伤害数字
+    const c = this.add.container(W / 2, SAFE_TOP + TOP_H + (big ? 4 : 44)).setDepth(245);
     const g = this.add.graphics();
-    const tw = Math.max(80, textWidth(label) + 34);
-    titlePlaque(g, 0, 0, tw, 22);
-    c.add([g, text(this, 0, 4, label, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
+    if (big) {
+      // 技能：一整条横幅贯穿战场上沿，两头箭尾，大字招式名（原版就是顶上一条紫色招式条）
+      const hw = W / 2 - 6;
+      g.fillStyle(0x000000, 0.5).fillRect(-hw, -1, hw * 2, 30);
+      g.fillStyle(0x2a0c3c).fillRect(-hw + 10, -4, hw * 2 - 20, 30);
+      g.fillStyle(0x4a1a68).fillRect(-hw + 10, -2, hw * 2 - 20, 12);
+      for (let k = 0; k < 15; k++) {
+        const w = 10 - Math.abs(k - 7) * 1.4;
+        g.fillStyle(0x2a0c3c).fillRect(-hw + 10 - w, -4 + k * 2, w, 2).fillRect(hw - 10, -4 + k * 2, w, 2);
+      }
+      g.fillStyle(UI.gold).fillRect(-hw + 10, -4, hw * 2 - 20, 1).fillRect(-hw + 10, 25, hw * 2 - 20, 1);
+      g.fillStyle(0xc89bff, 0.6).fillRect(-hw + 14, -2, hw * 2 - 28, 1);
+      c.add([g, text(this, 0, -1, label, { align: 'center', color: 0xfff6d8, stroke: 0x1a0428, scale: 2 })]);
+    } else {
+      const tw = Math.max(80, textWidth(label) + 34);
+      titlePlaque(g, 0, 0, tw, 22);
+      c.add([g, text(this, 0, 4, label, { align: 'center', color: 0xfff0c0, stroke: 0x4a0804 })]);
+    }
     c.setAlpha(0).setScale(0.9, 1);
     this.tweens.add({ targets: c, alpha: 1, scaleX: 1, duration: 120, ease: 'Quad.easeOut' });
     this.banner = c;
@@ -583,8 +613,8 @@ export class BattleScene extends Phaser.Scene {
     this.tweens.add({ targets: t, alpha: 0, delay: 700, duration: 250, onComplete: () => t.destroy() });
   }
 
-  private setBanner(label: string): void {
-    this.showBanner(label);
+  private setBanner(label: string, big = false): void {
+    this.showBanner(label, 0, big);
   }
 
   // ===== 战报 =====
@@ -959,6 +989,7 @@ export class BattleScene extends Phaser.Scene {
     const before = new Map(this.b.units.map((u) => [u.id, u.mp]));
     const events = resolveRound(this.b, this.cmds);
     await this.play(events);
+    await this.stageOff((n) => n / this.speed);
     this.returnHome();
     this.hideBanner();
     // 精力变化不在事件里，回合结束统一同步
@@ -995,6 +1026,7 @@ export class BattleScene extends Phaser.Scene {
           break;
         case 'act': {
           this.returnHome();
+          await this.stageOff(ms);
           await wait(this, ms(60));
           const a = this.views.get(e.actor);
           const t = e.target ? this.views.get(e.target) : undefined;
@@ -1005,10 +1037,11 @@ export class BattleScene extends Phaser.Scene {
             sfx('magic');
             await this.cutIn(`${e.label}·化境`, this.nameOf(e.actor), C.yellow, ms);
           }
-          this.setBanner(e.label);
+          this.setBanner(e.label, !!e.skill);
           this.drawOrder(e.actor);
           this.addLog(`${this.nameOf(e.actor)}：${e.label}${e.target && e.target !== e.actor && e.kind !== 'cast' ? ` → ${this.nameOf(e.target)}` : ''}`);
           if (!a) break;
+          if (e.skill) await this.stageOn(e.skill, a, ms);
           if (e.kind === 'melee' && t && t !== a && !e.skill && RANGED.has(a.weapon)) {
             // 拿法杖、弓、羽扇的普攻站在原地打远程：法球 / 箭 / 风刃飞过去
             await this.shoot(a, t, ms);
@@ -1021,16 +1054,17 @@ export class BattleScene extends Phaser.Scene {
             a.spr.setDepth(spriteDepth(t.hy) + 0.5);
             await new Promise<void>((r) => this.tweens.add({ targets: a.spr, x: tx, y: t.hy + 2, duration: ms(180), ease: 'Quad.easeOut', onComplete: () => r() }));
             this.lunged = a;
-            if (e.skill) this.slash(a, t, e.skill === 'sheming' ? C.red : C.white, e.skill !== 'sheming');
+            if (e.skill) await this.bigSlash(a, t, e.skill === 'sheming' ? C.red : SKILL_COLOR[e.skill] ?? C.white, ms);
           } else if (e.kind === 'cast') {
             // 横扫、凤舞是刀法：摆出出刀的架势，不念咒
             const blade = !!e.skill && skills[e.skill]?.kind !== undefined && ['sweep', 'multi'].includes(skills[e.skill].kind);
             this.pose(a, blade ? 'atk' : 'cast');
             if (!blade) sfx('magic');
-            const color = e.skill ? SKILL_COLOR[e.skill] ?? C.yellow : C.yellow;
-            const ring = this.add.circle(a.hx, a.hy - 50, 8, hex(color), 0.5).setDepth(390);
-            this.tweens.add({ targets: ring, radius: 46, alpha: 0, duration: ms(350), onComplete: () => ring.destroy() });
-            await wait(this, ms(260));
+            if (!e.skill) {
+              const ring = this.add.circle(a.hx, a.hy - 50, 8, hex(C.yellow), 0.5).setDepth(390);
+              this.tweens.add({ targets: ring, radius: 46, alpha: 0, duration: ms(350), onComplete: () => ring.destroy() });
+              await wait(this, ms(260));
+            }
             await this.skillFx(e.skill, a, t, ms);
             this.lunged = a;
             a.spr.x = a.hx + (a.flip ? OFF : -OFF);
@@ -1065,7 +1099,10 @@ export class BattleScene extends Phaser.Scene {
           this.float(v, label, e.t === 'poison' ? C.lilac : crit ? C.red : C.orange, crit);
           if (e.t === 'damage' && e.mp) this.time.delayedCall(200, () => this.float(v, `精力-${e.mp}`, C.lightBlue));
           this.drawBars(v);
-          await wait(this, ms(e.t === 'poison' ? 380 : 300));
+          if (this.staged && e.t === 'damage') {
+            this.puff(v, SKILL_COLOR[this.staged] ?? C.white, ms);
+            await wait(this, ms(130));
+          } else await wait(this, ms(e.t === 'poison' ? 380 : 300));
           break;
         }
         case 'miss': {
@@ -1254,16 +1291,16 @@ export class BattleScene extends Phaser.Scene {
 
   // ===== 技能特效（都用整数坐标的小方块和线条画，保持像素感） =====
   private px(x: number, y: number, w: number, h: number, color: number, alpha = 1): Phaser.GameObjects.Rectangle {
-    const r = this.add.rectangle(Math.round(x), Math.round(y), w, h, hex(color), alpha).setOrigin(0).setDepth(390);
-    this.fx.add(r);
-    return r;
+    // 粒子压在人物上面（以前塞进了地面那层，被人挡住，看不清）
+    return this.add.rectangle(Math.round(x), Math.round(y), w, h, hex(color), alpha).setOrigin(0).setDepth(390);
   }
 
   // 从 (sx,sy) 飞到 (ex,ey)，返回飞到时的 Promise；trail 是拖尾颜色
-  private fly(obj: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject, ex: number, ey: number, dur: number, trail?: number): Promise<void> {
+  private fly(obj: Phaser.GameObjects.Components.Transform & Phaser.GameObjects.GameObject, ex: number, ey: number, dur: number, trail?: number, tsz = 4): Promise<void> {
     const tick = trail === undefined ? null : this.time.addEvent({
       delay: 28, loop: true, callback: () => {
-        const p = this.px((obj as unknown as { x: number }).x - 2, (obj as unknown as { y: number }).y - 2, 4, 4, trail, 0.8);
+        const j = tsz > 4 ? (Math.random() - 0.5) * tsz : 0;
+        const p = this.px((obj as unknown as { x: number }).x - tsz / 2 + j, (obj as unknown as { y: number }).y - tsz / 2 + j, tsz, tsz, trail, 0.8);
         this.tweens.add({ targets: p, alpha: 0, scale: 0.3, duration: 260, onComplete: () => p.destroy() });
       },
     });
@@ -1343,22 +1380,6 @@ export class BattleScene extends Phaser.Scene {
     return [...this.views.values()].filter((v) => v.flip === a.flip && !v.dead);
   }
 
-  // 一道折线雷劈在 v 头上（五雷轰顶、天崩地裂共用）
-  private bolt(v: View, color: number): void {
-    const g = this.add.graphics().setDepth(392);
-    const pts: Phaser.Math.Vector2[] = [];
-    let x = v.hx + (Math.random() - 0.5) * 16;
-    for (let y = FIELD_Y + 2; y < v.hy - 80; y += 12) {
-      pts.push(new Phaser.Math.Vector2(Math.round(x), y));
-      x += (Math.random() - 0.5) * 18;
-    }
-    pts.push(new Phaser.Math.Vector2(v.hx, v.hy - 80));
-    g.lineStyle(10, hex(color), 0.35).strokePoints(pts);
-    g.lineStyle(4, hex(color)).strokePoints(pts);
-    g.lineStyle(2, hex(C.white)).strokePoints(pts);
-    this.tweens.add({ targets: g, alpha: 0, delay: 90, duration: 140, onComplete: () => g.destroy() });
-  }
-
   // 脚下一圈光（鼓舞、回血、八门金锁）：画成像素八角，往外扩一下再淡掉
   private groundRing(v: View, color: number, ms: (n: number) => number, octagon = false): void {
     const g = this.add.graphics().setDepth(spriteDepth(v.hy) - 0.6);
@@ -1382,159 +1403,412 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  // ===== 黑场：照原版，放技能时战场整片压黑，只剩人和招式；顶上挂大横幅招式名 =====
+  private decoAlpha: number[] = [];
+  private async stageOn(id: string, a: View, ms: (n: number) => number): Promise<void> {
+    if (this.staged) return;
+    this.staged = id;
+    this.decoAlpha = this.deco.map((d) => d.alpha);
+    this.tweens.killTweensOf(this.curtain);
+    this.tweens.add({ targets: this.curtain, alpha: 0.97, duration: ms(140) });
+    this.tweens.add({ targets: this.deco, alpha: 0, duration: ms(140) });
+    for (const l of this.lamps) l.setVisible(false);
+    await wait(this, ms(160));
+    // 出招人身上先爆一团星芒（原版那一下蓝白星光）
+    sfx('whoosh');
+    this.starburst(a.hx, a.hy - 56, SKILL_COLOR[id] ?? C.sky, ms);
+    await wait(this, ms(240));
+  }
+
+  private async stageOff(ms: (n: number) => number): Promise<void> {
+    if (!this.staged) return;
+    this.staged = null;
+    this.tweens.killTweensOf(this.curtain);
+    this.tweens.add({ targets: this.curtain, alpha: 0, duration: ms(200) });
+    this.deco.forEach((d, i) => this.tweens.add({ targets: d, alpha: this.decoAlpha[i] ?? 1, duration: ms(200) }));
+    for (const l of this.lamps) l.setVisible(true);
+    await wait(this, ms(200));
+  }
+
+  // 整片战场白一下（压在人物下面，人还看得见）；关了震屏就不闪
+  private whiteOut(ms: (n: number) => number, alpha = 0.6, color = 0xffffff): void {
+    if (!settings().shake) return;
+    const f = this.add.rectangle(0, FIELD_Y, W, FIELD_H, color, alpha).setOrigin(0).setDepth(99.2);
+    this.tweens.add({ targets: f, alpha: 0, duration: ms(180), onComplete: () => f.destroy() });
+  }
+
+  // 星芒：一圈长短相间的光芒，中间十字白芯，转着胀开
+  private starburst(x: number, y: number, color: number, ms: (n: number) => number, size = 1): void {
+    const g = this.add.graphics().setDepth(393);
+    const n = 16;
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2 + Math.random() * 0.15;
+      const len = (i % 2 ? 20 + Math.random() * 10 : 42 + Math.random() * 18) * size;
+      g.lineStyle(4, hex(color), 0.55).lineBetween(0, 0, Math.cos(ang) * len, Math.sin(ang) * len);
+      g.lineStyle(1, hex(C.white)).lineBetween(0, 0, Math.cos(ang) * len * 0.85, Math.sin(ang) * len * 0.85);
+    }
+    g.fillStyle(hex(color), 0.5).fillCircle(0, 0, 14 * size);
+    g.fillStyle(hex(C.white)).fillRect(-7, -2, 14, 4).fillRect(-2, -7, 4, 14).fillRect(-4, -4, 8, 8);
+    g.setPosition(Math.round(x), Math.round(y)).setScale(0.2);
+    this.tweens.add({ targets: g, scale: 1.15, angle: 25, duration: ms(180), ease: 'Quad.easeOut' });
+    this.tweens.add({ targets: g, alpha: 0, scale: 1.5, delay: ms(220), duration: ms(180), onComplete: () => g.destroy() });
+    this.whiteOut(ms, 0.45);
+  }
+
+  // 命中：脚下腾起一团像素火（原版呼风唤雨打中是一团蓝白火），每种招式按自己的颜色
+  private puff(v: View, color: number, ms: (n: number) => number, size = 1): void {
+    const g = this.add.graphics().setDepth(spriteDepth(v.hy) + 0.8);
+    const flame = (cx: number, h: number) => {
+      // 从下往上一行行：下圆上尖，主色外圈、白芯
+      for (let r = 0; r < h; r += 2) {
+        const k = r / h;
+        const hw = Math.round((k < 0.35 ? Math.sqrt(k / 0.35) : 1 - (k - 0.35) / 0.65) * (h * 0.32) + 1);
+        const sway = Math.round(Math.sin(k * 5) * k * 3);
+        g.fillStyle(hex(color)).fillRect(cx - hw + sway, -r - 2, hw * 2, 2);
+        if (hw > 5 && k < 0.6) g.fillStyle(0xffffff, 0.85).fillRect(cx - hw + 5 + sway, -r - 2, hw * 2 - 10, 2);
+      }
+    };
+    flame(-12, 28);
+    flame(11, 24);
+    flame(0, 40);
+    g.setPosition(v.hx, v.hy - 2).setScale(size, 0.2 * size);
+    this.tweens.add({ targets: g, scaleY: size, duration: ms(140), ease: 'Back.easeOut' });
+    this.tweens.add({ targets: g, scaleX: 0.85 * size, duration: ms(90), delay: ms(140), yoyo: true, repeat: 2 });
+    this.tweens.add({ targets: g, y: v.hy - 16, alpha: 0, delay: ms(560), duration: ms(260), onComplete: () => g.destroy() });
+    for (let i = 0; i < 6; i++) {
+      const p = this.px(v.hx - 12 + Math.random() * 24, v.hy - 10 - Math.random() * 20, 2, 2, i % 2 ? color : C.white);
+      this.tweens.add({ targets: p, y: p.y - 26 - Math.random() * 16, alpha: 0, duration: ms(520), delay: ms(i * 40), onComplete: () => p.destroy() });
+    }
+  }
+
+  // 卷风：满场斜线从出招那边扫向对面，夹着翻飞的叶子，挨打的人身上溅血点
+  private windSweep(vs: View[], dir: number, ms: (n: number) => number, dur: number): Promise<void> {
+    if (!vs.length) return wait(this, ms(dur));
+    const x0 = Math.min(...vs.map((v) => v.hx)) - 56;
+    const x1 = Math.max(...vs.map((v) => v.hx)) + 56;
+    const y0 = Math.min(...vs.map((v) => v.hy)) - 120;
+    const y1 = Math.max(...vs.map((v) => v.hy)) + 8;
+    const ang = -0.42;
+    const dx = Math.cos(ang) * 48 * dir;
+    const dy = Math.sin(ang) * 48 * dir;
+    let k = 0;
+    const ev = this.time.addEvent({ delay: 20, loop: true, callback: () => {
+      k++;
+      const len = 24 + Math.random() * 44;
+      const x = x0 + Math.random() * (x1 - x0);
+      const y = y0 + Math.random() * (y1 - y0);
+      const g = this.add.graphics().setDepth(392);
+      g.lineStyle(k % 3 ? 1 : 2, hex(C.white), 0.95).lineBetween(0, 0, len, 0);
+      g.lineStyle(1, hex(C.sky), 0.6).lineBetween(4, 2, len * 0.7, 2);
+      g.setPosition(Math.round(x), Math.round(y)).setRotation(ang).setAlpha(0);
+      this.tweens.add({ targets: g, alpha: 1, duration: ms(60) });
+      this.tweens.add({ targets: g, x: x + dx, y: y + dy, duration: ms(300) });
+      this.tweens.add({ targets: g, alpha: 0, delay: ms(200), duration: ms(100), onComplete: () => g.destroy() });
+      if (k % 3 === 0) {
+        const lf = this.px(x, y, 6, 3, k % 2 ? C.lime : C.green);
+        this.tweens.add({ targets: lf, x: x + dx * 2.4, y: y + dy * 2.4 + 10, angle: 540 * dir, alpha: 0, duration: ms(520), onComplete: () => lf.destroy() });
+      }
+      if (k % 7 === 0) {
+        const v = vs[Math.floor(Math.random() * vs.length)];
+        for (let j = 0; j < 3; j++) {
+          const p = this.px(v.hx - 10 + Math.random() * 20, v.hy - 70 + Math.random() * 40, 2, 2, j % 2 ? C.red : C.darkRed);
+          this.tweens.add({ targets: p, x: p.x + dx * 0.3, y: p.y + 6, alpha: 0, duration: ms(300), onComplete: () => p.destroy() });
+        }
+      }
+    } });
+    return wait(this, ms(dur)).then(() => ev.remove());
+  }
+
+  // 一道粗雷（比 bolt 更粗更亮），落地炸开、四下窜电
+  private bigBolt(v: View, color: number, ms: (n: number) => number): void {
+    const g = this.add.graphics().setDepth(392);
+    const pts: Phaser.Math.Vector2[] = [];
+    let x = v.hx + (Math.random() - 0.5) * 20;
+    for (let y = FIELD_Y + 2; y < v.hy - 70; y += 14) {
+      pts.push(new Phaser.Math.Vector2(Math.round(x), y));
+      x += (Math.random() - 0.5) * 24;
+    }
+    pts.push(new Phaser.Math.Vector2(v.hx, v.hy - 70));
+    pts.push(new Phaser.Math.Vector2(v.hx + (Math.random() - 0.5) * 8, v.hy - 4));
+    g.lineStyle(18, hex(color), 0.25).strokePoints(pts);
+    g.lineStyle(8, hex(color)).strokePoints(pts);
+    g.lineStyle(3, hex(C.white)).strokePoints(pts);
+    for (let f = 2; f < pts.length - 1; f += 3) {
+      const p = pts[f];
+      const fx = p.x + (Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 10);
+      g.lineStyle(2, hex(color)).lineBetween(p.x, p.y, fx, p.y + 14).lineBetween(fx, p.y + 14, fx + (fx - p.x) * 0.5, p.y + 24);
+    }
+    this.tweens.add({ targets: g, alpha: 0, delay: ms(110), duration: ms(160), onComplete: () => g.destroy() });
+    // 落点窜几道小电弧
+    for (let i = 0; i < 6; i++) {
+      const e = this.add.graphics().setDepth(392);
+      const a0 = Math.random() * Math.PI * 2;
+      const r = 10 + Math.random() * 18;
+      e.lineStyle(2, hex(i % 2 ? C.white : color)).lineBetween(0, 0, Math.cos(a0) * r * 0.5 + 4, Math.sin(a0) * r * 0.5).lineBetween(Math.cos(a0) * r * 0.5 + 4, Math.sin(a0) * r * 0.5, Math.cos(a0) * r, Math.sin(a0) * r);
+      e.setPosition(v.hx, v.hy - 50).setAlpha(0);
+      this.tweens.add({ targets: e, alpha: 1, delay: ms(80 + i * 40), duration: ms(40), yoyo: true, hold: ms(60), onComplete: () => e.destroy() });
+    }
+  }
+
+  // 一根光柱从天而降罩住 v（固若金汤、回血、解计、万夫莫敌）
+  private beam(v: View, color: number, ms: (n: number) => number): void {
+    const top = SAFE_TOP + TOP_H;
+    const o = this.add.rectangle(v.hx, top, 40, v.hy - top, hex(color), 0.35).setOrigin(0.5, 0).setDepth(391);
+    const i = this.add.rectangle(v.hx, top, 12, v.hy - top, 0xffffff, 0.75).setOrigin(0.5, 0).setDepth(391);
+    o.setScale(0.1, 1);
+    i.setScale(0.1, 1);
+    this.tweens.add({ targets: [o, i], scaleX: 1, duration: ms(140), ease: 'Quad.easeOut' });
+    this.tweens.add({ targets: [o, i], scaleX: 0, alpha: 0, delay: ms(420), duration: ms(240), onComplete: () => {
+      o.destroy();
+      i.destroy();
+    } });
+  }
+
+  // 飞在头顶转的一圈符文小方块（计策中招前）
+  private runeRing(v: View, color: number, ms: (n: number) => number): void {
+    const bits = Array.from({ length: 12 }, (_, i) => this.px(v.hx, v.hy - 60, 6, 6, i % 2 ? color : C.white));
+    const o = { a: 0, r: 60 };
+    this.tweens.add({
+      targets: o, a: Math.PI * 3, r: 14, duration: ms(520), ease: 'Quad.easeIn',
+      onUpdate: () => bits.forEach((b, i) => b.setPosition(Math.round(v.hx + Math.cos(o.a + i * 0.524) * o.r - 3), Math.round(v.hy - 60 + Math.sin(o.a + i * 0.524) * o.r * 0.45 - 3))),
+      onComplete: () => {
+        bits.forEach((b) => b.destroy());
+        this.starburst(v.hx, v.hy - 60, color, ms, 0.6);
+      },
+    });
+  }
+
   private async skillFx(id: string | undefined, a: View, t: View | undefined, ms: (n: number) => number): Promise<void> {
     const dir = a.flip ? 1 : -1;
     switch (id) {
       case 'wulei': {
         if (!t) return;
-        // 天上劈下一道折线雷，闪两下，整屏一白、镜头一抖
-        for (let k = 0; k < 2; k++) {
-          const g = this.add.graphics().setDepth(392);
-          const pts: Phaser.Math.Vector2[] = [];
-          let x = t.hx + (Math.random() - 0.5) * 16;
-          for (let y = FIELD_Y + 2; y < t.hy - 80; y += 12) {
-            pts.push(new Phaser.Math.Vector2(Math.round(x), y));
-            x += (Math.random() - 0.5) * 18;
-          }
-          pts.push(new Phaser.Math.Vector2(t.hx, t.hy - 80));
-          g.lineStyle(10, hex(C.yellow), 0.35).strokePoints(pts);
-          g.lineStyle(5, hex(C.yellow)).strokePoints(pts);
-          g.lineStyle(2, hex(C.white)).strokePoints(pts);
-          // 分叉
-          const fork = pts[Math.floor(pts.length / 2)];
-          if (fork) g.lineStyle(2, hex(C.yellow)).lineBetween(fork.x, fork.y, fork.x + (Math.random() < 0.5 ? -14 : 14), fork.y + 16);
-          const flash = this.add.rectangle(0, FIELD_Y, W, FIELD_H, 0x203060, 0.35).setOrigin(0).setDepth(389);
-          this.shake(ms(140), 0.006);
-          await wait(this, ms(90));
-          g.destroy();
-          flash.destroy();
-          await wait(this, ms(50));
+        // 头顶乌云一压，三道粗雷连劈，每劈一下全场一白、镜头一抖，落点电弧乱窜
+        sfx('thunder');
+        const cloud = this.add.graphics().setDepth(391);
+        cloud.fillStyle(0x30304a, 0.9).fillEllipse(0, 0, 120, 26).fillEllipse(-30, 6, 70, 20).fillEllipse(34, 6, 70, 22);
+        cloud.fillStyle(0x50507a, 0.8).fillEllipse(-10, -4, 70, 12);
+        cloud.setPosition(t.hx, t.hy - 150).setAlpha(0);
+        this.tweens.add({ targets: cloud, alpha: 1, duration: ms(160) });
+        await wait(this, ms(200));
+        for (let k = 0; k < 3; k++) {
+          this.bigBolt(t, C.yellow, ms);
+          this.whiteOut(ms, 0.7);
+          this.shake(ms(160), 0.009);
+          if (k) sfx('boom');
+          await wait(this, ms(190));
         }
-        this.burst(t.hx, t.hy - 72, C.yellow, 12);
-        this.burst(t.hx, t.hy - 8, C.white, 8);
+        this.burst(t.hx, t.hy - 72, C.yellow, 16);
+        this.burst(t.hx, t.hy - 10, C.white, 10);
         this.scorch(t, ms);
+        this.tweens.add({ targets: cloud, alpha: 0, duration: ms(200), onComplete: () => cloud.destroy() });
+        await wait(this, ms(120));
         return;
       }
       case 'wugu': {
         if (!t) return;
-        await this.fly(this.orb(a.hx + dir * 20, a.hy - 92, C.lime, C.purple), t.hx, t.hy - 60, ms(280), C.green);
+        // 一团大毒球拖着绿烟飞过去，炸成一大片毒雾
+        const orb = this.orb(a.hx + dir * 20, a.hy - 92, C.lime, C.purple).setScale(2.6);
+        this.tweens.add({ targets: orb, angle: 360, duration: ms(420) });
+        await this.fly(orb, t.hx, t.hy - 60, ms(420), C.green, 8);
+        sfx('boom');
+        this.starburst(t.hx, t.hy - 60, C.lime, ms, 0.8);
         this.bubbles(t, ms);
         await wait(this, ms(160));
+        this.bubbles(t, ms);
+        await wait(this, ms(300));
         return;
       }
       case 'hufeng': {
+        // 原版就是这样：满场斜风夹着树叶扫过敌阵，人身上溅血点，最后每人脚下一团蓝白火
         const foes = this.foesView(a);
+        sfx('wind');
         this.rain(ms);
-        for (const v of foes) this.tornado(v, ms);
-        await wait(this, ms(520));
+        await this.windSweep(foes, -dir, ms, 1000);
         return;
       }
       case 'yaohuo': {
+        // 地上先烧红一圈，火苗一波波往上蹿，敌阵变成一片火海
         const foes = this.foesView(a);
-        for (const v of foes) this.flames(v, ms);
-        await wait(this, ms(480));
+        sfx('fire');
+        for (let k = 0; k < 3; k++) {
+          for (const v of foes) {
+            this.flames(v, ms);
+            this.puff(v, k % 2 ? C.red : C.orange, ms, 1.5 + k * 0.3);
+          }
+          if (k === 1) {
+            sfx('fire');
+            this.whiteOut(ms, 0.35, 0xff8030);
+          }
+          await wait(this, ms(300));
+        }
+        await wait(this, ms(120));
         return;
       }
       case 'chenhuo':
       case 'simian':
       case 'huadi': {
         if (!t) return;
-        // 文人计策：一卷竹简似的光飞过去，中计与否在 status 事件里再画
-        await this.fly(this.orb(a.hx + dir * 20, a.hy - 72, C.white, SKILL_COLOR[id]), t.hx, t.hy - 72, ms(240), SKILL_COLOR[id]);
+        // 计策：一道光飞过去，符文绕头顶收拢，中计与否在 status 事件里再画
+        const orb = this.orb(a.hx + dir * 20, a.hy - 72, C.white, SKILL_COLOR[id]).setScale(2.4);
+        await this.fly(orb, t.hx, t.hy - 72, ms(340), SKILL_COLOR[id], 7);
+        sfx('chime');
+        this.runeRing(t, SKILL_COLOR[id], ms);
+        await wait(this, ms(600));
         return;
       }
       case 'gujin':
-      case 'andu':
-        await wait(this, ms(120));
+      case 'andu': {
+        // 固若金汤：每人一道金光柱；暗渡陈仓：白光柱
+        sfx('chime');
+        for (const v of this.friendsView(a)) {
+          this.beam(v, id === 'gujin' ? C.gold : C.white, ms);
+          this.groundRing(v, id === 'gujin' ? C.gold : C.white, ms, id === 'gujin');
+        }
+        await wait(this, ms(560));
         return;
+      }
       // ===== 进阶招式 =====
       case 'hengsao': {
-        // 一刀横扫：白色长弧从前排扫到后排，个个挨一道
-        sfx('slash');
-        for (const v of this.foesView(a)) this.slash(a, v, C.white, false);
-        this.shake(ms(160), 0.006);
-        await wait(this, ms(260));
+        // 一刀横扫：一道巨大的白弧从前排扫到后排，个个挨一道
+        sfx('whoosh');
+        const foes = this.foesView(a);
+        for (const [k, v] of foes.entries()) {
+          this.time.delayedCall(ms(k * 70), () => {
+            sfx('slash');
+            this.slash(a, v, C.white, false);
+            this.burst(v.hx, v.hy - 60, C.white, 8);
+          });
+        }
+        this.shake(ms(220), 0.008);
+        this.whiteOut(ms, 0.4);
+        await wait(this, ms(200 + foes.length * 70));
         return;
       }
       case 'fengwu': {
-        // 凤舞九天：粉红刀光连闪几下
+        // 凤舞九天：粉红刀光连闪五下，最后一下最大
         if (!t) return;
-        for (let k = 0; k < 3; k++) {
+        for (let k = 0; k < 5; k++) {
           sfx('slash');
-          this.slash(a, t, k % 2 ? C.pink : C.red, k === 2);
+          this.slash(a, t, k % 2 ? C.pink : C.red, k % 2 === 0);
+          this.burst(t.hx + (Math.random() - 0.5) * 20, t.hy - 60, k % 2 ? C.pink : C.red, 6);
           await wait(this, ms(90));
         }
+        this.starburst(t.hx, t.hy - 60, C.pink, ms, 0.8);
+        await wait(this, ms(160));
         return;
       }
       case 'wanfu': {
-        // 万夫莫敌：战鼓三通，全军脚下金光、身上冒金点
+        // 万夫莫敌：战鼓三通，全军脚下金光、头顶金柱、身上冒金点
         sfx('drum');
         for (const v of this.friendsView(a)) {
           this.groundRing(v, C.gold, ms);
-          this.rise(v, C.gold, 8);
+          this.beam(v, C.gold, ms);
+          this.rise(v, C.gold, 14);
         }
-        this.cameras.main.flash(ms(120), 255, 220, 120);
-        await wait(this, ms(360));
+        this.whiteOut(ms, 0.4, 0xffe090);
+        await wait(this, ms(300));
+        sfx('drum');
+        await wait(this, ms(300));
         return;
       }
       case 'yunchou':
       case 'miaoshou': {
-        // 回血：清铃一声，全队脚下绿光往上飘
+        // 回血：清铃一声，全队脚下绿光、身上一道柔光柱、光点往上飘
         sfx('chime');
+        const c = id === 'miaoshou' ? C.green : C.lime;
         for (const v of this.friendsView(a)) {
-          this.groundRing(v, id === 'miaoshou' ? C.green : C.lime, ms);
-          this.rise(v, id === 'miaoshou' ? C.green : C.lime, 10);
+          this.groundRing(v, c, ms);
+          this.beam(v, c, ms);
+          this.rise(v, c, 16);
         }
-        await wait(this, ms(380));
+        await wait(this, ms(560));
         return;
       }
       case 'bamen': {
-        // 八门金锁：敌阵脚下一圈圈八角金锁
+        // 八门金锁：敌阵脚下八角金锁两圈套下去
         sfx('chime');
         for (const v of this.foesView(a)) this.groundRing(v, C.yellow, ms, true);
-        await wait(this, ms(300));
+        await wait(this, ms(220));
+        sfx('chime');
+        for (const v of this.foesView(a)) {
+          this.groundRing(v, C.gold, ms, true);
+          this.runeRing(v, C.yellow, ms);
+        }
+        await wait(this, ms(520));
         return;
       }
       case 'mihun': {
-        // 迷魂大法：几团粉紫的魂火分头飞向敌阵
+        // 迷魂大法：几团粉紫的魂火分头飞向敌阵，打中炸成星芒
         const foes = this.foesView(a).slice(0, 4);
-        await Promise.all(foes.map((v, k) => wait(this, ms(k * 60)).then(() => this.fly(this.orb(a.hx + dir * 20, a.hy - 80, C.pink, C.purple), v.hx, v.hy - 64, ms(260), C.purple))));
+        await Promise.all(foes.map((v, k) => wait(this, ms(k * 80)).then(() => this.fly(this.orb(a.hx + dir * 20, a.hy - 80, C.pink, C.purple).setScale(2.2), v.hx, v.hy - 64, ms(340), C.purple, 6)).then(() => this.starburst(v.hx, v.hy - 64, C.purple, ms, 0.6))));
+        await wait(this, ms(260));
         return;
       }
       case 'xixing': {
-        // 吸星大法：一道雷落下，再从对方身上抽回一串紫光
+        // 吸星大法：一道紫雷落下，再从对方身上抽回一长串紫光
         if (!t) return;
         sfx('thunder');
-        this.bolt(t, C.purple);
-        this.shake(ms(120), 0.005);
-        await wait(this, ms(160));
-        for (let k = 0; k < 5; k++) {
-          const p = this.px(t.hx - 2, t.hy - 60 + (Math.random() - 0.5) * 20, 3, 3, k % 2 ? C.purple : C.pink);
-          this.tweens.add({ targets: p, x: a.hx, y: a.hy - 50, duration: ms(300), delay: ms(k * 50), ease: 'Quad.easeIn', onComplete: () => p.destroy() });
+        this.bigBolt(t, C.purple, ms);
+        this.whiteOut(ms, 0.5, 0xc080ff);
+        this.shake(ms(140), 0.006);
+        await wait(this, ms(220));
+        for (let k = 0; k < 14; k++) {
+          const p = this.px(t.hx - 2, t.hy - 60 + (Math.random() - 0.5) * 30, 3, 3, k % 2 ? C.purple : C.pink);
+          this.tweens.add({ targets: p, x: a.hx, y: a.hy - 50, duration: ms(340), delay: ms(k * 30), ease: 'Quad.easeIn', onComplete: () => p.destroy() });
         }
-        await wait(this, ms(300));
+        await wait(this, ms(500));
+        this.starburst(a.hx, a.hy - 50, C.purple, ms, 0.6);
         return;
       }
       case 'tianbeng': {
-        // 天崩地裂：整屏一暗，敌阵每人一道雷，地面焦黑
+        // 天崩地裂：敌阵每人三道粗雷、天上砸下乱石、地面焦黑
         sfx('thunder');
-        const dark = this.add.rectangle(0, FIELD_Y, W, FIELD_H, 0x101830, 0.45).setOrigin(0).setDepth(389);
         const foes = this.foesView(a);
-        for (let k = 0; k < 2; k++) {
-          for (const v of foes) this.bolt(v, C.yellow);
-          this.shake(ms(160), 0.008);
-          await wait(this, ms(120));
+        for (let k = 0; k < 3; k++) {
+          for (const v of foes) this.bigBolt(v, C.yellow, ms);
+          this.whiteOut(ms, 0.7);
+          this.shake(ms(180), 0.01);
+          sfx('boom');
+          for (const v of foes) {
+            const r = this.px(v.hx - 6 + (Math.random() - 0.5) * 30, FIELD_Y + 20, 8 + Math.random() * 6, 8, k % 2 ? C.darkBrown : C.gray);
+            this.tweens.add({ targets: r, y: v.hy - 12, angle: 180, duration: ms(200), ease: 'Quad.easeIn', onComplete: () => {
+              this.burst(r.x, r.y, C.lightBrown, 6);
+              r.destroy();
+            } });
+          }
+          await wait(this, ms(180));
         }
         for (const v of foes) {
-          this.burst(v.hx, v.hy - 70, C.yellow, 8);
+          this.burst(v.hx, v.hy - 70, C.yellow, 10);
           this.scorch(v, ms);
         }
-        dark.destroy();
+        await wait(this, ms(120));
         return;
       }
       default:
-        if (t && t !== a) this.spark(t, C.lilac);
+        if (t && t !== a) this.starburst(t.hx, t.hy - 60, C.lilac, ms, 0.7);
+        await wait(this, ms(300));
     }
+  }
+
+  // 大刀光：力劈华山、排山倒海是白金色的巨大竖劈，舍命一击是血红的，劈完十字星芒
+  private async bigSlash(a: View, t: View, color: number, ms: (n: number) => number): Promise<void> {
+    sfx('slash');
+    const dir = a.flip ? 1 : -1;
+    const g = this.add.graphics().setDepth(392);
+    g.lineStyle(18, hex(color), 0.3).beginPath().arc(0, 0, 66, -1.3, 1.3).strokePath();
+    g.lineStyle(9, hex(color), 0.85).beginPath().arc(0, 0, 62, -1.2, 1.2).strokePath();
+    g.lineStyle(3, hex(C.white)).beginPath().arc(0, 0, 58, -1.1, 1.1).strokePath();
+    g.setPosition(t.hx - dir * 28, t.hy - 58).setRotation(dir > 0 ? 0.3 : Math.PI - 0.3).setScale(0.5).setAlpha(0);
+    this.tweens.add({ targets: g, alpha: 1, scale: 1.05, duration: ms(110), ease: 'Quad.easeOut' });
+    this.tweens.add({ targets: g, alpha: 0, scale: 1.35, delay: ms(170), duration: ms(200), onComplete: () => g.destroy() });
+    await wait(this, ms(110));
+    this.whiteOut(ms, 0.55);
+    this.shake(ms(180), 0.009);
+    this.starburst(t.hx, t.hy - 60, color, ms, 0.7);
+    this.burst(t.hx, t.hy - 60, color, 14);
+    await wait(this, ms(220));
   }
 
   // 刀光：一道月牙弧（力劈华山是白的竖劈，舍命一击是红的）
@@ -1570,8 +1844,8 @@ export class BattleScene extends Phaser.Scene {
   private bubbles(v: View, ms: (n: number) => number): void {
     // 一团紫绿毒雾罩住，再冒一串泡
     const cloud = this.add.graphics().setDepth(391);
-    cloud.fillStyle(hex(C.purple), 0.45).fillEllipse(0, 0, 66, 46).fillEllipse(-18, 12, 36, 26).fillEllipse(18, 12, 36, 26);
-    cloud.fillStyle(hex(C.lime), 0.35).fillEllipse(0, 6, 46, 26);
+    cloud.fillStyle(hex(C.purple), 0.7).fillEllipse(0, 0, 86, 60).fillEllipse(-24, 16, 48, 34).fillEllipse(24, 16, 48, 34);
+    cloud.fillStyle(hex(C.lime), 0.55).fillEllipse(0, 8, 60, 34);
     cloud.setPosition(v.hx, v.hy - 60).setScale(0.4);
     this.tweens.add({ targets: cloud, scale: 1, duration: ms(200), ease: 'Quad.easeOut' });
     this.tweens.add({ targets: cloud, alpha: 0, delay: ms(420), duration: ms(240), onComplete: () => cloud.destroy() });
@@ -1582,20 +1856,7 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  // 呼风唤雨：每个敌人脚下卷起一股旋风，满场斜雨
-  private tornado(v: View, ms: (n: number) => number): void {
-    const g = this.add.graphics().setDepth(392);
-    for (let i = 0; i < 8; i++) {
-      const w = 14 + i * 9;
-      g.lineStyle(3, hex(C.sky), 0.5).strokeEllipse((i % 2 ? 2 : -2), -i * 14, w, 10);
-      g.lineStyle(1, hex(C.white)).strokeEllipse((i % 2 ? 2 : -2), -i * 14, w, 10);
-    }
-    g.setPosition(v.hx, v.hy - 4).setAlpha(0);
-    this.tweens.add({ targets: g, alpha: 1, duration: ms(120) });
-    this.tweens.add({ targets: g, x: v.hx + 4, duration: ms(90), yoyo: true, repeat: 3 });
-    this.tweens.add({ targets: g, alpha: 0, delay: ms(480), duration: ms(160), onComplete: () => g.destroy() });
-  }
-
+  // 呼风唤雨：满场斜雨
   private rain(ms: (n: number) => number): void {
     for (let i = 0; i < 40; i++) {
       const x = Math.random() * W;
@@ -1692,7 +1953,6 @@ export class BattleScene extends Phaser.Scene {
   private spark(v: View, color: number): void {
     for (let i = 0; i < 6; i++) {
       const p = this.add.rectangle(v.hx + (Math.random() - 0.5) * 44, v.hy - 60 + (Math.random() - 0.5) * 50, 2, 2, hex(color)).setDepth(390);
-      this.fx.add(p);
       this.tweens.add({ targets: p, y: p.y - 12, alpha: 0, duration: 400 + Math.random() * 200, onComplete: () => p.destroy() });
     }
   }

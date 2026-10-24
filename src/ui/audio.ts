@@ -688,9 +688,12 @@ if (typeof window !== 'undefined') {
 
 // ===== 音效 =====
 // slash 刀风、thunder 闷雷、drum 战鼓、chime 清铃（进阶招式各配一种）
-export type SfxKind = 'click' | 'hit' | 'crit' | 'magic' | 'heal' | 'win' | 'lose' | 'step' | 'miss' | 'level' | 'slash' | 'thunder' | 'drum' | 'chime';
+type ToneKind = 'click' | 'hit' | 'crit' | 'magic' | 'heal' | 'win' | 'lose' | 'step' | 'miss' | 'level' | 'slash' | 'thunder' | 'drum' | 'chime';
+// 技能用的噪声音：wind 卷风、fire 烧起来的呼呼声、boom 炸开、whoosh 一下刀风/气浪
+type NoiseKind = 'wind' | 'fire' | 'boom' | 'whoosh';
+export type SfxKind = ToneKind | NoiseKind;
 
-const NOTES: Record<SfxKind, [number, number, OscillatorType][]> = {
+const NOTES: Record<ToneKind, [number, number, OscillatorType][]> = {
   click: [[880, 0.03, 'square']],
   step: [[330, 0.04, 'triangle']],
   hit: [[180, 0.05, 'square'], [90, 0.06, 'square']],
@@ -707,6 +710,37 @@ const NOTES: Record<SfxKind, [number, number, OscillatorType][]> = {
   chime: [[1046, 0.06, 'triangle'], [1318, 0.06, 'triangle'], [1568, 0.06, 'triangle'], [2093, 0.14, 'triangle']],
 };
 
+// [时长秒, 滤波, 起始频率, 结束频率, Q, 音量]：白噪声过一道扫频滤波
+const NOISES: Record<NoiseKind, [number, BiquadFilterType, number, number, number, number]> = {
+  wind: [1.0, 'bandpass', 400, 1600, 1.4, 1.5],
+  fire: [0.8, 'lowpass', 2600, 500, 0.7, 1.0],
+  boom: [0.7, 'lowpass', 1200, 60, 0.9, 1.8],
+  whoosh: [0.28, 'bandpass', 2800, 600, 1.6, 1.3],
+};
+
+function noise(c: AudioContext, out: AudioNode, kind: NoiseKind): void {
+  const [d, type, f0, f1, q, vol] = NOISES[kind];
+  const t = c.currentTime;
+  const src = c.createBufferSource();
+  src.buffer = noiseBuf(c);
+  src.loop = true;
+  const flt = c.createBiquadFilter();
+  flt.type = type;
+  flt.Q.value = q;
+  flt.frequency.setValueAtTime(f0, t);
+  flt.frequency.exponentialRampToValueAtTime(f1, t + d);
+  const gn = c.createGain();
+  const peak = SFX_PEAK * vol;
+  gn.gain.setValueAtTime(0.001, t);
+  gn.gain.exponentialRampToValueAtTime(peak, t + Math.min(0.06, d * 0.25));
+  // 火声一跳一跳的（噼啪）
+  if (kind === 'fire') for (let k = 0.08; k < d - 0.1; k += 0.05) gn.gain.setValueAtTime(peak * (0.5 + Math.random() * 0.6), t + k);
+  gn.gain.exponentialRampToValueAtTime(0.001, t + d);
+  src.connect(flt).connect(gn).connect(out);
+  src.start(t, Math.random() * 0.3);
+  src.stop(t + d + 0.02);
+}
+
 // 小芯片音的响度（背景音乐加了压缩变响以后跟着抬，两边还是差不多）
 const SFX_PEAK = 0.3;
 
@@ -715,8 +749,9 @@ export function sfx(kind: SfxKind): void {
   try {
     const c = ensure();
     if (!c || !chain) return;
+    if (kind in NOISES) return noise(c, chain.sfxVol, kind as NoiseKind);
     let t = c.currentTime;
-    for (const [f, d, type] of NOTES[kind]) {
+    for (const [f, d, type] of NOTES[kind as ToneKind]) {
       const o = c.createOscillator();
       const gn = c.createGain();
       o.type = type;
