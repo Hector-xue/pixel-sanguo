@@ -31,6 +31,8 @@ export interface Settings {
 const KEY = 'pxsg.settings.v1';
 export const VOLUME_NAMES = ['关', '小', '中', '大'];
 export const VOLUME_GAIN = [0, 0.35, 0.7, 1];
+// 背景音乐的几档（音乐过了压缩，整体比以前响得多；「小」也要手机外放听得清）
+export const MUSIC_GAIN = [0, 0.5, 0.75, 1];
 export const SPEEDS = [1, 1.5, 2];
 
 // 音效默认和以前一样是开着的；背景音乐是新加的，默认放得小一点

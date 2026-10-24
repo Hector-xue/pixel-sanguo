@@ -1,6 +1,6 @@
 // 限时和每日活动：抢宝（天下历每天 9 时、15 时开）、银两环（庐江）、文曲星答题、幸运王抽奖、节日礼包。
 // 「每天」都是天下历的天（打 18 仗一天，见 calendar.ts）；节日还按真实日期
-import { locations, systems } from '../data';
+import { items, locations, systems } from '../data';
 import { createBattle } from '../core/battle';
 import type { BUnit, Battle } from '../core/battle';
 import { expToNext } from '../core/formulas';
@@ -170,9 +170,25 @@ export function luckyCost(s: Save): number {
 }
 
 export function luckyDraw(s: Save): string {
-  if (luckyDraws(s) >= LK.maxDraws) return `今天抽够了，${tomorrowHint(s)}`;
+  return luckyRoll(s).text;
+}
+
+// 奖池里第几样叫什么（幸运王转灯上写的）
+export function luckyLabel(i: number): string {
+  const e = LK.prizes[i] as { silver?: number[]; gold?: number[]; gem?: number; items?: Record<string, number> };
+  if (!e) return '？';
+  if (e.silver) return '银两';
+  if (e.gold) return '金砖';
+  if (e.gem) return '宝石';
+  const [id, n] = Object.entries(e.items ?? {})[0] ?? ['', 0];
+  return id ? `${items[id].name}${n > 1 ? `×${n}` : ''}` : '？';
+}
+
+// 抽一次：text 是结果，prize 是抽中奖池里第几样（没抽成 = -1，界面按它转灯）
+export function luckyRoll(s: Save): { text: string; prize: number } {
+  if (luckyDraws(s) >= LK.maxDraws) return { text: `今天抽够了，${tomorrowHint(s)}`, prize: -1 };
   const cost = luckyCost(s);
-  if (s.player.gold < cost) return `要${cost}金砖`;
+  if (s.player.gold < cost) return { text: `要${cost}金砖`, prize: -1 };
   s.player.gold -= cost;
   s.p3.lucky.draws++;
   const rng = rollRng(s);
@@ -192,7 +208,7 @@ export function luckyDraw(s: Save): string {
     if (r) lines.push(...grantReward(s, r));
   }
   bump(s, 'luckyDraws');
-  return lines.join('，');
+  return { text: lines.join('，'), prize: pool.indexOf(e) };
 }
 
 // ===== 节日 =====

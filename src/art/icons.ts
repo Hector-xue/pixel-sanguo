@@ -132,6 +132,13 @@ export function drawItemIcon(id: string): Grid {
       return bottle(C.blue, C.sky, true);
     case 'yaocai':
       return pouch(C.grass, C.red);
+    // 娱乐场猜猜看的锦囊
+    case 'jinnang': {
+      const g = pouch(C.red, C.gold);
+      g.set(6, 8, C.gold);
+      g.set(5, 7, C.orange);
+      return g;
+    }
     case 'zhusun': {
       const g = new Grid(12, 12);
       g.poly([[3, 11], [9, 11], [6, 1]], C.lime);

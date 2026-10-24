@@ -17,6 +17,7 @@ import {
 import type { Host } from './panels';
 import { lifePanel } from './life';
 import { chooseAmount, chooseCount, done, generalsPanel, hospitalPanel, skillSchoolPanel } from './panels';
+import { chibiShow, guessShow } from './casinofx';
 import { arenaPanel, luckyPanel, stallPanel, treasurePanel } from './p3';
 import { Button, Modal, ScrollArea, confirm, frame, sfx, tabFade, text, toast } from './widgets';
 
@@ -478,13 +479,13 @@ export function casinoPanel(h: Host, tab?: number): void {
       dyn.add(new Button(h, m.cx, y, m.cw, 30, staked ? `擂鼓开战（押了${staked}两）` : '先押一方再开战', () => {
         const r = fightChibi(s);
         if (!r) return;
-        sfx(v.mine[r.winner] > 0 ? 'win' : 'lose');
-        toast(h, r.text, 2600);
+        // 结果已经记下了，先把面板刷成下一局，开战的过程盖在上面演
         h.refresh();
         render();
+        chibiShow(h, { round: v.id + 1, winner: r.winner, mine: v.mine, text: r.text, won: v.mine[r.winner] > 0 }, () => undefined);
       }, { style: 'red', disabled: !staked }));
       y += 38;
-      dyn.add(text(h, m.cx, y, `魏蜀吴三方对战，押中的一方按押注比例分走全部奖池（娱乐场抽${K.houseCut * 100}%）。押的人越少赔率越高。押好了擂鼓开战，当场结算。总奖池${total}两。`, { wrap: m.cw, color: C.gray, lineGap: 3 }));
+      dyn.add(text(h, m.cx, y, `魏蜀吴三方对战，押中的一方按押注比例分走全部奖池（娱乐场抽${K.houseCut * 100}%）。押的人越少赔率越高。押好了擂鼓开战，三方当场打一仗见分晓。总奖池${total}两。`, { wrap: m.cw, color: C.gray, lineGap: 3 }));
     } else {
       const g = s.casino.guess;
       if (!g) {
@@ -502,10 +503,9 @@ export function casinoPanel(h: Host, tab?: number): void {
         [0, 1, 2].forEach((i) => {
           dyn.add(new Button(h, m.cx + i * (cw + 4), y, cw, 80, `锦囊${'一二三'[i]}`, () => {
             const r = guessPick(s, i);
-            sfx(r.win ? 'win' : 'lose');
-            toast(h, r.text, 2200);
             h.refresh();
             render();
+            guessShow(h, { pick: i, answer: r.answer, win: r.win, text: r.text }, () => undefined);
           }, { style: 'red' }));
         });
         y += 90;

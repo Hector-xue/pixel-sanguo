@@ -9,19 +9,28 @@ describe('背景音乐曲谱', () => {
         const toks = part.notes.split(/\s+/).filter((x) => x && x !== '|');
         if (!id.startsWith('乐句')) expect(toks.length % 8, `${id} ${part.voice}`).toBe(0);
         for (const tk of toks) {
-          const ok = part.voice === 'drum' ? /^[DxoG.-]$/.test(tk) : /^([1-7][',]*|-|\.)$/.test(tk);
+          const ok = part.voice === 'drum' ? /^[DxokcG.-]$/.test(tk) : /^([1-7][',]*(\+[1-7][',]*)*|-|\.)$/.test(tk);
           expect(ok, `${id} ${part.voice} 「${tk}」`).toBe(true);
         }
         const steps = _test.parse(part);
         expect(steps.length).toBe(toks.length);
         for (const st of steps) {
-          if (typeof st.tone !== 'number') continue;
-          const f = tr.root * Math.pow(2, st.tone / 12);
-          expect(f, `${id} ${part.voice}`).toBeGreaterThan(40);
-          expect(f, `${id} ${part.voice}`).toBeLessThan(2500);
+          if (st.tone === null || typeof st.tone === 'string') continue;
+          for (const tn of typeof st.tone === 'number' ? [st.tone] : st.tone) {
+            const f = tr.root * Math.pow(2, tn / 12);
+            expect(f, `${id} ${part.voice}`).toBeGreaterThan(40);
+            expect(f, `${id} ${part.voice}`).toBeLessThan(2500);
+          }
         }
       }
     }
+  });
+
+  it('几个音用 + 连起来是和弦，延长照样算', () => {
+    const st = _test.parse({ voice: 'sheng', oct: -1, notes: "1+5+1' - . 6,+3" });
+    expect(st[0]).toEqual({ tone: [-12, -5, 0], len: 2 });
+    expect(st[2].tone).toBeNull();
+    expect(st[3]).toEqual({ tone: [-15, -8], len: 1 });
   });
 
   it('延长记号算进前一个音的长度', () => {

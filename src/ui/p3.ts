@@ -15,7 +15,7 @@ import { tomorrowHint } from '../game/calendar';
 import { BOARDS, achvProgress, allTitles, board, myBoardRank, setTitle, titleText } from '../game/achv';
 import type { BoardKind } from '../game/achv';
 import {
-  answerWenqu, claimFestival, festivalKey, festivalToday, luckyCost, luckyDraw, luckyDraws, silverRingLeft, silverRingReward,
+  answerWenqu, claimFestival, festivalKey, festivalToday, luckyCost, luckyDraws, luckyRoll, silverRingLeft, silverRingReward,
   takeSilverRing, treasureBattle, treasureLeft, treasureNow, treasureTeleport, turnInSilverRing, wenquToday,
 } from '../game/events';
 import { canRebirth, generalRebirth, generalRebirthReason, rebirth } from '../game/rebirth';
@@ -34,6 +34,7 @@ import { bagCount, findGeneral, generalStats, isDeployed, playerStats, sectRank 
 import { store } from '../game/store';
 import { TRAIN_SHARE, setTrainee, trainee } from '../game/training';
 import { expandVault, shopBuy, vaultStore, vaultTake, vaultUsed } from '../game/town';
+import { luckyShow } from './casinofx';
 import { bankPanel } from './town';
 import { showDialog } from './dialog';
 import { overlayInput } from './input';
@@ -791,11 +792,11 @@ export function luckyPanel(h: Host, parent: Phaser.GameObjects.Container, m: Mod
   y += 40;
   const cost = luckyCost(s);
   parent.add(new Button(h, m.cx + m.cw / 2 - 80, y, 160, 40, cost ? `抽一次（${cost}金砖）` : '免费抽一次', () => {
-    const r = luckyDraw(s);
-    sfx('magic');
-    toast(h, r, 2200);
+    const r = luckyRoll(s);
     h.refresh();
     rerender();
+    if (r.prize < 0) toast(h, r.text, 2200);
+    else luckyShow(h, r, () => undefined);
   }, { style: 'red', disabled: used >= L.maxDraws || s.player.gold < cost }));
 }
 

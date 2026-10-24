@@ -279,3 +279,24 @@ describe('本周军功簿', () => {
     expect(recordLines(s).length).toBeGreaterThan(8);
   });
 });
+
+describe('娱乐场开奖过程（0.1.5）', () => {
+  it('幸运王：抽一次说得出抽中奖池里第几样，转灯上的名字对得上结果', async () => {
+    const { luckyRoll, luckyLabel } = await import('../src/game/events');
+    const s = newSave({ server: '1区', name: '测试', gender: 'male', classId: 'warrior', avatar: 0, seed: 7 });
+    s.player.gold = 9999;
+    const labels = systems.lucky.prizes.map((_: unknown, i: number) => luckyLabel(i));
+    expect(labels.every((x) => x && x !== '？')).toBe(true);
+    for (let k = 0; k < 6; k++) {
+      const r = luckyRoll(s);
+      if (r.prize < 0) break;
+      const e = systems.lucky.prizes[r.prize] as { silver?: number[]; gold?: number[]; gem?: number };
+      if (e.gold) expect(r.text).toContain('金砖');
+      else if (e.silver) expect(r.text).toContain('银两');
+      expect(r.text).toContain('幸运值');
+    }
+    // 抽够了：没抽成，不转灯
+    s.p3.lucky.draws = systems.lucky.maxDraws;
+    expect(luckyRoll(s).prize).toBe(-1);
+  });
+});
