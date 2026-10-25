@@ -21,7 +21,7 @@ import { STATUS_NAMES } from '../core/types';
 import { finishBattle } from '../game/encounter';
 import type { BattleSummary } from '../game/encounter';
 import { store } from '../game/store';
-import { Button, H, SAFE_TOP, W, drawBar, sfx, text, textWidth, wrap } from '../ui/widgets';
+import { Button, H, SAFE_TOP, W, drawBar, goldFrame, sfx, text, textWidth, wrap } from '../ui/widgets';
 import { fit } from '../ui/textfit';
 import { PAPER, UI, paperTex, timeTint, titlePlaque, vgrad, woodFrame } from '../art/chrome';
 import { FORMS, clashText } from '../game/formation';
@@ -1049,7 +1049,9 @@ export class BattleScene extends Phaser.Scene {
           const nxt = events.slice(ei + 1).findIndex((x) => x.t === 'act' || x.t === 'round');
           const mine = events.slice(ei + 1, nxt < 0 ? undefined : ei + 1 + nxt);
           const critHit = !e.skill && mine.some((x) => x.t === 'damage' && (x.crit || x.fatal));
-          this.setBanner(critHit && e.label === '普通攻击' ? '致命攻击' : e.label, !!e.skill);
+          // 原版两种字：暴击写「暴击攻击」，致命一击写「致命攻击」
+          const fatalHit = mine.some((x) => x.t === 'damage' && x.fatal);
+          this.setBanner(critHit && e.label === '普通攻击' ? (fatalHit ? '致命攻击' : '暴击攻击') : e.label, !!e.skill);
           this.drawOrder(e.actor);
           this.addLog(`${this.nameOf(e.actor)}：${e.label}${e.target && e.target !== e.actor && e.kind !== 'cast' ? ` → ${this.nameOf(e.target)}` : ''}`);
           if (!a) break;
@@ -1192,15 +1194,19 @@ export class BattleScene extends Phaser.Scene {
           this.addLog(`${this.nameOf(e.target)}倒下了`);
           this.tweens.add({ targets: [v.plate, v.name], alpha: 0.4, duration: 300 });
           this.tweens.killTweensOf(v.spr);
-          this.pose(v, 'down');
           v.spr.setPosition(v.hx + (v.flip ? OFF : -OFF), v.hy);
-          this.dust(v.hx, v.hy);
           if (this.lunged === v) this.lunged = null;
-          this.tweens.add({ targets: v.spr, alpha: 0.6, duration: 300 });
+          // 原版：一团蓝白魂火把人整个罩住往上窜，火里人倒下，火散成星点往上飘，尸身留在地上
+          this.soulFire(v, ms);
+          this.time.delayedCall(ms(200), () => {
+            this.pose(v, 'down');
+            this.dust(v.hx, v.hy);
+            this.tweens.add({ targets: v.spr, alpha: 0.6, duration: 300 });
+          });
           v.name.setColor('#8c8c90');
           v.badge.setText('');
           this.drawBars(v);
-          await wait(this, ms(320));
+          await wait(this, ms(420));
           break;
         }
         case 'capture': {
@@ -1216,6 +1222,7 @@ export class BattleScene extends Phaser.Scene {
             await new Promise<void>((r) => this.tweens.add({ targets: [v.spr, v.name, v.plate], alpha: 0, duration: ms(500), onComplete: () => r() }));
           } else {
             this.float(v, '招降失败', C.lightPaper);
+            this.sulk(v, ms);
             this.addLog(`${this.nameOf(e.target)}不肯归顺`);
             await wait(this, ms(320));
           }
@@ -1402,6 +1409,30 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  // 魂火：比命中那团火高一倍、把人整个罩住，蓝白色；烧到顶散成一把星点往上飘
+  private soulFire(v: View, ms: (n: number) => number): void {
+    sfx('whoosh');
+    this.puff(v, C.sky, ms, 2, 1.6);
+    this.time.delayedCall(ms(380), () => {
+      for (let i = 0; i < 16; i++) {
+        const p = this.px(v.hx - 18 + Math.random() * 36, v.hy - 30 - Math.random() * 60, i % 3 ? 3 : 4, i % 3 ? 3 : 4, i % 2 ? C.sky : C.white);
+        this.tweens.add({ targets: p, x: p.x + (Math.random() - 0.5) * 24, y: p.y - 30 - Math.random() * 40, alpha: 0, duration: ms(500 + Math.random() * 300), ease: 'Quad.easeOut', onComplete: () => p.destroy() });
+      }
+    });
+  }
+
+  // 不肯归顺：头顶冒一个「……」的白气泡（原版招降失败就是这样）
+  private sulk(v: View, ms: (n: number) => number): void {
+    const g = this.add.graphics().setDepth(395);
+    g.fillStyle(0x000000, 0.35).fillRoundedRect(-15, -9, 32, 20, 8);
+    g.fillStyle(0xffffff).fillRoundedRect(-16, -10, 32, 20, 8);
+    g.fillTriangle(-10, 8, -2, 8, -12, 16);
+    g.fillStyle(hex(C.gray)).fillRect(-9, -1, 4, 4).fillRect(-2, -1, 4, 4).fillRect(5, -1, 4, 4);
+    g.setPosition(v.hx + (v.flip ? -22 : 22), v.hy - 104).setScale(0.3);
+    this.tweens.add({ targets: g, scale: 1, duration: ms(140), ease: 'Back.easeOut' });
+    this.tweens.add({ targets: g, alpha: 0, delay: ms(1300), duration: ms(200), onComplete: () => g.destroy() });
+  }
+
   // 跑动时脚后跟扬起的一小团土（往身后飘）
   private kickDust(x: number, y: number, dir: number): void {
     for (let i = 0; i < 2; i++) {
@@ -1566,7 +1597,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   // 命中：脚下腾起一团像素火（原版呼风唤雨打中是一团蓝白火），每种招式按自己的颜色
-  private puff(v: View, color: number, ms: (n: number) => number, size = 1): void {
+  private puff(v: View, color: number, ms: (n: number) => number, size = 1, tall = 1): void {
     const g = this.add.graphics().setDepth(spriteDepth(v.hy) + 0.8);
     const flame = (cx: number, h: number) => {
       // 从下往上一行行：下圆上尖，主色外圈、白芯
@@ -1574,15 +1605,16 @@ export class BattleScene extends Phaser.Scene {
         const k = r / h;
         const hw = Math.round((k < 0.35 ? Math.sqrt(k / 0.35) : 1 - (k - 0.35) / 0.65) * (h * 0.32) + 1);
         const sway = Math.round(Math.sin(k * 5) * k * 3);
-        g.fillStyle(hex(color)).fillRect(cx - hw + sway, -r - 2, hw * 2, 2);
-        if (hw > 5 && k < 0.6) g.fillStyle(0xffffff, 0.85).fillRect(cx - hw + 5 + sway, -r - 2, hw * 2 - 10, 2);
+        // 每行画 3 像素高、叠一像素，放大以后不露横缝
+        g.fillStyle(hex(color)).fillRect(cx - hw + sway, -r - 3, hw * 2, 3);
+        if (hw > 5 && k < 0.6) g.fillStyle(0xffffff, 0.85).fillRect(cx - hw + 5 + sway, -r - 3, hw * 2 - 10, 3);
       }
     };
     flame(-12, 28);
     flame(11, 24);
     flame(0, 40);
-    g.setPosition(v.hx, v.hy - 2).setScale(size, 0.2 * size);
-    this.tweens.add({ targets: g, scaleY: size, duration: ms(140), ease: 'Back.easeOut' });
+    g.setPosition(v.hx, v.hy - 2).setScale(size, 0.2 * size * tall);
+    this.tweens.add({ targets: g, scaleY: size * tall, duration: ms(140), ease: 'Back.easeOut' });
     this.tweens.add({ targets: g, scaleX: 0.85 * size, duration: ms(90), delay: ms(140), yoyo: true, repeat: 2 });
     this.tweens.add({ targets: g, y: v.hy - 16, alpha: 0, delay: ms(560), duration: ms(260), onComplete: () => g.destroy() });
     for (let i = 0; i < 6; i++) {
@@ -2101,7 +2133,25 @@ export class BattleScene extends Phaser.Scene {
     });
     // 胜利：活着的我方举起兵器
     if (sum.outcome === 'win') for (const v of this.views.values()) if (!v.flip && !v.dead) this.pose(v, 'cast');
-    this.time.delayedCall(sum.outcome === 'win' ? 500 : 200, () => this.showSummary(sum));
+    // 原版：最后一下打完停半拍，一块「胜利」大匾从右边滑进战场，再出战果
+    const plaque = sum.outcome === 'win' || sum.outcome === 'lose' ? this.plaque(sum.outcome === 'win' ? '胜利' : '战败', sum.outcome === 'win') : null;
+    this.time.delayedCall(plaque ? 1300 : 200, () => {
+      if (plaque) this.tweens.add({ targets: plaque, alpha: 0, duration: 160, onComplete: () => plaque.destroy() });
+      this.showSummary(sum);
+    });
+  }
+
+  private plaque(label: string, win: boolean): Phaser.GameObjects.Container {
+    const w = 168;
+    const h = 64;
+    const c = this.add.container(W + w, FIELD_Y + FIELD_H / 2 - h / 2).setDepth(450);
+    const g = this.add.graphics();
+    goldFrame(g, -w / 2, 0, w, h, win ? 0x5a0a06 : 0x2a2630);
+    c.add(g);
+    // 原版是粗体金字：同一行字错开一像素叠两遍加粗
+    for (const dx of [0, 1]) c.add(text(this, dx, 8, label, { align: 'center', color: win ? C.orange : C.lightGray, stroke: C.ink, scale: 4, raw: true }));
+    this.tweens.add({ targets: c, x: W / 2, delay: 450, duration: 200, ease: 'Quad.easeOut' });
+    return c;
   }
 
   private scrollY(h: number): number {
