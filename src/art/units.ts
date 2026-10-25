@@ -519,7 +519,8 @@ function frameOf(pose: Pose): Frame {
     case 'cast':
       return { dx: 0, dy: 0, eyesClosed: false, arm: 'up', legs: 'brace' };
     case 'hurt':
-      return { dx: 2, dy: 1, eyesClosed: true, arm: 'down', legs: 'brace' };
+      // 原版挨打是往后一仰：身子后撤、矮一截
+      return { dx: 3, dy: 2, eyesClosed: true, arm: 'down', legs: 'brace' };
     default:
       return { dx: 0, dy: 0, eyesClosed: pose === 'down', arm: 'down', legs: 'stand' };
   }

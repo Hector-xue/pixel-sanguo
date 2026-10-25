@@ -1102,23 +1102,28 @@ export class BattleScene extends Phaser.Scene {
           const crit = e.t === 'damage' && (e.crit || e.fatal);
           sfx(crit ? 'crit' : 'hit');
           if (!v.dead) this.pose(v, 'hurt');
-          const sx = v.spr.x;
-          // 暴击、化境：往后一震更狠，画面顿一下（打击停顿），化境再整屏一闪
-          const kb = crit || this.heavy ? 8 : 3;
-          this.tweens.add({ targets: v.spr, x: sx + (v.flip ? -kb : kb), duration: crit ? 70 : 50, yoyo: true, repeat: crit ? 0 : 1, onComplete: () => !v.dead && this.lunged !== v && this.pose(v, 'idle') });
+          const sx = this.lunged === v ? v.spr.x : v.hx + (v.flip ? OFF : -OFF);
+          // 原版受击：往后一仰、兵器垂下，定住一小会儿再站回来（不抖）；暴击、化境仰得更狠，画面顿一下
+          const kb = crit || this.heavy ? 10 : 6;
+          this.tweens.killTweensOf(v.spr);
+          this.tweens.add({ targets: v.spr, x: sx + (v.flip ? -kb : kb), duration: 50, ease: 'Quad.easeOut', hold: ms(crit ? 280 : 200), yoyo: true, onComplete: () => !v.dead && this.lunged !== v && this.pose(v, 'idle') });
           if (crit || this.heavy) this.hitStop(this.heavy ? 90 : 60);
           if (this.heavy && settings().shake) this.cameras.main.flash(110, 255, 240, 200);
-          v.spr.setTint(0xffffff);
-          this.time.delayedCall(80, () => v.spr.clearTint());
+          if (crit || this.heavy) {
+            v.spr.setTint(0xffffff);
+            this.time.delayedCall(80, () => v.spr.clearTint());
+          }
           // 原版：打中溅一蓬血；致命一击整片战场红一下
-          if (e.t === 'damage' && !this.staged && this.lunged?.weapon !== 'staff') this.blood(v, crit ? 22 : 14, ms);
+          if (e.t === 'damage' && !this.staged && this.lunged?.weapon !== 'staff') this.blood(v, crit ? 28 : 20, ms);
           if (crit && !this.staged) this.whiteOut(ms, 0.75, 0xe01808);
-          const label = e.t === 'poison' ? `毒-${e.amount}` : `${e.crit ? '暴击 ' : e.fatal ? '致命 ' : ''}-${e.amount}`;
+          // 暴击只放大数字、不再写字（横幅已经是「致命攻击」，原版也只跳数字）
+          const label = e.t === 'poison' ? `毒-${e.amount}` : `-${e.amount}`;
           if (crit || this.heavy) this.shake(this.heavy ? 160 : 110, this.heavy ? 0.01 : 0.006);
           if (crit || this.heavy) buzz(this.heavy ? 'medium' : 'light');
           if (e.t === 'poison') this.addLog(`${this.nameOf(e.target)}毒发 -${e.amount}`);
           else this.appendLog(`，${this.nameOf(e.target)}${e.crit ? '（暴击）' : e.fatal ? '（致命）' : ''}-${e.amount}`);
-          this.float(v, label, e.t === 'poison' ? C.lilac : crit ? C.red : C.orange, crit);
+          // 数字比血晚两帧冒出来
+          this.time.delayedCall(ms(60), () => this.float(v, label, e.t === 'poison' ? C.lilac : crit ? C.red : C.orange, crit));
           if (e.t === 'damage' && e.mp) this.time.delayedCall(200, () => this.float(v, `精力-${e.mp}`, C.lightBlue));
           this.drawBars(v);
           if (this.staged && e.t === 'damage') {
@@ -1434,17 +1439,23 @@ export class BattleScene extends Phaser.Scene {
     await wait(this, ms(big ? 120 : 80));
   }
 
-  // 打中溅一蓬血：往挨打的人身后喷，落下去
+  // 打中溅血（照原版）：从伤口朝出手那一侧喷——先几道横着的血线，再散成血点往下落
   private blood(v: View, n: number, ms: (n: number) => number): void {
-    const back = v.flip ? -1 : 1;
+    const out = v.flip ? 1 : -1;
+    const fx = v.hx + out * 6;
+    for (let i = 0; i < 4; i++) {
+      const w = 12 + Math.random() * 10;
+      const p = this.px(out > 0 ? fx : fx - w, v.hy - 60 + i * 5 + Math.random() * 3, w, 3, i % 2 ? C.darkRed : C.red);
+      this.tweens.add({ targets: p, x: p.x + out * 12, scaleX: 0.3, alpha: 0, duration: ms(140), onComplete: () => p.destroy() });
+    }
     for (let i = 0; i < n; i++) {
       const s = i % 3 ? 3 : 4;
-      const p = this.px(v.hx + (Math.random() - 0.5) * 10, v.hy - 50 + (Math.random() - 0.5) * 16, s, s, i % 2 ? C.red : C.darkRed);
-      const dx = back * (8 + Math.random() * 26);
-      const up = 6 + Math.random() * 16;
-      this.tweens.add({ targets: p, x: p.x + dx, duration: ms(380), ease: 'Linear' });
-      this.tweens.add({ targets: p, y: p.y - up, duration: ms(140), ease: 'Quad.easeOut', yoyo: true, hold: 0 });
-      this.tweens.add({ targets: p, alpha: 0, delay: ms(260), duration: ms(140), onComplete: () => p.destroy() });
+      const p = this.px(fx + (Math.random() - 0.5) * 6, v.hy - 58 + Math.random() * 18, s, s, i % 2 ? C.red : C.darkRed);
+      const dx = out * (8 + Math.random() * 30);
+      const t0 = ms(30 + Math.random() * 60);
+      this.tweens.add({ targets: p, x: p.x + dx, delay: t0, duration: ms(320) });
+      this.tweens.add({ targets: p, y: p.y - 4 - Math.random() * 8, delay: t0, duration: ms(110), ease: 'Quad.easeOut', onComplete: () => this.tweens.add({ targets: p, y: p.y + 16 + Math.random() * 12, duration: ms(210), ease: 'Quad.easeIn' }) });
+      this.tweens.add({ targets: p, alpha: 0, delay: t0 + ms(240), duration: ms(90), onComplete: () => p.destroy() });
     }
   }
 
