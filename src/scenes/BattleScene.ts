@@ -603,14 +603,22 @@ export class BattleScene extends Phaser.Scene {
     v.badge.setText(u.alive ? parts.join(' ') : '');
   }
 
-  // 飘字：先弹大再缩回、往上飘；暴击两倍大，带一下震屏
+  // 飘字：照原版一个字一个字依次往上蹦一下（"-2"“2”“7”像波浪一样跳出来），停一会儿再往上飘走；暴击更大
   private float(v: View, s: string, color: number, big = false): void {
     const sc = big ? 3 : 2;
-    const t = text(this, v.hx, Math.max(SAFE_TOP + TOP_H + 64, v.hy - 120), s, { align: 'center', color, stroke: C.ink, scale: sc }).setDepth(400);
-    t.setScale(sc * 1.6);
-    this.tweens.add({ targets: t, scale: sc, duration: 140, ease: 'Back.easeOut' });
-    this.tweens.add({ targets: t, y: t.y - 20, delay: 120, duration: 600, ease: 'Quad.easeOut' });
-    this.tweens.add({ targets: t, alpha: 0, delay: 700, duration: 250, onComplete: () => t.destroy() });
+    const y = Math.max(SAFE_TOP + TOP_H + 64, v.hy - 120);
+    const chars = [...s].map((ch) => text(this, 0, y, ch, { color, stroke: C.ink, scale: sc }).setDepth(400).setAlpha(0));
+    const total = chars.reduce((w, t) => w + t.displayWidth, 0);
+    let x = v.hx - total / 2;
+    const step = big ? 55 : 45;
+    chars.forEach((t, i) => {
+      t.setX(Math.round(x));
+      x += t.displayWidth;
+      this.tweens.add({ targets: t, alpha: 1, delay: i * step, duration: 1 });
+      this.tweens.add({ targets: t, y: y - (big ? 14 : 10), delay: i * step, duration: 90, ease: 'Quad.easeOut', yoyo: true });
+      this.tweens.add({ targets: t, y: y - 18, delay: 520 + i * step, duration: 360, ease: 'Quad.easeIn' });
+      this.tweens.add({ targets: t, alpha: 0, delay: 700 + i * step, duration: 200, onComplete: () => t.destroy() });
+    });
   }
 
   private setBanner(label: string, big = false): void {
@@ -1020,7 +1028,7 @@ export class BattleScene extends Phaser.Scene {
   private async play(events: BEvent[]): Promise<void> {
     const fast = (this.auto ? 0.7 : 1) / this.speed;
     const ms = (n: number) => Math.round(n * fast);
-    for (const e of events) {
+    for (const [ei, e] of events.entries()) {
       switch (e.t) {
         case 'round':
           break;
@@ -1037,7 +1045,11 @@ export class BattleScene extends Phaser.Scene {
             sfx('magic');
             await this.cutIn(`${e.label}·化境`, this.nameOf(e.actor), C.yellow, ms);
           }
-          this.setBanner(e.label, !!e.skill);
+          // 原版普攻要是打出暴击，横幅直接写「致命攻击」：往后看这一下的伤害
+          const nxt = events.slice(ei + 1).findIndex((x) => x.t === 'act' || x.t === 'round');
+          const mine = events.slice(ei + 1, nxt < 0 ? undefined : ei + 1 + nxt);
+          const critHit = !e.skill && mine.some((x) => x.t === 'damage' && (x.crit || x.fatal));
+          this.setBanner(critHit && e.label === '普通攻击' ? '致命攻击' : e.label, !!e.skill);
           this.drawOrder(e.actor);
           this.addLog(`${this.nameOf(e.actor)}：${e.label}${e.target && e.target !== e.actor && e.kind !== 'cast' ? ` → ${this.nameOf(e.target)}` : ''}`);
           if (!a) break;
@@ -1050,11 +1062,18 @@ export class BattleScene extends Phaser.Scene {
             const dir = a.flip ? -1 : 1;
             const tx = t.hx + (t.flip ? 52 : -52) + (a.flip === t.flip ? -dir * 14 : 0);
             if (e.skill === 'sheming') await this.bloodAura(a, ms);
-            this.pose(a, 'atk');
             a.spr.setDepth(spriteDepth(t.hy) + 0.5);
-            await new Promise<void>((r) => this.tweens.add({ targets: a.spr, x: tx, y: t.hy + 2, duration: ms(180), ease: 'Quad.easeOut', onComplete: () => r() }));
+            // 原版是跑过去的：一路踢起小团尘土
+            const kick = this.time.addEvent({ delay: ms(45), loop: true, callback: () => {
+              this.kickDust(a.spr.x, a.spr.y, dir);
+              this.pose(a, kick.getRepeatCount() % 2 ? 'idle2' : 'idle');
+            } });
+            await new Promise<void>((r) => this.tweens.add({ targets: a.spr, x: tx, y: t.hy + 2, duration: ms(e.skill ? 180 : 240), ease: 'Quad.easeOut', onComplete: () => r() }));
+            kick.remove();
+            this.pose(a, 'atk');
             this.lunged = a;
             if (e.skill) await this.bigSlash(a, t, e.skill === 'sheming' ? C.red : SKILL_COLOR[e.skill] ?? C.white, ms);
+            else await this.swing(a, t, critHit, ms);
           } else if (e.kind === 'cast') {
             // 横扫、凤舞是刀法：摆出出刀的架势，不念咒
             const blade = !!e.skill && skills[e.skill]?.kind !== undefined && ['sweep', 'multi'].includes(skills[e.skill].kind);
@@ -1091,6 +1110,9 @@ export class BattleScene extends Phaser.Scene {
           if (this.heavy && settings().shake) this.cameras.main.flash(110, 255, 240, 200);
           v.spr.setTint(0xffffff);
           this.time.delayedCall(80, () => v.spr.clearTint());
+          // 原版：打中溅一蓬血；致命一击整片战场红一下
+          if (e.t === 'damage' && !this.staged && this.lunged?.weapon !== 'staff') this.blood(v, crit ? 22 : 14, ms);
+          if (crit && !this.staged) this.whiteOut(ms, 0.75, 0xe01808);
           const label = e.t === 'poison' ? `毒-${e.amount}` : `${e.crit ? '暴击 ' : e.fatal ? '致命 ' : ''}-${e.amount}`;
           if (crit || this.heavy) this.shake(this.heavy ? 160 : 110, this.heavy ? 0.01 : 0.006);
           if (crit || this.heavy) buzz(this.heavy ? 'medium' : 'light');
@@ -1358,9 +1380,12 @@ export class BattleScene extends Phaser.Scene {
       this.burst(ex, ey, C.sky, 6);
       return;
     }
-    const color = a.flip ? C.orange : C.lilac;
-    await this.fly(this.orb(sx, sy, C.white, color), ex, ey, ms(260), color);
-    this.burst(ex, ey, color, 8);
+    // 法杖：原版普攻是天上劈下一道细雷，打中处腾一团火
+    const color = a.flip ? C.orange : C.sky;
+    this.burst(sx, sy, color, 8);
+    await wait(this, ms(120));
+    this.zap(t, color, ms);
+    await wait(this, ms(120));
   }
 
   // 一圈往外散的小方块
@@ -1369,6 +1394,80 @@ export class BattleScene extends Phaser.Scene {
       const ang = (i / n) * Math.PI * 2 + Math.random() * 0.4;
       const p = this.px(x - 2, y - 2, 4, 4, color);
       this.tweens.add({ targets: p, x: p.x + Math.cos(ang) * 20, y: p.y + Math.sin(ang) * 20, scale: 0.4, alpha: 0, duration: 320, onComplete: () => p.destroy() });
+    }
+  }
+
+  // 跑动时脚后跟扬起的一小团土（往身后飘）
+  private kickDust(x: number, y: number, dir: number): void {
+    for (let i = 0; i < 2; i++) {
+      const p = this.add.rectangle(Math.round(x - dir * 8 + (Math.random() - 0.5) * 6), Math.round(y - 3), 3, 3, i ? 0xd8c8a8 : 0xb8a080, 0.9).setDepth(spriteDepth(y) - 0.2);
+      this.tweens.add({ targets: p, x: p.x - dir * (8 + Math.random() * 8), y: p.y - 4 - Math.random() * 6, scale: 2, alpha: 0, duration: 300, onComplete: () => p.destroy() });
+    }
+  }
+
+  // 普攻出手：兵器划一道弧光（刀剑白、枪戟一道直刺），致命一击更大更亮
+  private async swing(a: View, t: View, big: boolean, ms: (n: number) => number): Promise<void> {
+    const dir = a.flip ? -1 : 1;
+    const cx = t.hx - dir * 6;
+    const cy = t.hy - 52;
+    const k = big ? 1.5 : 1;
+    const g = this.add.graphics().setDepth(392);
+    if (a.weapon === 'spear') {
+      // 一道直刺：长条带尖，后面拖两条残影
+      g.fillStyle(hex(C.lightBlue), 0.5).fillRect(-44 * k, -5, 56 * k, 10);
+      g.fillStyle(0xffffff).fillRect(-40 * k, -2, 52 * k, 4).fillRect(12 * k, -4, 4, 8).fillRect(16 * k, -2, 4, 4);
+      g.fillStyle(0xffffff, 0.5).fillRect(-60 * k, -8, 20 * k, 1).fillRect(-56 * k, 7, 18 * k, 1);
+      g.setPosition(cx - dir * 24, cy + 6).setScale(dir * 0.3, 1);
+      this.tweens.add({ targets: g, x: cx, scaleX: dir, duration: ms(70), ease: 'Quad.easeOut' });
+    } else {
+      // 弧光：从后上方劈到前下方的一弯月牙
+      const r = 30 * k;
+      g.lineStyle(10 * k, hex(C.lightBlue), 0.35).beginPath().arc(0, 0, r, -1.9, 0.9).strokePath();
+      g.lineStyle(5 * k, 0xffffff, 0.95).beginPath().arc(0, 0, r - 2, -1.7, 0.7).strokePath();
+      g.lineStyle(2, 0xffffff, 0.6).beginPath().arc(0, 0, r - 9 * k, -1.3, 0.4).strokePath();
+      g.setPosition(cx, cy).setScale(dir, 1).setAngle(-50 * dir);
+      this.tweens.add({ targets: g, angle: 10 * dir, duration: ms(90), ease: 'Quad.easeOut' });
+    }
+    sfx('step');
+    this.tweens.add({ targets: g, alpha: 0, delay: ms(90), duration: ms(140), onComplete: () => g.destroy() });
+    if (big) this.burst(cx, cy, C.yellow, 10);
+    await wait(this, ms(big ? 120 : 80));
+  }
+
+  // 打中溅一蓬血：往挨打的人身后喷，落下去
+  private blood(v: View, n: number, ms: (n: number) => number): void {
+    const back = v.flip ? -1 : 1;
+    for (let i = 0; i < n; i++) {
+      const s = i % 3 ? 3 : 4;
+      const p = this.px(v.hx + (Math.random() - 0.5) * 10, v.hy - 50 + (Math.random() - 0.5) * 16, s, s, i % 2 ? C.red : C.darkRed);
+      const dx = back * (8 + Math.random() * 26);
+      const up = 6 + Math.random() * 16;
+      this.tweens.add({ targets: p, x: p.x + dx, duration: ms(380), ease: 'Linear' });
+      this.tweens.add({ targets: p, y: p.y - up, duration: ms(140), ease: 'Quad.easeOut', yoyo: true, hold: 0 });
+      this.tweens.add({ targets: p, alpha: 0, delay: ms(260), duration: ms(140), onComplete: () => p.destroy() });
+    }
+  }
+
+  // 一道细雷劈下来（术士的普攻，原版是蓝白一道闪电，接着脚下一团蓝火、散开一片星点）
+  private zap(v: View, color: number, ms: (n: number) => number): void {
+    const g = this.add.graphics().setDepth(392);
+    const pts: Phaser.Math.Vector2[] = [];
+    let x = v.hx + (Math.random() - 0.5) * 10;
+    for (let y = v.hy - 150; y < v.hy - 60; y += 12) {
+      pts.push(new Phaser.Math.Vector2(Math.round(x), y));
+      x += (Math.random() - 0.5) * 18;
+    }
+    pts.push(new Phaser.Math.Vector2(v.hx, v.hy - 4));
+    g.lineStyle(8, hex(color), 0.35).strokePoints(pts);
+    g.lineStyle(3, hex(color)).strokePoints(pts);
+    g.lineStyle(1, 0xffffff).strokePoints(pts);
+    this.tweens.add({ targets: g, alpha: 0, delay: ms(90), duration: ms(120), onComplete: () => g.destroy() });
+    this.puff(v, color, ms, 0.6);
+    for (let i = 0; i < 10; i++) {
+      const p = this.px(v.hx - 3, v.hy - 12, 3, 3, i % 3 ? color : C.white);
+      const ang = -Math.PI * (0.1 + Math.random() * 0.8);
+      const d = 14 + Math.random() * 22;
+      this.tweens.add({ targets: p, x: p.x + Math.cos(ang) * d, y: p.y + Math.sin(ang) * d * 0.6, alpha: 0, delay: ms(200), duration: ms(420), onComplete: () => p.destroy() });
     }
   }
 
